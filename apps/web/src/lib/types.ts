@@ -165,3 +165,16 @@ export interface CoverageGapReport {
   cell_size_m: number
   cells: CoverageCell[]
 }
+
+export interface IntegratorCompliance {
+  rtsp_transport_tcp_forced: boolean
+  publishing_to_gateway_disabled: boolean
+  timing_source: string
+  catalogue_driven_discovery: boolean
+  mixed_codec_handling: boolean
+  codecs_in_use: string[]
+  backoff: {
+    initial_s: number
+    max_s: number
+  }
+}

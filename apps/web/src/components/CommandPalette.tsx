@@ -1,5 +1,5 @@
 import { Command } from 'cmdk'
-import { Bell, Camera as CameraIcon, LayoutGrid, LogOut, Search, Video } from 'lucide-react'
+import { Bell, Camera as CameraIcon, LayoutGrid, LogOut, Search, Video, Activity } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { to: '/cameras', label: 'Cameras', icon: CameraIcon, keywords: ['registry', 'feeds'] },
   { to: '/find-a-vehicle', label: 'Find a Vehicle', icon: Search, keywords: ['plate', 'route', 'search'] },
   { to: '/alerts', label: 'Alerts', icon: Bell, keywords: ['watchlist', 'hits'] },
+  { to: '/health', label: 'Health', icon: Activity, keywords: ['compliance', 'integrator', 'status'] },
 ]
 
 /** Global ⌘K / Ctrl+K launcher, mounted once at the app shell. Every

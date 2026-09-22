@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core_api.registry.schemas import GeoPointOut, StreamProfileOut
 from core_api.registry.service import (
     camera_to_out,
+    codecs_in_use,
     get_camera,
     list_cameras,
     list_departments,
@@ -233,3 +234,55 @@ async def test_attributes_round_trip_as_a_json_dict(db_session: AsyncSession) ->
     )
 
     assert camera.attributes == {"mount": "pole", "height_m": "6"}
+
+
+async def test_codecs_in_use_only_counts_live_cameras(db_session: AsyncSession) -> None:
+    """Backs the Integrator Compliance panel's mixed-codec-handling tick —
+    proof by observation, so a camera that is down (and hasn't produced a
+    frame recently) must not count towards the "we handle codec X" claim."""
+    await upsert_camera(
+        db_session,
+        camera_id="cam-010",
+        name="Live h264",
+        driver_id="rtsp",
+        department_name=None,
+        site_name=None,
+        location=None,
+        tier="b_sampled",
+        status="live",
+        source="manual",
+        attributes={},
+        profiles=[StreamProfileOut(protocol="rtsp", url="rtsp://x/cam-010", codec="h264")],
+    )
+    await upsert_camera(
+        db_session,
+        camera_id="cam-011",
+        name="Live h265",
+        driver_id="rtsp",
+        department_name=None,
+        site_name=None,
+        location=None,
+        tier="b_sampled",
+        status="live",
+        source="manual",
+        attributes={},
+        profiles=[StreamProfileOut(protocol="rtsp", url="rtsp://x/cam-011", codec="h265")],
+    )
+    await upsert_camera(
+        db_session,
+        camera_id="cam-012",
+        name="Down mpeg4",
+        driver_id="rtsp",
+        department_name=None,
+        site_name=None,
+        location=None,
+        tier="b_sampled",
+        status="down",
+        source="manual",
+        attributes={},
+        profiles=[StreamProfileOut(protocol="rtsp", url="rtsp://x/cam-012", codec="mpeg4")],
+    )
+
+    codecs = await codecs_in_use(db_session)
+
+    assert codecs == ["h264", "h265"]

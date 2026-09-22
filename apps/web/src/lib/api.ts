@@ -13,6 +13,7 @@ import type {
   CoverageGapReport,
   Department,
   Detection,
+  IntegratorCompliance,
   TokenResponse,
   VehicleRoute,
   WatchlistEntry,
@@ -37,6 +38,10 @@ export const departmentsApi = {
 
 export const coverageApi = {
   gaps: () => get<CoverageGapReport>('/api/v1/coverage/gaps'),
+}
+
+export const complianceApi = {
+  integrator: () => get<IntegratorCompliance>('/api/v1/compliance/integrator'),
 }
 
 export const detectionsApi = {

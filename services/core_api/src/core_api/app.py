@@ -11,8 +11,12 @@ from typing import Any
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core_api.auth.dependencies import current_user
+from core_api.auth.service import TokenPayload
+from core_api.db.base import get_session
+from core_api.registry.service import codecs_in_use
 from core_api.routers.auth import router as auth_router
 from core_api.routers.detections import router as detections_router
 from core_api.routers.registry import router as registry_router
@@ -65,17 +69,23 @@ def create_app() -> FastAPI:
         }
 
     @app.get("/api/v1/compliance/integrator", tags=["ops"])
-    async def integrator_compliance() -> dict[str, Any]:
+    async def integrator_compliance(
+        session: AsyncSession = Depends(get_session),
+        _user: TokenPayload = Depends(current_user),
+    ) -> dict[str, Any]:
         """Live status against the organisers' pre-submission checklist.
 
         Surfaced in the ops dashboard so a technical jury can verify compliance
         rather than take it on trust. Counters are wired up in M4.
         """
+        codecs = await codecs_in_use(session)
         return {
             "rtsp_transport_tcp_forced": settings.rtsp_transport == "tcp",
             "publishing_to_gateway_disabled": settings.allow_stream_publish is False,
             "timing_source": "pts",
             "catalogue_driven_discovery": True,
+            "mixed_codec_handling": len(codecs) >= 2,
+            "codecs_in_use": codecs,
             "backoff": {
                 "initial_s": settings.reconnect_backoff_initial_s,
                 "max_s": settings.reconnect_backoff_max_s,

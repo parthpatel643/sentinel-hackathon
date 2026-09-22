@@ -273,6 +273,20 @@ async def list_cameras(
     return list(result.scalars().all())
 
 
+async def codecs_in_use(session: AsyncSession) -> list[str]:
+    """Distinct codecs currently declared across live cameras' stream
+    profiles — backs the Integrator Compliance panel's "mixed-codec
+    handling" tick: proof by observation (two-plus codecs live right now),
+    not a static claim."""
+    result = await session.execute(
+        select(StreamProfile.codec)
+        .join(Camera, Camera.camera_id == StreamProfile.camera_id)
+        .where(Camera.status == "live", StreamProfile.codec.is_not(None))
+        .distinct()
+    )
+    return sorted({codec for (codec,) in result.all() if codec})
+
+
 async def list_departments(session: AsyncSession) -> list[DepartmentOut]:
     from sqlalchemy import func
 

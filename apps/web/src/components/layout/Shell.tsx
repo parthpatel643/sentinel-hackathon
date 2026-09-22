@@ -1,4 +1,4 @@
-import { Bell, Camera as CameraIcon, LayoutGrid, LogOut, Search, ShieldCheck } from 'lucide-react'
+import { Activity, Bell, Camera as CameraIcon, LayoutGrid, LogOut, Search, ShieldCheck } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '../../lib/cn'
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: '/cameras', label: 'Cameras', icon: CameraIcon, end: false },
   { to: '/find-a-vehicle', label: 'Find a Vehicle', icon: Search, end: false },
   { to: '/alerts', label: 'Alerts', icon: Bell, end: false },
+  { to: '/health', label: 'Health', icon: Activity, end: false },
 ]
 
 export function Shell({ children }: { children: ReactNode }) {

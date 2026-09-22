@@ -4,6 +4,7 @@ import { Home } from './routes/Home'
 import { Cameras } from './routes/Cameras'
 import { FindVehicle } from './routes/FindVehicle'
 import { Alerts } from './routes/Alerts'
+import { Health } from './routes/Health'
 import { Login } from './routes/Login'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import { CommandPalette } from './components/CommandPalette'
@@ -37,6 +38,7 @@ export default function App() {
               <Route path="/cameras" element={<Cameras />} />
               <Route path="/find-a-vehicle" element={<FindVehicle />} />
               <Route path="/alerts" element={<Alerts />} />
+              <Route path="/health" element={<Health />} />
             </Routes>
           </Shell>
         </AuthGate>
