@@ -57,6 +57,42 @@ export interface CameraStream {
   reason: string | null
 }
 
+export interface StreamProfileIn {
+  protocol: string
+  url: string
+  codec?: string | null
+  width?: number | null
+  height?: number | null
+  declared_fps?: number | null
+}
+
+export interface CameraCreate {
+  camera_id: string
+  name: string
+  driver_id?: string
+  department_name?: string | null
+  site_name?: string | null
+  location?: GeoPoint | null
+  tier?: string
+  profiles?: StreamProfileIn[]
+  attributes?: Record<string, string>
+}
+
+export interface BulkImportRowResult {
+  row_number: number
+  camera_id: string | null
+  ok: boolean
+  error: string | null
+}
+
+export interface BulkImportResult {
+  dry_run: boolean
+  total_rows: number
+  succeeded: number
+  failed: number
+  rows: BulkImportRowResult[]
+}
+
 export interface Department {
   id: string
   name: string

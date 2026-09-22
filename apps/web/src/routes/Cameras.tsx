@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { Plus } from 'lucide-react'
 import { camerasApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
 import { TopBar } from '../components/layout/TopBar'
@@ -8,6 +9,7 @@ import { SeverityBadge, statusToSeverity } from '../components/ui/SeverityBadge'
 import { MapView, type MapMarker } from '../components/MapView'
 import { Button } from '../components/ui/Button'
 import { CameraDetailModal } from '../components/CameraDetailModal'
+import { OnboardingWizard } from '../components/OnboardingWizard'
 import type { Camera } from '../lib/types'
 
 const STATUS_COLOR: Record<string, string> = {
@@ -25,9 +27,10 @@ function fpsLabel(camera: Camera): string {
 }
 
 export function Cameras() {
-  const { data: cameras, loading } = usePolling(() => camerasApi.list(), 10000)
+  const { data: cameras, loading, refetch } = usePolling(() => camerasApi.list(), 10000)
   const [view, setView] = useState<'table' | 'map'>('table')
   const [selected, setSelected] = useState<Camera | null>(null)
+  const [wizardOpen, setWizardOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
 
   // Lets the ⌘K palette (and any other deep link) jump straight to a
@@ -67,6 +70,10 @@ export function Cameras() {
         </Button>
         <Button size="sm" variant={view === 'map' ? 'primary' : 'secondary'} onClick={() => setView('map')}>
           Map
+        </Button>
+        <Button size="sm" variant="secondary" className="ml-auto" onClick={() => setWizardOpen(true)}>
+          <Plus size={14} />
+          Add camera
         </Button>
       </div>
 
@@ -122,6 +129,7 @@ export function Cameras() {
         </div>
       )}
       <CameraDetailModal camera={selected} onClose={() => setSelected(null)} />
+      <OnboardingWizard open={wizardOpen} onClose={() => setWizardOpen(false)} onOnboarded={refetch} />
     </div>
   )
 }

@@ -38,6 +38,8 @@ interface MapViewProps {
   routeSegments?: RouteSegment[]
   /** The animated "you are here" marker driven by Replay route. */
   vehiclePosition?: [number, number] | null
+  /** The camera onboarding wizard's "click the map to place a pin" step. */
+  onMapClick?: (lat: number, lon: number) => void
 }
 
 // OpenStreetMap's raw tile server: no API key, global coverage including
@@ -95,6 +97,7 @@ export function MapView({
   className,
   routeSegments = [],
   vehiclePosition = null,
+  onMapClick,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
@@ -103,6 +106,11 @@ export function MapView({
   const vehicleMarkerRef = useRef<Marker | null>(null)
   const routeSegmentsRef = useRef<RouteSegment[]>(routeSegments)
   routeSegmentsRef.current = routeSegments
+  // A ref (not a dependency the click listener effect re-runs on) so the
+  // map/click-listener is only ever attached once, but always calls
+  // whichever onMapClick the caller most recently passed in.
+  const onMapClickRef = useRef(onMapClick)
+  onMapClickRef.current = onMapClick
 
   function syncArrowMarkers(map: MapLibreMap, segments: RouteSegment[]) {
     for (const marker of arrowMarkersRef.current) marker.remove()
@@ -130,6 +138,7 @@ export function MapView({
     // of MapLibre's default light attribution chip.
     map.addControl(new AttributionControl({ compact: true }), 'bottom-left')
     map.addControl(new NavigationControl({ showCompass: false }), 'bottom-right')
+    map.on('click', (event) => onMapClickRef.current?.(event.lngLat.lat, event.lngLat.lng))
     mapRef.current = map
 
     // The container is sized by a flex layout that may not have its final

@@ -80,5 +80,28 @@ async function getBlob(path: string): Promise<{ blob: Blob; filename: string }> 
   return { blob: await response.blob(), filename }
 }
 
-export { get, patch, post, getBlob }
+/** For multipart file uploads (bulk CSV import) — must NOT set a JSON
+ * Content-Type header, or the browser's auto-generated multipart boundary
+ * (which request() would otherwise override) never reaches the server. */
+async function postForm<T>(path: string, formData: FormData): Promise<T> {
+  const token = getToken()
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    body: formData,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!response.ok) {
+    if (response.status === 401) setToken(null)
+    let detail: unknown = null
+    try {
+      detail = await response.json()
+    } catch {
+      detail = await response.text()
+    }
+    throw new ApiError(response.status, detail)
+  }
+  return (await response.json()) as T
+}
+
+export { get, patch, post, getBlob, postForm }
 export { API_BASE }

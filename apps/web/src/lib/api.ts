@@ -2,13 +2,15 @@
  * components call these, never `lib/http` directly — this file is the one
  * place that knows the URL shapes. */
 
-import { get, getBlob, patch, post } from './http'
+import { get, getBlob, patch, post, postForm } from './http'
 import type {
   Alert,
   AlertStatus,
   AuthUser,
   BoloResult,
+  BulkImportResult,
   Camera,
+  CameraCreate,
   CameraStream,
   CoverageGapReport,
   Department,
@@ -31,6 +33,13 @@ export const camerasApi = {
     get<Camera[]>(`/api/v1/cameras${departmentName ? `?department=${encodeURIComponent(departmentName)}` : ''}`),
   get: (cameraId: string) => get<Camera>(`/api/v1/cameras/${encodeURIComponent(cameraId)}`),
   stream: (cameraId: string) => get<CameraStream>(`/api/v1/cameras/${encodeURIComponent(cameraId)}/stream`),
+  create: (payload: CameraCreate) => post<Camera>('/api/v1/cameras', payload),
+  bulkImport: (file: File, dryRun: boolean) => {
+    const form = new FormData()
+    form.append('file', file)
+    return postForm<BulkImportResult>(`/api/v1/cameras/bulk-import?dry_run=${dryRun}`, form)
+  },
+  discover: () => post<Record<string, unknown>>('/api/v1/cameras/discover'),
 }
 
 export const departmentsApi = {
