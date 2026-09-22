@@ -1,0 +1,101 @@
+# Sentinel Platform — local development stack.
+#
+# Everything a judge needs runs from `docker compose up`. The edge agent and core
+# API talk only over the bus and the API, exactly as they do in production, so the
+# single-machine demo exercises the same code paths as the district/state split.
+
+name: sentinel
+
+services:
+  postgres:
+    # timescaledb-ha bundles PostgreSQL 17 + PostGIS + TimescaleDB in one arm64
+    # image: registry geometry, detection hypertables and fuzzy plate search all
+    # live in a single engine (ADR-006).
+    image: timescale/timescaledb-ha:pg17
+    container_name: sentinel-postgres
+    environment:
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinel
+      POSTGRES_DB: sentinel
+    ports:
+      - "${SENTINEL_PG_PORT:-15432}:5432"
+    volumes:
+      - postgres-data:/home/postgres/pgdata/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: sentinel-valkey
+    command: ["valkey-server", "--save", "60", "1", "--appendonly", "no"]
+    ports:
+      - "${SENTINEL_VALKEY_PORT:-16379}:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  nats:
+    image: nats:2.11-alpine
+    container_name: sentinel-nats
+    # JetStream gives durable replay: an edge node that loses its WAN link drains
+    # its store-and-forward queue without losing events.
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    ports:
+      - "${SENTINEL_NATS_PORT:-14222}:4222"
+      - "${SENTINEL_NATS_MONITOR_PORT:-18222}:8222"
+    volumes:
+      - nats-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8222/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: sentinel-minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: sentinel
+      MINIO_ROOT_PASSWORD: sentinel-dev-secret
+    ports:
+      - "${SENTINEL_MINIO_PORT:-19000}:9000"
+      - "${SENTINEL_MINIO_CONSOLE_PORT:-19001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: sentinel-mediamtx
+    # One pull from the source serves every consumer: the browser wall, the
+    # analytics workers and the recorder. The government grid gives each client
+    # its own stream copy, so we are told to pace load — this is how.
+    ports:
+      - "${SENTINEL_RTSP_PORT:-8554}:8554"   # RTSP  — analytics workers
+      - "${SENTINEL_HLS_PORT:-8888}:8888"   # HLS   — dashboards, mobile, firewalled networks
+      - "${SENTINEL_WHEP_PORT:-8889}:8889"   # WebRTC/WHEP — low-latency browser preview
+      - "${SENTINEL_RELAY_API_PORT:-9997}:9997"   # control API, read-only
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+      - mediamtx-recordings:/recordings
+    # No container healthcheck: the image is built FROM scratch and has no shell
+    # or wget, so any HEALTHCHECK command fails by definition. The relay is
+    # probed over its HTTP API by /api/v1/health instead — which tests the path
+    # we actually depend on.
+
+volumes:
+  postgres-data:
+  nats-data:
+  minio-data:
+  mediamtx-recordings:

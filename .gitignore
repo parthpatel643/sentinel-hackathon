@@ -1,0 +1,36 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv
+
+# Secrets and local overrides
+.env
+.env.local
+
+# Model weights are downloaded, never committed (see models/README.md)
+models/weights/
+*.pt
+*.onnx
+*.mlpackage
+
+# Local evidence output (benchmark CSVs are committed deliberately)
+evidence/runs/
+
+# Node
+node_modules/
+apps/*/dist/
+
+# OS
+.DS_Store
+var/

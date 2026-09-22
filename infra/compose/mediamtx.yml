@@ -1,0 +1,88 @@
+# MediaMTX — stream relay for the Sentinel Platform.
+#
+# COMPLIANCE: the organisers' integrator guide says "consume only — do not push
+# streams to any path, and do not call the gateway's control API". Real cameras
+# (government or department) are therefore always configured as PULL sources
+# (`source: rtsp://...`) — MediaMTX itself acts as the RTSP client and no code
+# of ours ever publishes into it. That is a config change per camera, not a
+# permission, so no publish grant is ever needed for those paths.
+#
+# The one exception is `dev/*`: our OWN synthetic test grid (scripts/
+# synthetic_grid.py), which we push into this SAME LOCAL, SELF-HOSTED relay
+# purely to develop and chaos-test without touching the government gateway. It
+# is a completely different instance from anything the government operates.
+# That publish grant uses a dedicated, non-default credential and is scoped to
+# the `dev/*` path pattern only — never a blanket grant, and never usable
+# against a real camera path. (IP-restriction was tried first, but Docker
+# Desktop's VM networking presents host connections to the container under a
+# NAT address, not loopback, so a credential is the portable boundary here.)
+# tests/test_compliance.py asserts no OTHER publish permission exists anywhere.
+
+logLevel: info
+logDestinations: [stdout]
+
+# --- API: read-only ---------------------------------------------------------
+api: yes
+apiAddress: :9997
+
+metrics: yes
+metricsAddress: :9998
+
+# --- Authentication ---------------------------------------------------------
+authInternalUsers:
+  - user: any
+    ips: []
+    permissions:
+      - action: read
+      - action: playback
+      - action: api
+      - action: metrics
+  # dev/*-only credential for our synthetic test-fixture grid. This is not a
+  # secret — it is a throwaway local-development fixture, and the path scope
+  # means it can never touch a real camera path even if reused elsewhere.
+  - user: dev-grid
+    pass: dev-grid-local-only
+    ips: []
+    permissions:
+      - action: publish
+        path: "~^dev/.*$"
+
+# --- Protocols --------------------------------------------------------------
+rtsp: yes
+rtspTransports: [tcp]        # TCP only. UDP corrupts frames across NAT/firewalls.
+rtspAddress: :8554
+
+hls: yes
+hlsAddress: :8888
+hlsVariant: lowLatency
+hlsAlwaysRemux: no           # only remux paths that actually have a reader
+
+webrtc: yes
+webrtcAddress: :8889
+
+rtmp: no
+srt: no
+
+# --- Path defaults ----------------------------------------------------------
+# Cameras are added at runtime from the catalogue (`GET /api/ingest`) and are
+# never hard-coded here: the grid's camera set can change between runs, so
+# discovery always starts from the catalogue.
+#
+# Recording is off by default (Model 4 is event-driven, not a statewide
+# archive). The evidence service turns it on per path when an alert fires.
+pathDefaults:
+  rtspTransport: tcp
+  maxReaders: 0
+  record: no
+  recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S-%f
+  recordFormat: fmp4
+  recordPartDuration: 1s
+  recordSegmentDuration: 1m
+  recordDeleteAfter: 24h
+
+paths:
+  # Synthetic development grid: mixed codecs and resolutions, so the pipeline is
+  # exercised against the same quirks as the government feeds without touching
+  # their gateway. Populated by scripts/synthetic_grid.py.
+  ~^dev/.*$:
+    source: publisher
