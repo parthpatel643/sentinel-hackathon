@@ -2,21 +2,35 @@
 API together, rather than each being proven only in isolation (unit tests
 with fake ports) or via manual curl (M4/M5 verification).
 
-Per camera in the catalogue: `CameraSupervisor` owns reconnect/backoff,
-`AnprPipeline` turns frames into resolved-plate events, and this module posts
-each event to `POST /api/v1/detections` and periodically PATCHes camera
-health. Detector and OCR models are loaded once and shared across every
-camera's pipeline — they are stateless inference engines; only the
-tracker/voter state in each `AnprPipeline` instance is per-camera.
+Per camera: `CameraSupervisor` owns reconnect/backoff, `AnprPipeline` turns
+frames into resolved-plate events, and this module posts each event to
+`POST /api/v1/detections` and periodically PATCHes camera health. Detector
+and OCR models are loaded once and shared across every camera's pipeline —
+they are stateless inference engines; only the tracker/voter state in each
+`AnprPipeline` instance is per-camera.
 
-Usage (with the docker-compose stack, core_api and the synthetic grid all
-already running — see README/docs/05-DELIVERY-PLAN.md):
+Two camera sources, selected with `--source`:
+
+- `synthetic` (default): the M1 local RTSP grid
+  (`scripts/synthetic_grid.py`) — 8 cameras, unlimited concurrency, no
+  external network dependency.
+- `gov`: the real Sentinel Camera Grid (the organisers' actual integration
+  target), fetched live via `GovCatalogueClient` — 30 cameras as of this
+  writing. The integrator guide explicitly asks integrators to "pace your
+  load" and open only the cameras being processed, so this defaults to a
+  small `--limit` rather than opening all 30 RTSP connections at once.
+
+Usage (with the docker-compose stack and core_api already running — see
+README/docs/05-DELIVERY-PLAN.md):
 
     uv run --package edge-agent python -m edge_agent.worker
+    uv run --package edge-agent python -m edge_agent.worker --source gov --limit 4
+    uv run --package edge-agent python -m edge_agent.worker --source gov --cameras cam01,cam04
 """
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import logging
@@ -31,7 +45,8 @@ from edge_agent.analytics.vehicle_detector import VehicleDetector
 from edge_agent.pipeline.capture import CaptureConfig
 from edge_agent.pipeline.supervisor import CameraSupervisor
 from sentinel_core.config import get_settings
-from sentinel_core.schemas import AnprPayload, Event
+from sentinel_core.gov_catalogue import GovCatalogueClient
+from sentinel_core.schemas import AnprPayload, CameraDescriptor, Event, StreamProtocol
 
 logger = logging.getLogger("edge_agent.worker")
 
@@ -44,39 +59,54 @@ MODEL_VERSIONS = {
     "ocr": "cct-s-v2-global@fast-plate-ocr-1.1.0",
 }
 HEALTH_REPORT_INTERVAL_S = 5.0
-
-# The catalogue is parsed straight from JSON (the same shape
-# `sentinel_core.schemas.CameraDescriptor` serialises to) rather than
-# re-validated into that model — this worker only reads a handful of known
-# keys back out, so the extra round trip isn't worth the ceremony.
-CameraJson = dict[str, Any]
+DEFAULT_GOV_LIMIT = 4
 
 
-def _rtsp_url(descriptor: CameraJson) -> str | None:
-    for profile in descriptor.get("profiles", []):
-        if profile.get("protocol") == "rtsp":
-            url = profile["url"]
-            assert isinstance(url, str)
-            return url
-    return None
+def _load_synthetic_descriptors() -> list[CameraDescriptor]:
+    if not SYNTHETIC_CATALOGUE.exists():
+        raise SystemExit(
+            f"no catalogue at {SYNTHETIC_CATALOGUE}. Run:\n"
+            "    uv run python scripts/synthetic_grid.py generate\n"
+            "    uv run python scripts/synthetic_grid.py start"
+        )
+    raw: list[dict[str, Any]] = json.loads(SYNTHETIC_CATALOGUE.read_text())
+    return [CameraDescriptor.model_validate(entry) for entry in raw]
 
 
-async def _register_camera(client: httpx.AsyncClient, descriptor: CameraJson) -> None:
+def _rtsp_url(descriptor: CameraDescriptor) -> str | None:
+    profile = descriptor.profile_for(StreamProtocol.RTSP)
+    return profile.url if profile else None
+
+
+async def _register_camera(client: httpx.AsyncClient, descriptor: CameraDescriptor) -> None:
     """Idempotent: 409 (already onboarded from a previous run) is expected
     and not an error — this worker does not own onboarding, the registry
     endpoints (M3) do; it just makes sure the FK target exists before it
     starts posting detections against it."""
-    profile = next((p for p in descriptor.get("profiles", []) if p.get("protocol") == "rtsp"), None)
+    profile = descriptor.profile_for(StreamProtocol.RTSP)
     payload = {
-        "camera_id": descriptor["camera_id"],
-        "name": descriptor["name"],
-        "driver_id": descriptor.get("driver_id", "rtsp"),
-        "department_name": descriptor.get("department"),
-        "site_name": descriptor.get("site"),
-        "location": descriptor.get("location"),
-        "tier": descriptor.get("tier", "b_sampled"),
-        "attributes": descriptor.get("attributes", {}),
-        "profiles": [profile] if profile else [],
+        "camera_id": descriptor.camera_id,
+        "name": descriptor.name,
+        "driver_id": descriptor.driver_id,
+        "department_name": descriptor.department,
+        "site_name": descriptor.site,
+        "location": descriptor.location.model_dump() if descriptor.location else None,
+        "tier": descriptor.tier.value,
+        "attributes": descriptor.attributes,
+        "profiles": (
+            [
+                {
+                    "protocol": profile.protocol.value,
+                    "url": profile.url,
+                    "codec": profile.codec,
+                    "width": profile.width,
+                    "height": profile.height,
+                    "declared_fps": profile.declared_fps,
+                }
+            ]
+            if profile
+            else []
+        ),
     }
     response = await client.post("/api/v1/cameras", json=payload)
     if response.status_code not in (201, 409):
@@ -138,11 +168,11 @@ def _event_to_detection_payload(event: Event) -> dict[str, Any]:
 
 async def _run_camera(
     client: httpx.AsyncClient,
-    descriptor: CameraJson,
+    descriptor: CameraDescriptor,
     vehicle_detector: VehicleDetector,
     plate_reader: FastAlprPlateReader,
 ) -> None:
-    camera_id = descriptor["camera_id"]
+    camera_id = descriptor.camera_id
     url = _rtsp_url(descriptor)
     if url is None:
         logger.warning("skipping %s: no rtsp profile in the catalogue", camera_id)
@@ -180,15 +210,37 @@ async def _run_camera(
         health_task.cancel()
 
 
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--source",
+        choices=["synthetic", "gov"],
+        default="synthetic",
+        help="synthetic: local M1 RTSP grid (default). gov: the real Sentinel Camera Grid.",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help=f"cap on concurrent cameras (default: unlimited for synthetic, "
+        f"{DEFAULT_GOV_LIMIT} for gov — see the integrator guide's 'pace your load' note).",
+    )
+    parser.add_argument(
+        "--cameras",
+        type=str,
+        default=None,
+        help="comma-separated camera ids to run instead of the first --limit from the catalogue "
+        "(e.g. cam01,cam04).",
+    )
+    return parser.parse_args()
+
+
 async def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+    args = _parse_args()
 
-    if not SYNTHETIC_CATALOGUE.exists():
-        raise SystemExit(
-            f"no catalogue at {SYNTHETIC_CATALOGUE}. Run:\n"
-            "    uv run python scripts/synthetic_grid.py generate\n"
-            "    uv run python scripts/synthetic_grid.py start"
-        )
     if not VEHICLE_MODEL.exists():
         raise SystemExit(
             f"no vehicle model at {VEHICLE_MODEL}. Run:\n"
@@ -196,9 +248,35 @@ async def main() -> None:
             "python scripts/export_models.py"
         )
 
-    descriptors: list[CameraJson] = json.loads(SYNTHETIC_CATALOGUE.read_text())
     settings = get_settings()
     api_base_url = settings.core_api_url
+
+    if args.source == "synthetic":
+        descriptors = _load_synthetic_descriptors()
+        default_limit = None
+    else:
+        if not settings.gov_access_email:
+            raise SystemExit(
+                "no SENTINEL_GOV_ACCESS_EMAIL/PASSWORD configured — set them in .env "
+                "(see .env.example) to use --source gov."
+            )
+        async with GovCatalogueClient(settings) as gov_client:
+            descriptors = await gov_client.fetch()
+        default_limit = DEFAULT_GOV_LIMIT
+
+    if args.cameras:
+        wanted = set(args.cameras.split(","))
+        descriptors = [d for d in descriptors if d.camera_id in wanted]
+        missing = wanted - {d.camera_id for d in descriptors}
+        if missing:
+            logger.warning("requested camera ids not found in the catalogue: %s", sorted(missing))
+    else:
+        limit = args.limit if args.limit is not None else default_limit
+        if limit is not None:
+            descriptors = descriptors[:limit]
+
+    if not descriptors:
+        raise SystemExit("no cameras to run — check --source/--cameras/--limit")
 
     logger.info("loading models ...")
     vehicle_detector = VehicleDetector(VEHICLE_MODEL)
@@ -209,7 +287,12 @@ async def main() -> None:
         for descriptor in descriptors:
             await _register_camera(client, descriptor)
 
-        logger.info("starting %d camera pipelines against %s", len(descriptors), api_base_url)
+        logger.info(
+            "starting %d camera pipeline(s) (source=%s) against %s",
+            len(descriptors),
+            args.source,
+            api_base_url,
+        )
         await asyncio.gather(
             *(
                 _run_camera(client, descriptor, vehicle_detector, plate_reader)

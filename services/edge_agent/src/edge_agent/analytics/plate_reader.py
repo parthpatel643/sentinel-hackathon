@@ -38,15 +38,31 @@ class PlateCandidate:
 
 
 class FastAlprPlateReader:
-    """Default execution-provider policy, measured on Apple Silicon (base M2):
+    """Default execution-provider policy.
 
-    - Plate DETECTOR on CoreML EP: 5-8.6x faster than CPU for this model
-      family (YOLOv9).
-    - OCR on CPU EP, explicitly pinned: CoreML makes the CCT OCR models
-      *slower* (attention-op partitioning overhead dominates a sub-2ms
-      model) — the opposite of the detector, and the opposite of what
-      fast-plate-ocr's own docs suggest for the *legacy* CNN models. Do not
-      trust automatic provider selection for this stage.
+    OCR on CPU EP, explicitly pinned: CoreML makes the CCT OCR models
+    *slower* (attention-op partitioning overhead dominates a sub-2ms
+    model) — the opposite of what fast-plate-ocr's own docs suggest for the
+    *legacy* CNN models. Do not trust automatic provider selection for this
+    stage.
+
+    The plate DETECTOR defaults to CPU too, despite CoreML measuring
+    5-8.6x faster for this model family on Apple Silicon
+    (docs/02-ANPR-PIPELINE.md section 3) — that benchmark was run against
+    the M2 synthetic grid and a static test image, both of which happened
+    never to trigger a real CoreML bug: this end-to-end YOLOv9 export's
+    baked-in NMS produces a zero-length dynamic array on some real frames,
+    which CoreML's EP cannot execute
+    ("dynamic shape ({-1}) but the runtime shape ({0}) has zero elements")
+    and CPU EP handles without issue. Found running this pipeline against
+    the real government camera grid for the first time — every frame from
+    two live cameras hit it within two minutes, effectively disabling plate
+    detection entirely while silently not crashing the process (the
+    library logs the error and returns no detections for that frame).
+    Correctness beats the synthetic benchmark's speed number here; pass
+    `detector_providers=("CoreMLExecutionProvider", "CPUExecutionProvider")`
+    explicitly if a caller wants to opt back in for content known not to
+    trigger this.
     """
 
     def __init__(
@@ -54,7 +70,7 @@ class FastAlprPlateReader:
         *,
         detector_model: str = "yolo-v9-t-640-license-plate-end2end",
         ocr_model: str = "cct-s-v2-global-model",
-        detector_providers: Sequence[str] = ("CoreMLExecutionProvider", "CPUExecutionProvider"),
+        detector_providers: Sequence[str] = ("CPUExecutionProvider",),
         ocr_providers: Sequence[str] = ("CPUExecutionProvider",),
         detector_conf_thresh: float = 0.4,
     ) -> None:

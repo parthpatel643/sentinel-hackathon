@@ -146,6 +146,28 @@ class GovCatalogueClient:
         self._settings = settings
         self._client = client or httpx.AsyncClient(timeout=10.0)
         self._owns_client = client is None
+        self._logged_in = False
+
+    async def _ensure_authenticated(self) -> None:
+        """The catalogue and HLS host sits behind a session-cookie login
+        (`POST /auth/login` with `email`/`password` form fields) that the
+        integrator guide doesn't document up front — discovered by reading
+        the login page's own HTML form when a bare `GET cameras.json` kept
+        302-redirecting there. RTSP/WHEP are unaffected: those authenticate
+        per-connection via the URL, not this cookie. Logged in once per
+        client instance, not once per fetch() call.
+        """
+        if self._logged_in or not self._settings.gov_access_email:
+            return
+        login_url = f"{self._settings.gov_hls_base_url}/auth/login"
+        await self._client.post(
+            login_url,
+            data={
+                "email": self._settings.gov_access_email,
+                "password": self._settings.gov_access_password.get_secret_value(),
+            },
+        )
+        self._logged_in = True
 
     async def fetch(self) -> list[CameraDescriptor]:
         """Fetch the catalogue and parse every entry it's possible to parse.
@@ -153,6 +175,7 @@ class GovCatalogueClient:
         A malformed entry is logged and skipped rather than aborting the
         whole onboarding run — one bad row must never block the other 29.
         """
+        await self._ensure_authenticated()
         response = await self._client.get(self._settings.gov_catalogue_url)
         response.raise_for_status()
         payload = response.json()
