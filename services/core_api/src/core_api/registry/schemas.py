@@ -17,6 +17,7 @@ __all__ = [
     "CameraCreate",
     "CameraHealthUpdate",
     "CameraOut",
+    "CameraStreamOut",
     "CoverageGapReport",
     "DepartmentCreate",
     "DepartmentOut",
@@ -25,6 +26,21 @@ __all__ = [
     "StreamProfileIn",
     "StreamProfileOut",
 ]
+
+
+class CameraStreamOut(BaseModel):
+    """The one thing the Operator Console's live-preview needs: a URL a
+    plain <video> tag can play with no credentials of its own. Never the
+    camera's raw RTSP/WHEP profile URLs — those carry embedded credentials
+    for gov-catalogue cameras and must never reach the browser."""
+
+    available: bool
+    hls_url: str | None = Field(
+        default=None, description="Playable without credentials when available=true"
+    )
+    reason: str | None = Field(
+        default=None, description="Plain-language explanation when available=false"
+    )
 
 
 class GeoPointOut(BaseModel):

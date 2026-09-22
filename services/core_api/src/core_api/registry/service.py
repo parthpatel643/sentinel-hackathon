@@ -12,6 +12,7 @@ import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from urllib.parse import urlsplit
 
 from geoalchemy2.shape import to_shape
 from sqlalchemy import delete, select
@@ -22,11 +23,13 @@ from core_api.db.models import Camera, Department, Site, StreamProfile
 from core_api.registry.schemas import (
     CameraHealthUpdate,
     CameraOut,
+    CameraStreamOut,
     DepartmentOut,
     GeoPointOut,
     StreamProfileIn,
     StreamProfileOut,
 )
+from sentinel_core.config import Settings
 from sentinel_core.schemas import CameraDescriptor
 
 __all__ = [
@@ -344,3 +347,59 @@ def department_to_out(department: Department, camera_count: int = 0) -> Departme
     return DepartmentOut(
         id=department.id, name=department.name, code=department.code, camera_count=camera_count
     )
+
+
+_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1"})
+
+
+def _same_relay_host(hostname: str, relay_hostname: str) -> bool:
+    """`localhost` and `127.0.0.1` are the same machine but not the same
+    string — a raw netloc comparison treated the synthetic grid's own
+    cameras (registered as `127.0.0.1:8554`) as an unrecognised external
+    source whenever `relay_rtsp_url` was configured with `localhost`
+    instead, which is exactly the default in sentinel_core.config."""
+    if hostname == relay_hostname:
+        return True
+    return hostname in _LOOPBACK_HOSTS and relay_hostname in _LOOPBACK_HOSTS
+
+
+def resolve_camera_stream(camera: Camera, settings: Settings) -> CameraStreamOut:
+    """The Cameras screen's "view live" action needs one thing: a URL a
+    plain <video> tag can play with zero credentials of its own — never a
+    camera's raw RTSP/WHEP profile, which for gov-catalogue cameras carries
+    an embedded email:password (see routers/registry.py's docstring on this
+    endpoint for why that must never reach the browser).
+
+    Only cameras already relayed through *our own* local MediaMTX (the M1
+    synthetic grid, published to `dev/*` — see infra/compose/mediamtx.yml)
+    can be resolved today: their RTSP profile host matches
+    `settings.relay_rtsp_url`, so the equivalent local, unauthenticated HLS
+    URL is derived by swapping the scheme/host for the relay's HLS host and
+    keeping the RTSP path. Real gov-catalogue cameras are correctly reported
+    as unavailable — proxying their credentialed feed through our own relay
+    is a real feature (docs/01-ARCHITECTURE.md's Live Wall design already
+    anticipates it), not implemented yet, not silently faked here.
+    """
+    rtsp_profile = next((p for p in camera.profiles if p.protocol == "rtsp"), None)
+    if rtsp_profile is None:
+        return CameraStreamOut(available=False, reason="This camera has no RTSP profile on file.")
+
+    relay = urlsplit(settings.relay_rtsp_url)
+    parsed = urlsplit(rtsp_profile.url)
+    same_host = (
+        parsed.hostname is not None
+        and relay.hostname is not None
+        and _same_relay_host(parsed.hostname, relay.hostname)
+    )
+    if not same_host or parsed.port != relay.port:
+        return CameraStreamOut(
+            available=False,
+            reason=(
+                "Live preview isn't wired up yet for cameras outside our own local "
+                "relay — this camera's feed comes from an external source that "
+                "isn't proxied through it."
+            ),
+        )
+
+    hls_url = f"{settings.relay_hls_url.rstrip('/')}{parsed.path}/index.m3u8"
+    return CameraStreamOut(available=True, hls_url=hls_url)

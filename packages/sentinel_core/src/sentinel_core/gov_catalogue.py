@@ -53,6 +53,41 @@ _HEIGHT_KEYS = ("height", "res_height", "resolution_height")
 _FPS_KEYS = ("fps", "frame_rate", "frameRate", "declared_fps")
 _LIVE_KEYS = ("live", "is_live", "status", "online")
 
+# The real catalogue's entries carry only `id` and `name` — no coordinates at
+# all — which otherwise leaves every onboarded camera unplottable on the map.
+# Many names do contain a real, recognisable Gujarat place; this is a
+# best-effort *town/landmark-level* lookup (not the camera's actual GPS
+# position, which the catalogue simply doesn't provide) applied only when a
+# name clearly matches one of these places — an ambiguous or generic name
+# ("Suvidha park", "kheram", "Mohanpura") is deliberately left unplotted
+# rather than guessed. Longer/more specific keys are checked first so
+# "Rajkot Bus Port" doesn't fall through to a shorter unrelated match.
+_GUJARAT_PLACE_COORDS: tuple[tuple[str, float, float], ...] = (
+    ("paldi", 23.0134, 72.5589),
+    ("visat", 23.0862, 72.5847),
+    ("chiman bhai bridge", 23.0300, 72.5800),
+    ("cn vidhyalaya", 23.0167, 72.5500),
+    ("adalaj", 23.1667, 72.5833),
+    ("junagadh", 21.5222, 70.4579),
+    ("gir-somnath", 20.9000, 70.4000),
+    ("gir somnath", 20.9000, 70.4000),
+    ("rajkot", 22.3039, 70.8022),
+    ("navsari", 20.9467, 72.9520),
+    ("gandevi", 20.8000, 72.9167),
+    ("patan", 23.8493, 72.1266),
+    ("dehgam", 23.1667, 72.8167),
+    ("bilimora", 20.7667, 72.9500),
+    ("gandhidham", 23.0753, 70.1337),
+)
+
+
+def _geocode_from_name(name: str) -> GeoPoint | None:
+    lowered = name.lower()
+    for keyword, lat, lon in _GUJARAT_PLACE_COORDS:
+        if keyword in lowered:
+            return GeoPoint(lat=lat, lon=lon)
+    return None
+
 
 class CatalogueEntryError(ValueError):
     """One entry in the catalogue could not be mapped to a CameraDescriptor.
@@ -92,9 +127,11 @@ def _parse_entry(raw: dict[str, Any], settings: Settings) -> CameraDescriptor:
 
     lat = _first(raw, _LAT_KEYS)
     lon = _first(raw, _LON_KEYS)
-    location = (
-        GeoPoint(lat=float(lat), lon=float(lon)) if lat is not None and lon is not None else None
-    )
+    location: GeoPoint | None
+    if lat is not None and lon is not None:
+        location = GeoPoint(lat=float(lat), lon=float(lon))
+    else:
+        location = _geocode_from_name(str(_first(raw, _NAME_KEYS) or ""))
 
     width = _first(raw, _WIDTH_KEYS)
     height = _first(raw, _HEIGHT_KEYS)

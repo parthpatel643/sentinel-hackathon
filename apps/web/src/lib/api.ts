@@ -8,6 +8,7 @@ import type {
   AlertStatus,
   BoloResult,
   Camera,
+  CameraStream,
   CoverageGapReport,
   Department,
   Detection,
@@ -19,6 +20,7 @@ export const camerasApi = {
   list: (departmentName?: string) =>
     get<Camera[]>(`/api/v1/cameras${departmentName ? `?department=${encodeURIComponent(departmentName)}` : ''}`),
   get: (cameraId: string) => get<Camera>(`/api/v1/cameras/${encodeURIComponent(cameraId)}`),
+  stream: (cameraId: string) => get<CameraStream>(`/api/v1/cameras/${encodeURIComponent(cameraId)}/stream`),
 }
 
 export const departmentsApi = {

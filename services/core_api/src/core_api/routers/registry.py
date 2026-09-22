@@ -14,6 +14,7 @@ from core_api.registry.schemas import (
     CameraCreate,
     CameraHealthUpdate,
     CameraOut,
+    CameraStreamOut,
     CoverageGapReport,
     DepartmentOut,
     GeoPointOut,
@@ -23,6 +24,7 @@ from core_api.registry.service import (
     get_camera,
     list_cameras,
     list_departments,
+    resolve_camera_stream,
     update_camera_health,
     upsert_camera,
     upsert_from_descriptors,
@@ -92,6 +94,21 @@ async def update_camera_health_endpoint(
         raise HTTPException(status_code=404, detail=f"no camera with id {camera_id!r}")
     await session.commit()
     return camera_to_out(camera)
+
+
+@router.get("/cameras/{camera_id}/stream", response_model=CameraStreamOut)
+async def camera_stream_endpoint(
+    camera_id: str, session: AsyncSession = Depends(get_session)
+) -> CameraStreamOut:
+    """Resolves a URL the Cameras screen's live-preview can hand straight to
+    a <video> tag — never the camera's own RTSP/WHEP profile, which for a
+    gov-catalogue camera carries embedded credentials (email:password) that
+    must never reach the browser. See registry/service.py's
+    resolve_camera_stream for what "available" actually means today."""
+    camera = await get_camera(session, camera_id)
+    if camera is None:
+        raise HTTPException(status_code=404, detail=f"no camera with id {camera_id!r}")
+    return resolve_camera_stream(camera, get_settings())
 
 
 @router.post("/cameras/bulk-import", response_model=BulkImportResult)

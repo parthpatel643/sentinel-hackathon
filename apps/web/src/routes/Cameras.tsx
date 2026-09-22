@@ -6,6 +6,7 @@ import { Card } from '../components/ui/Card'
 import { SeverityBadge, statusToSeverity } from '../components/ui/SeverityBadge'
 import { MapView, type MapMarker } from '../components/MapView'
 import { Button } from '../components/ui/Button'
+import { CameraDetailModal } from '../components/CameraDetailModal'
 import type { Camera } from '../lib/types'
 
 const STATUS_COLOR: Record<string, string> = {
@@ -25,6 +26,7 @@ function fpsLabel(camera: Camera): string {
 export function Cameras() {
   const { data: cameras, loading } = usePolling(() => camerasApi.list(), 10000)
   const [view, setView] = useState<'table' | 'map'>('table')
+  const [selected, setSelected] = useState<Camera | null>(null)
 
   const markers: MapMarker[] =
     cameras
@@ -35,6 +37,7 @@ export function Cameras() {
         lon: c.location.lon,
         color: STATUS_COLOR[c.status] ?? STATUS_COLOR.unknown,
         label: c.name,
+        onClick: () => setSelected(c),
       })) ?? []
 
   return (
@@ -76,7 +79,11 @@ export function Cameras() {
                 </thead>
                 <tbody>
                   {cameras.map((camera) => (
-                    <tr key={camera.camera_id} className="border-b border-border-subtle/60 last:border-0">
+                    <tr
+                      key={camera.camera_id}
+                      onClick={() => setSelected(camera)}
+                      className="cursor-pointer border-b border-border-subtle/60 last:border-0 hover:bg-bg-overlay"
+                    >
                       <td className="px-4 py-2.5">
                         <div className="font-medium text-text-primary">{camera.name}</div>
                         <div className="text-xs text-text-tertiary">{camera.camera_id}</div>
@@ -96,6 +103,7 @@ export function Cameras() {
           )}
         </div>
       )}
+      <CameraDetailModal camera={selected} onClose={() => setSelected(null)} />
     </div>
   )
 }

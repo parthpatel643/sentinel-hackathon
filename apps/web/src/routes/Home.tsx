@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { alertsApi, camerasApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
 import { MapView, type MapMarker } from '../components/MapView'
 import { TopBar } from '../components/layout/TopBar'
 import { Card } from '../components/ui/Card'
 import { SeverityBadge, priorityToSeverity } from '../components/ui/SeverityBadge'
+import { CameraDetailModal } from '../components/CameraDetailModal'
 import type { Alert, Camera } from '../lib/types'
 import { Link } from 'react-router-dom'
 
@@ -46,6 +47,7 @@ function AttentionCard({ alert }: { alert: Alert }) {
 export function Home() {
   const { data: cameras } = usePolling(() => camerasApi.list(), 8000)
   const { data: alerts } = usePolling(() => alertsApi.list('new'), 6000)
+  const [selected, setSelected] = useState<Camera | null>(null)
 
   const markers = useMemo<MapMarker[]>(() => {
     if (!cameras) return []
@@ -57,6 +59,7 @@ export function Home() {
         lon: c.location.lon,
         color: STATUS_COLOR[c.status] ?? STATUS_COLOR.unknown,
         label: `${c.name} · ${c.status}`,
+        onClick: () => setSelected(c),
       }))
   }, [cameras])
 
@@ -93,6 +96,7 @@ export function Home() {
           </div>
         </aside>
       </div>
+      <CameraDetailModal camera={selected} onClose={() => setSelected(null)} />
     </div>
   )
 }

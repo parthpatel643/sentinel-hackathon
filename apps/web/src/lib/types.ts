@@ -37,6 +37,12 @@ export interface Camera {
   updated_at: string
 }
 
+export interface CameraStream {
+  available: boolean
+  hls_url: string | null
+  reason: string | null
+}
+
 export interface Department {
   id: string
   name: string
