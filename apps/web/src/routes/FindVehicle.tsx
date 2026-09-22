@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Download } from 'lucide-react'
+import { Download, Pause, Play } from 'lucide-react'
 import { detectionsApi, watchlistApi } from '../lib/api'
 import { ApiError } from '../lib/http'
 import { MapView, type MapMarker } from '../components/MapView'
@@ -8,6 +8,7 @@ import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
 import { SeverityBadge } from '../components/ui/SeverityBadge'
+import { cn } from '../lib/cn'
 import type { RoutePoint, VehicleRoute } from '../lib/types'
 
 function formatTime(iso: string): string {
@@ -131,6 +132,18 @@ export function FindVehicle() {
   const [error, setError] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
+  // Replay route (docs/03-UX-DESIGN.md \u00a74.4 — "the single most demo-able
+  // interaction in the product"): animates a marker along the polyline,
+  // pausing briefly at each hop, and highlights that hop in the timeline in
+  // sync. Position updates run on requestAnimationFrame directly (not
+  // through the point-search state above) so the 60fps tween doesn't
+  // re-render the timeline list on every frame — only activeHopIndex does,
+  // and only once per hop.
+  const [activeHopIndex, setActiveHopIndex] = useState<number | null>(null)
+  const [replaying, setReplaying] = useState(false)
+  const [vehiclePosition, setVehiclePosition] = useState<[number, number] | null>(null)
+  const replayTokenRef = useRef(0)
+
   useEffect(() => {
     if (!plateParam) {
       setRoute(null)
@@ -145,22 +158,86 @@ export function FindVehicle() {
       .finally(() => setLoading(false))
   }, [plateParam, refreshKey])
 
+  // Cancel any in-flight replay if the operator starts a new search.
+  useEffect(() => {
+    replayTokenRef.current += 1
+    setReplaying(false)
+    setActiveHopIndex(null)
+    setVehiclePosition(null)
+  }, [plateParam])
+
   function handleSearch() {
     const trimmed = input.trim()
     if (!trimmed) return
     setSearchParams({ plate: trimmed })
   }
 
-  const markers: MapMarker[] =
+  const locatedPoints =
     route?.points
-      .filter((p): p is RoutePoint & { location: NonNullable<RoutePoint['location']> } => p.location !== null)
-      .map((p, i) => ({
-        id: `${p.camera_id}-${i}`,
-        lat: p.location.lat,
-        lon: p.location.lon,
-        color: 'oklch(0.68 0.16 245)',
-        label: `${i + 1}. ${p.camera_name} · ${formatTime(p.observed_at)}`,
-      })) ?? []
+      .map((p, i) => ({ ...p, index: i }))
+      .filter((p): p is typeof p & { location: NonNullable<RoutePoint['location']> } => p.location !== null) ?? []
+
+  function playReplay() {
+    if (locatedPoints.length < 2) return
+    const token = ++replayTokenRef.current
+    setReplaying(true)
+
+    const DWELL_MS = 550
+    const TRAVEL_MS = 1100
+    const easeInOutQuad = (t: number) => (t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2)
+
+    function dwellThenTravel(hop: number) {
+      if (replayTokenRef.current !== token) return
+      setActiveHopIndex(locatedPoints[hop].index)
+      setVehiclePosition([locatedPoints[hop].location.lon, locatedPoints[hop].location.lat])
+      if (hop >= locatedPoints.length - 1) {
+        setTimeout(() => {
+          if (replayTokenRef.current === token) setReplaying(false)
+        }, DWELL_MS)
+        return
+      }
+      setTimeout(() => {
+        if (replayTokenRef.current !== token) return
+        const from = locatedPoints[hop].location
+        const to = locatedPoints[hop + 1].location
+        const start = performance.now()
+        function step(now: number) {
+          if (replayTokenRef.current !== token) return
+          const t = Math.min(1, (now - start) / TRAVEL_MS)
+          const eased = easeInOutQuad(t)
+          setVehiclePosition([from.lon + (to.lon - from.lon) * eased, from.lat + (to.lat - from.lat) * eased])
+          if (t < 1) requestAnimationFrame(step)
+          else dwellThenTravel(hop + 1)
+        }
+        requestAnimationFrame(step)
+      }, DWELL_MS)
+    }
+
+    dwellThenTravel(0)
+  }
+
+  function stopReplay() {
+    replayTokenRef.current += 1
+    setReplaying(false)
+    setActiveHopIndex(null)
+    setVehiclePosition(null)
+  }
+
+  const markers: MapMarker[] = locatedPoints.map((p) => ({
+    id: `${p.camera_id}-${p.index}`,
+    lat: p.location.lat,
+    lon: p.location.lon,
+    color: 'oklch(0.68 0.16 245)',
+    label: `${p.index + 1}. ${p.camera_name} · ${formatTime(p.observed_at)}`,
+    number: p.index + 1,
+    pulse: activeHopIndex === p.index,
+  }))
+
+  const routeSegments = locatedPoints.slice(0, -1).map((p, i) => ({
+    from: [p.location.lon, p.location.lat] as [number, number],
+    to: [locatedPoints[i + 1].location.lon, locatedPoints[i + 1].location.lat] as [number, number],
+    confirmed: locatedPoints[i + 1].match_rung !== 'ambiguity_class',
+  }))
 
   if (!plateParam) {
     return (
@@ -226,11 +303,27 @@ export function FindVehicle() {
                 {route.last_seen_at && formatTime(route.last_seen_at)}
               </p>
             </div>
-            <ExportReportButton plate={route.plate_normalised} />
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={replaying ? stopReplay : playReplay}
+                disabled={locatedPoints.length < 2}
+              >
+                {replaying ? <Pause size={14} /> : <Play size={14} />}
+                {replaying ? 'Stop' : 'Replay route'}
+              </Button>
+              <ExportReportButton plate={route.plate_normalised} />
+            </div>
           </div>
           <div className="relative flex min-h-0 flex-1">
             <div className="relative flex-[1.4]">
-              <MapView markers={markers} className="absolute inset-0" />
+              <MapView
+                markers={markers}
+                routeSegments={routeSegments}
+                vehiclePosition={vehiclePosition}
+                className="absolute inset-0"
+              />
             </div>
             <aside className="w-[360px] flex-shrink-0 overflow-y-auto border-l border-border-subtle bg-bg-raised p-4">
               <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-tertiary">
@@ -238,7 +331,13 @@ export function FindVehicle() {
               </h2>
               <ol className="flex flex-col gap-3">
                 {route.points.map((point, i) => (
-                  <li key={`${point.camera_id}-${i}`} className="flex gap-3">
+                  <li
+                    key={`${point.camera_id}-${i}`}
+                    className={cn(
+                      'flex gap-3 rounded-md transition-colors duration-fast',
+                      activeHopIndex === i && '-mx-2 bg-accent/10 px-2 py-1',
+                    )}
+                  >
                     <div className="flex flex-col items-center pt-1">
                       <span
                         className={

@@ -1,8 +1,10 @@
+import type { Feature, FeatureCollection, LineString } from 'geojson'
 import {
   AttributionControl,
   MapLibreMap,
   Marker,
   NavigationControl,
+  type GeoJSONSource,
   type StyleSpecification,
 } from 'maplibre-gl'
 import { useEffect, useRef } from 'react'
@@ -15,6 +17,17 @@ export interface MapMarker {
   label?: string
   onClick?: () => void
   pulse?: boolean
+  /** Shown inside the dot — used by Find a Vehicle's route hops so the map
+   * and the timeline list agree on hop order at a glance. */
+  number?: number
+}
+
+export interface RouteSegment {
+  from: [number, number]
+  to: [number, number]
+  /** false = a "probable" hop (matched by appearance, not plate) — rendered
+   * dashed, per docs/03-UX-DESIGN.md \u00a74.4. */
+  confirmed: boolean
 }
 
 interface MapViewProps {
@@ -22,6 +35,9 @@ interface MapViewProps {
   center?: [number, number]
   zoom?: number
   className?: string
+  routeSegments?: RouteSegment[]
+  /** The animated "you are here" marker driven by Replay route. */
+  vehiclePosition?: [number, number] | null
 }
 
 // OpenStreetMap's raw tile server: no API key, global coverage including
@@ -54,11 +70,50 @@ const RASTER_STYLE: StyleSpecification = {
 }
 
 const GUJARAT_CENTER: [number, number] = [72.5714, 23.0225]
+const ROUTE_SOURCE_ID = 'find-a-vehicle-route'
 
-export function MapView({ markers, center = GUJARAT_CENTER, zoom = 11, className }: MapViewProps) {
+/** Initial compass bearing from point A to B, in degrees — used to orient
+ * the DOM-based direction-arrow markers along a route segment. */
+function bearingDegrees([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180
+  const toDeg = (rad: number) => (rad * 180) / Math.PI
+  const y = Math.sin(toRad(lon2 - lon1)) * Math.cos(toRad(lat2))
+  const x =
+    Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+    Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(toRad(lon2 - lon1))
+  return (toDeg(Math.atan2(y, x)) + 360) % 360
+}
+
+function midpoint([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): [number, number] {
+  return [(lon1 + lon2) / 2, (lat1 + lat2) / 2]
+}
+
+export function MapView({
+  markers,
+  center = GUJARAT_CENTER,
+  zoom = 11,
+  className,
+  routeSegments = [],
+  vehiclePosition = null,
+}: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const markerRefs = useRef<Map<string, Marker>>(new Map())
+  const arrowMarkersRef = useRef<Marker[]>([])
+  const vehicleMarkerRef = useRef<Marker | null>(null)
+  const routeSegmentsRef = useRef<RouteSegment[]>(routeSegments)
+  routeSegmentsRef.current = routeSegments
+
+  function syncArrowMarkers(map: MapLibreMap, segments: RouteSegment[]) {
+    for (const marker of arrowMarkersRef.current) marker.remove()
+    arrowMarkersRef.current = segments.map((segment) => {
+      const el = document.createElement('div')
+      el.className = 'map-route-arrow'
+      el.style.transform = `rotate(${bearingDegrees(segment.from, segment.to) - 90}deg)`
+      el.style.opacity = segment.confirmed ? '0.9' : '0.55'
+      return new Marker({ element: el }).setLngLat(midpoint(segment.from, segment.to)).addTo(map)
+    })
+  }
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
@@ -117,6 +172,13 @@ export function MapView({ markers, center = GUJARAT_CENTER, zoom = 11, className
       el.style.cursor = marker.onClick ? 'pointer' : 'default'
       el.title = marker.label ?? marker.id
       el.onclick = marker.onClick ?? null
+      el.textContent = marker.number != null ? String(marker.number) : ''
+      el.style.display = 'flex'
+      el.style.alignItems = 'center'
+      el.style.justifyContent = 'center'
+      el.style.fontSize = '9px'
+      el.style.fontWeight = '700'
+      el.style.color = 'white'
       existing.setLngLat([marker.lon, marker.lat])
     }
 
@@ -127,6 +189,81 @@ export function MapView({ markers, center = GUJARAT_CENTER, zoom = 11, className
       }
     }
   }, [markers])
+
+  // Route polyline (Find a Vehicle's replay map): a GeoJSON source split
+  // into per-segment LineString features carrying a `confirmed` property,
+  // rendered by two layers (solid vs. dashed) filtered on that property —
+  // MapLibre's `line-dasharray` is a per-layer paint property, not
+  // per-feature, so a single mixed-confidence route needs two layers to
+  // show confirmed and probable hops differently in one line.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    function applyRoute(currentMap: MapLibreMap) {
+      const segments = routeSegmentsRef.current
+      const geojson: FeatureCollection<LineString, { confirmed: boolean }> = {
+        type: 'FeatureCollection',
+        features: segments.map(
+          (segment): Feature<LineString, { confirmed: boolean }> => ({
+            type: 'Feature',
+            properties: { confirmed: segment.confirmed },
+            geometry: { type: 'LineString', coordinates: [segment.from, segment.to] },
+          }),
+        ),
+      }
+
+      const existingSource = currentMap.getSource(ROUTE_SOURCE_ID) as GeoJSONSource | undefined
+      if (existingSource) {
+        existingSource.setData(geojson)
+      } else {
+        currentMap.addSource(ROUTE_SOURCE_ID, { type: 'geojson', data: geojson })
+        currentMap.addLayer({
+          id: `${ROUTE_SOURCE_ID}-solid`,
+          type: 'line',
+          source: ROUTE_SOURCE_ID,
+          filter: ['==', ['get', 'confirmed'], true],
+          paint: { 'line-color': '#5b8cff', 'line-width': 3, 'line-opacity': 0.85 },
+        })
+        currentMap.addLayer({
+          id: `${ROUTE_SOURCE_ID}-dashed`,
+          type: 'line',
+          source: ROUTE_SOURCE_ID,
+          filter: ['==', ['get', 'confirmed'], false],
+          paint: {
+            'line-color': '#5b8cff',
+            'line-width': 3,
+            'line-opacity': 0.6,
+            'line-dasharray': [2, 1.5],
+          },
+        })
+      }
+      syncArrowMarkers(currentMap, segments)
+    }
+
+    if (map.isStyleLoaded()) applyRoute(map)
+    else map.once('load', () => applyRoute(map))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeSegments])
+
+  // The animated "vehicle" marker driven by Replay route — a single marker
+  // whose position the caller updates every animation frame.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    if (!vehiclePosition) {
+      vehicleMarkerRef.current?.remove()
+      vehicleMarkerRef.current = null
+      return
+    }
+    if (!vehicleMarkerRef.current) {
+      const el = document.createElement('div')
+      el.className = 'map-vehicle-marker'
+      vehicleMarkerRef.current = new Marker({ element: el }).setLngLat(vehiclePosition).addTo(map)
+    } else {
+      vehicleMarkerRef.current.setLngLat(vehiclePosition)
+    }
+  }, [vehiclePosition])
 
   // Inline styles on the inner div, not Tailwind's `absolute inset-0`
   // utility classes: MapLibre's own stylesheet (maplibre-gl.css, imported

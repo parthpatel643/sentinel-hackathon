@@ -88,6 +88,31 @@ body {
   filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92);
 }
 
+/* Find a Vehicle's route replay (components/MapView.tsx). A small filled
+ * triangle, rotated per-segment to the travel bearing — deliberately a DOM
+ * marker like the camera dots, not a MapLibre symbol layer, so it needs no
+ * external glyph/sprite server (this demo must work with no network beyond
+ * the basemap tiles themselves). */
+.map-route-arrow {
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 8px solid #5b8cff;
+}
+
+/* The animated "you are here" marker Replay route drives frame-by-frame. */
+.map-vehicle-marker {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: 2px solid white;
+  box-shadow:
+    0 0 0 4px oklch(0.68 0.16 245 / 30%),
+    0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
 /* ⌘K command palette (cmdk ships unstyled — see components/CommandPalette.tsx) */
 .cmdk-group [cmdk-group-heading] {
   padding: 0.5rem 0.75rem 0.25rem;
