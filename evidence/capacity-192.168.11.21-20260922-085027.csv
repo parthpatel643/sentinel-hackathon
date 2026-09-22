@@ -1,0 +1,2 @@
+n_cameras,opened,failed,degraded,degraded_fraction,mean_keep_up_ratio,min_keep_up_ratio,wall_seconds
+2,2,0,1,0.500,0.769,0.463,10.5
