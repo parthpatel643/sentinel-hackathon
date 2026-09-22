@@ -43,9 +43,14 @@ RELAY_API_URL = "http://127.0.0.1:9997"
 RELAY_PUBLISH_USER = "dev-grid"
 RELAY_PUBLISH_PASS = "dev-grid-local-only"
 
-# Short clips are deliberate: a benchmark run of a minute or two should see
-# several loop cuts per camera, exercising the discontinuity path the
-# organisers' guide calls out — not just the happy-path steady state.
+# Short clips keep the mixed-codec/mixed-resolution/mixed-frame-rate matrix
+# exercised quickly during a capacity run. NOTE: ffmpeg's `-stream_loop`
+# renumbers timestamps to be continuous across loop iterations by design, so
+# this does NOT reproduce a live PTS discontinuity over the wire the way the
+# real government grid's loop point does — see
+# evidence/M2-SYNTHETIC-GRID-DISCONTINUITY-FINDING.md. The discontinuity
+# *logic* itself is unit-tested directly and is correct; only this
+# integration-level reproduction is a known gap.
 CLIP_DURATION_S = 12
 
 

@@ -8,6 +8,11 @@ dependencies = [
     "httpx>=0.28",
     "opencv-python-headless>=4.10",
     "numpy>=2.1",
+    "scipy>=1.14",
+    "onnxruntime>=1.30",
+    "fast-alpr>=0.4",
+    "fast-plate-ocr>=1.1",
+    "open-image-models>=0.6",
 ]
 
 [tool.uv.sources]

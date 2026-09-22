@@ -28,6 +28,14 @@ dev = [
     "types-pyyaml>=6.0",
     "pyyaml>=6.0",
 ]
+# NOTE: model export (ultralytics/torch) deliberately does NOT live in a
+# dependency group here. ultralytics pins plain `opencv-python`, which
+# provides the same `cv2` module as our `opencv-python-headless` runtime
+# dependency — installing both into ONE shared venv leaves a broken/
+# conflicting cv2 install behind (this bit us once; see scripts/
+# export_models.py's docstring). Run the export in an isolated, throwaway
+# environment instead: `uv run --isolated --with ultralytics --with onnx
+# python scripts/export_models.py`. That never touches this workspace's venv.
 
 [tool.ruff]
 line-length = 100
@@ -51,6 +59,11 @@ explicit_package_bases = true
 
 [[tool.mypy.overrides]]
 module = ["nats.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# None of these ship inline type hints or py.typed markers.
+module = ["fast_alpr.*", "onnxruntime.*", "scipy.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

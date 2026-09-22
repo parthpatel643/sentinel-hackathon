@@ -6,9 +6,10 @@ Onboards heterogeneous government CCTV feeds into one registry, runs continuous 
 watchlist correlation, raises prioritised real-time alerts, and reconstructs a vehicle's
 timestamped route across cameras on a GIS map — with a documented path to ~80,000 cameras.
 
-> **Status:** M0 + M1 complete — workspace, shared domain model, infrastructure stack,
-> RTSP capture + reconnect supervisor, government catalogue client, and an 8-camera
-> mixed-codec synthetic test grid are all in place and tested. Next: M2 (ANPR pipeline).
+> **Status:** M0 + M1 + M2 complete — infrastructure, capture/reconnect pipeline, and a
+> real, tested ANPR pipeline (vehicle detection → tracking → plate detection → OCR →
+> temporal voting) are in place, verified against real open-source models. Next: M3
+> (camera registry + GIS).
 
 ## Quickstart
 
@@ -28,16 +29,24 @@ For the real government test grid, copy `.env.example` to `.env` and fill in you
 email + access password, then run `uv run python scripts/verify_gov_catalogue.py` to validate
 the catalogue schema against the live endpoint.
 
+For ANPR, export the vehicle detector once (in an isolated environment — see the script's
+own docstring for why) and run the real-model smoke test:
+
+```bash
+uv run --isolated --with ultralytics --with onnx python scripts/export_models.py
+uv run python scripts/smoke_test_anpr.py
+```
+
 ## Layout
 
 | Path | Contents |
 |---|---|
 | [packages/sentinel_core](packages/sentinel_core) | Shared domain model: event envelope, PTS clock, plate normalisation, event-bus port |
 | [services/core_api](services/core_api) | REST + WebSocket API, registry, search, alerts |
-| [services/edge_agent](services/edge_agent) | Capture, decode, reconnect supervisor, government catalogue client |
+| [services/edge_agent](services/edge_agent) | Capture, decode, reconnect supervisor, catalogue client, ANPR analytics |
 | [infra/compose](infra/compose) | Local infrastructure stack and the pull-only relay config |
-| [scripts](scripts) | Synthetic test grid, capacity benchmark, catalogue verification |
-| [evidence](evidence) | Benchmark CSVs and findings — see `M1-CAPACITY-FINDINGS.md` |
+| [scripts](scripts) | Synthetic test grid, capacity/ANPR benchmarks, model export, catalogue verification |
+| [evidence](evidence) | Benchmark CSVs and honest findings (capacity, synthetic-grid limitations) |
 | [tests](tests) | Cross-cutting suites, including automated integrator compliance |
 | [docs](docs) | Solution plan, HLD, ANPR pipeline, UX specs, scale plan |
 

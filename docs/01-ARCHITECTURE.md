@@ -461,7 +461,7 @@ container small and its cold start fast.
 | Load | N cameras × M fps on the M4 until degradation; published capacity curve | benchmark harness |
 | E2E UI | critical journeys: BOLO, wall, onboarding wizard | Playwright |
 
-A **local synthetic RTSP grid** (MediaMTX looping sample videos with deliberately mixed codecs/resolutions/frame rates) lets you develop without touching the government gateway and lets you reproduce every quirk — loop cuts, gaps, H.265, 4K vs CIF — on demand. Build this on day 2; it pays for itself many times over.
+A **local synthetic RTSP grid** (MediaMTX looping sample videos with deliberately mixed codecs/resolutions/frame rates) lets you develop without touching the government gateway and lets you reproduce most quirks — decoder warnings at join, gaps, H.265, 4K vs CIF — on demand. One quirk it does **not** faithfully reproduce: ffmpeg's own loop mechanism renumbers timestamps continuously rather than resetting them at the loop point, so a genuine PTS discontinuity has to be tested at the unit level (`StreamClock`'s own tests construct one directly) rather than end-to-end against this fixture — see [evidence/M2-SYNTHETIC-GRID-DISCONTINUITY-FINDING.md](../evidence/M2-SYNTHETIC-GRID-DISCONTINUITY-FINDING.md). Build the fixture on day 2 regardless; it pays for itself many times over on everything else.
 
 ---
 

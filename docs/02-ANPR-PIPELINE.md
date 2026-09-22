@@ -1,7 +1,9 @@
 # 02 — ANPR Pipeline
 ### Sentinel · Model selection, accuracy engineering and Apple Silicon execution
 
-> All latency figures marked **(measured)** were benchmarked on a **base M2 (4P+4E, 16 GB)** with `onnxruntime 1.30.0`. The demo machine is an **M4**, which should land roughly 1.5–2× higher — but that multiplier is an *inference, not a measurement*. **Re-run `scripts/bench_anpr.py` on the M4 and quote only measured numbers to the jury.**
+> All latency figures marked **(measured)** were benchmarked on a **base M2 (4P+4E, 16 GB)** with `onnxruntime 1.30.0`. The demo machine is an **M4**, which should land roughly 1.5–2× higher — but that multiplier is an *inference, not a measurement*. **Re-run the benchmark scripts on the M4 and quote only measured numbers to the jury.**
+
+> **Implementation status (M2, this session):** the pipeline described below is built, tested and verified against real models — not just researched. See [`services/edge_agent/src/edge_agent/analytics/`](../services/edge_agent/src/edge_agent/analytics) (`vehicle_detector.py`, `tracker.py`, `plate_reader.py`, `voting.py`, `pipeline.py`), 35 unit tests covering pre/post-processing and voting with constructed data (no model weights needed for CI), plus three real-model verifications: a static-image smoke test (`scripts/smoke_test_anpr.py`), a 500-frame live-capture integration run against the synthetic grid with zero crashes, and a measured full-chain throughput of **~14.7 fps (67.9 ms/frame)** on this base M2 (one vehicle/frame; CoreML EP for both detectors, CPU EP for OCR, per the execution-provider policy in section 3). The one thing **not yet done**: a real accuracy number on Indian plates — `scripts/eval_anpr.py` is built and works, but needs a hand-labelled holdout from real footage to mean anything (section 7). Tracking is a SORT-style Kalman+IoU tracker (a documented simplification of full ByteTrack — see section 2.1); a keypoint-based rectification stage (section 2, step 4) was deferred as a "Should" enhancement since fast-alpr's built-in crop handling already reads cleanly on frontal test imagery.
 
 ---
 
@@ -11,7 +13,7 @@
 RTSP (TCP) ─ VideoToolbox decode ─ frame scheduler (PTS-driven, motion-gated)
    │
    ├─[1] Vehicle detection ........ YOLO26n / YOLO11n ONNX @640, ORT CoreML EP
-   ├─[2] Multi-object tracking .... ByteTrack → stable vehicle_track_id
+   ├─[2] Multi-object tracking .... SORT-style tracker (Kalman+IoU) → stable vehicle_track_id
    ├─[3] Plate detection .......... yolo-v9-t-640-license-plate-end2end, CoreML EP
    │                                 (run on the vehicle ROI, not the full frame)
    ├─[4] Rectification ............ YOLOv8m-Pose 4-corner keypoints → perspective warp
@@ -33,7 +35,7 @@ RTSP (TCP) ─ VideoToolbox decode ─ frame scheduler (PTS-driven, motion-gated
 | # | Stage | Choice | Licence | Measured latency (M2) | Notes |
 |---|---|---|---|---|---|
 | 1 | Vehicle detection | **YOLO26n** ONNX @640 via ORT **CoreML EP** | AGPL-3.0 | **8.70 ms / 114.9 fps** (YOLO11n, measured) | YOLO26n COCO mAP50-95 40.9, 2.4 M params. Apache alternative below. |
-| 2 | Tracking | **ByteTrack** — vendor a standalone MIT implementation | MIT (vendored) | negligible | BoxMOT is AGPL and pulls a ReID net; ByteTrack is ~200 lines of Kalman + IoU and needs none. Upgrade path: BoT-SORT (HOTA 69.68) / OccluBoost (HOTA 71.10) via BoxMOT. |
+| 2 | Tracking | **SORT-style tracker** (Kalman filter + Hungarian IoU assignment), our own ~150-line MIT implementation | MIT (vendored) | negligible | Single-stage association — the honest simplification of full ByteTrack's two-confidence-stage matching, which is a documented, bounded upgrade (not a hidden gap). BoxMOT (AGPL) was avoided entirely; needs no ReID net. Upgrade path: two-stage association, or BoT-SORT (HOTA 69.68) / OccluBoost (HOTA 71.10) via BoxMOT if the AGPL trade is later accepted. |
 | 3 | Plate detection | **`ankandrew/open-image-models` `yolo-v9-t-640-license-plate-end2end`**, CoreML EP | **MIT** | **7.69 ms / 130 fps** full-frame (measured) | Repo-reported P 0.966 / R 0.896 / mAP50 0.958. The only *permissively licensed pretrained* plate detector found. |
 | 4 | Rectification | **`PrasannaBAImodel/license-plate-keypoint-detection`** (YOLOv8m-Pose, 4 corners) → `cv2.getPerspectiveTransform` | Apache-2.0 | ~10 ms, only on plate crops | Pose mAP50 0.9264 / mAP50-95 0.9137. **Highest-ROI single addition for oblique CCTV angles.** |
 | 5 | OCR | **`fast-plate-ocr` `cct-s-v2`**, ORT **CPU EP** | **MIT** | **10.87 ms / 92 plates per second** (measured) | Purpose-built for plates; first-class Keras-3 fine-tuning CLI that runs on a Colab T4. `cct-xs-v2` is **1.65 ms** if you need the speed. |
