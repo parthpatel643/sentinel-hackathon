@@ -9,6 +9,8 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core_api.auth.dependencies import current_user, require_service_token
+from core_api.auth.service import TokenPayload
 from core_api.db.base import get_session
 from core_api.detections.schemas import DetectionIn, DetectionOut, VehicleRoute
 from core_api.detections.service import get_vehicle_route, ingest_detection, search_detections
@@ -20,12 +22,15 @@ router = APIRouter(prefix="/api/v1", tags=["detections"])
 
 @router.post("/detections", status_code=201, response_model=list[AlertOut])
 async def ingest_detection_endpoint(
-    payload: DetectionIn, session: AsyncSession = Depends(get_session)
+    payload: DetectionIn,
+    session: AsyncSession = Depends(get_session),
+    _svc: None = Depends(require_service_token),
 ) -> list[AlertOut]:
     """Posted by an edge worker for every resolved plate. Correlates against
     the active watchlist in the same request — a detection and whatever
     alert it triggers are decided together, never in two places that can
-    drift out of sync."""
+    drift out of sync. Gated by the shared service token, not a user
+    login — see auth/dependencies.py."""
     detection = await ingest_detection(session, payload)
     alerts = await correlate_detection(session, detection)
     await session.commit()
@@ -40,6 +45,7 @@ async def search_detections_endpoint(
     until: datetime | None = Query(default=None),
     limit: int = Query(default=100, le=1000),
     session: AsyncSession = Depends(get_session),
+    _user: TokenPayload = Depends(current_user),
 ) -> list[DetectionOut]:
     return await search_detections(
         session, plate=plate, camera_id=camera_id, since=since, until=until, limit=limit
@@ -48,7 +54,9 @@ async def search_detections_endpoint(
 
 @router.get("/vehicles/{plate}/route", response_model=VehicleRoute)
 async def vehicle_route_endpoint(
-    plate: str, session: AsyncSession = Depends(get_session)
+    plate: str,
+    session: AsyncSession = Depends(get_session),
+    _user: TokenPayload = Depends(current_user),
 ) -> VehicleRoute:
     """The Find-a-Vehicle screen's single call: search + route reconstruction
     in one round trip."""

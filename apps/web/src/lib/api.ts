@@ -6,15 +6,23 @@ import { get, patch, post } from './http'
 import type {
   Alert,
   AlertStatus,
+  AuthUser,
   BoloResult,
   Camera,
   CameraStream,
   CoverageGapReport,
   Department,
   Detection,
+  TokenResponse,
   VehicleRoute,
   WatchlistEntry,
 } from './types'
+
+export const authApi = {
+  login: (email: string, password: string) =>
+    post<TokenResponse>('/api/v1/auth/login', { email, password }),
+  me: () => get<AuthUser>('/api/v1/auth/me'),
+}
 
 export const camerasApi = {
   list: (departmentName?: string) =>

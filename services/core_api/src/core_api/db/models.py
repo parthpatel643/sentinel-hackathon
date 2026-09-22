@@ -21,7 +21,16 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core_api.db.base import Base
 
-__all__ = ["Alert", "Camera", "Department", "Detection", "Site", "StreamProfile", "WatchlistEntry"]
+__all__ = [
+    "Alert",
+    "Camera",
+    "Department",
+    "Detection",
+    "Site",
+    "StreamProfile",
+    "User",
+    "WatchlistEntry",
+]
 
 
 class Department(Base):
@@ -186,9 +195,7 @@ class WatchlistEntry(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     plate_normalised: Mapped[str] = mapped_column(index=True)
     plate_ambiguity_key: Mapped[str] = mapped_column(index=True)
-    entry_type: Mapped[str] = mapped_column(
-        comment="stolen | wanted | missing | suspect | bolo"
-    )
+    entry_type: Mapped[str] = mapped_column(comment="stolen | wanted | missing | suspect | bolo")
     priority: Mapped[str] = mapped_column(
         default="medium", comment="low | medium | high | critical"
     )
@@ -243,3 +250,24 @@ class Alert(Base):
 
     watchlist_entry: Mapped[WatchlistEntry] = relationship(back_populates="alerts")
     camera: Mapped[Camera] = relationship()
+
+
+class User(Base):
+    """An Operator Console account. Deliberately minimal for M6 — full
+    OIDC/RBAC/ABAC and Postgres row-level-security tenancy is M12's scope
+    (docs/05-DELIVERY-PLAN.md); this is enough to require a real login
+    before any API call succeeds, not a placeholder that's silently
+    unenforced. `role` is a plain string, not an enum, so adding a role
+    later is a data migration, not a schema one."""
+
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(unique=True, index=True)
+    hashed_password: Mapped[str]
+    full_name: Mapped[str]
+    role: Mapped[str] = mapped_column(default="operator", comment="operator | admin")
+    active: Mapped[bool] = mapped_column(default=True)
+
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())

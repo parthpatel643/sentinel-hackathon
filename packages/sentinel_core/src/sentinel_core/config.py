@@ -69,6 +69,20 @@ class Settings(BaseSettings):
     relay_hls_url: str = "http://localhost:8888"
     relay_webrtc_url: str = "http://localhost:8889"
 
+    # --- Auth (M6 — a real login gate; full OIDC/RBAC/ABAC is M12) ---------
+    jwt_secret: SecretStr = Field(
+        default=SecretStr("dev-only-insecure-secret-change-me"),
+        description="Signs access tokens. The default is a documented dev-only value — "
+        "set SENTINEL_JWT_SECRET in production.",
+    )
+    jwt_algorithm: str = "HS256"
+    jwt_expires_minutes: int = 60 * 12
+    edge_service_token: SecretStr = Field(
+        default=SecretStr("dev-only-edge-service-token"),
+        description="Shared secret the edge worker presents to machine-only endpoints "
+        "(detection ingest, camera health) instead of a human's JWT.",
+    )
+
     # --- Government test grid ("Sentinel Camera Grid") ---------------------
     # Per the integrator guide: HLS is served from a CDN host behind a portal
     # password; RTSP/WHEP carry media directly from a public IP (a CDN cannot

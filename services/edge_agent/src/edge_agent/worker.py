@@ -283,7 +283,15 @@ async def main() -> None:
     plate_reader = FastAlprPlateReader()
     logger.info("models loaded; vehicle detector providers: %s", vehicle_detector.providers_in_use)
 
-    async with httpx.AsyncClient(base_url=api_base_url, timeout=10.0) as client:
+    # Every call this worker makes is machine-to-machine (camera
+    # registration, health heartbeats, detection ingest) — the shared
+    # service token (not a human's JWT, which this process has no user to
+    # log in as) is attached once here so every request through this client
+    # carries it, rather than threading it through each call site.
+    service_headers = {"X-Service-Token": settings.edge_service_token.get_secret_value()}
+    async with httpx.AsyncClient(
+        base_url=api_base_url, timeout=10.0, headers=service_headers
+    ) as client:
         for descriptor in descriptors:
             await _register_camera(client, descriptor)
 

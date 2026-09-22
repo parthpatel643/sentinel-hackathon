@@ -9,9 +9,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from core_api.auth.dependencies import current_user
+from core_api.routers.auth import router as auth_router
 from core_api.routers.detections import router as detections_router
 from core_api.routers.registry import router as registry_router
 from core_api.routers.watchlist import router as watchlist_router
@@ -44,9 +46,14 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    app.include_router(auth_router)
     app.include_router(registry_router)
     app.include_router(detections_router)
-    app.include_router(watchlist_router)
+    # watchlist_router has no machine-called endpoints (unlike registry/
+    # detections, which mix in the edge worker's health/ingest calls) — every
+    # route here is a human operator action, so it is gated once, here,
+    # rather than endpoint-by-endpoint.
+    app.include_router(watchlist_router, dependencies=[Depends(current_user)])
 
     @app.get("/api/v1/health", tags=["ops"])
     async def health() -> dict[str, Any]:

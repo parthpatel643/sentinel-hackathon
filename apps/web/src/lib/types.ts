@@ -8,6 +8,20 @@ export interface GeoPoint {
   lon: number
 }
 
+export interface AuthUser {
+  id: string
+  email: string
+  full_name: string
+  role: string
+  active: boolean
+  created_at: string
+}
+
+export interface TokenResponse {
+  access_token: string
+  token_type: string
+}
+
 export interface StreamProfile {
   protocol: string
   url: string

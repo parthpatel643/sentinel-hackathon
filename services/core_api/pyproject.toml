@@ -13,6 +13,9 @@ dependencies = [
     "shapely>=2.0",
     "alembic>=1.14",
     "python-multipart>=0.0.20",
+    "pyjwt>=2.9",
+    "bcrypt>=4.2",
+    "email-validator>=2.2",
 ]
 
 [tool.uv.sources]

@@ -7,6 +7,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core_api.auth.dependencies import current_user, current_user_or_service, require_service_token
+from core_api.auth.service import TokenPayload
 from core_api.db.base import get_session
 from core_api.registry.bulk_import import BulkImportResult, parse_and_import_csv
 from core_api.registry.gap_analysis import compute_coverage_gaps
@@ -39,6 +41,7 @@ router = APIRouter(prefix="/api/v1", tags=["registry"])
 async def list_cameras_endpoint(
     department: str | None = Query(default=None, description="Filter by department name"),
     session: AsyncSession = Depends(get_session),
+    _user: TokenPayload = Depends(current_user),
 ) -> list[CameraOut]:
     cameras = await list_cameras(session, department_name=department)
     return [camera_to_out(c) for c in cameras]
@@ -46,7 +49,9 @@ async def list_cameras_endpoint(
 
 @router.get("/cameras/{camera_id}", response_model=CameraOut)
 async def get_camera_endpoint(
-    camera_id: str, session: AsyncSession = Depends(get_session)
+    camera_id: str,
+    session: AsyncSession = Depends(get_session),
+    _user: TokenPayload = Depends(current_user),
 ) -> CameraOut:
     camera = await get_camera(session, camera_id)
     if camera is None:
@@ -56,7 +61,9 @@ async def get_camera_endpoint(
 
 @router.post("/cameras", response_model=CameraOut, status_code=201)
 async def create_camera_endpoint(
-    payload: CameraCreate, session: AsyncSession = Depends(get_session)
+    payload: CameraCreate,
+    session: AsyncSession = Depends(get_session),
+    _actor: TokenPayload | None = Depends(current_user_or_service),
 ) -> CameraOut:
     existing = await get_camera(session, payload.camera_id)
     if existing is not None:
@@ -85,10 +92,12 @@ async def update_camera_health_endpoint(
     camera_id: str,
     payload: CameraHealthUpdate,
     session: AsyncSession = Depends(get_session),
+    _svc: None = Depends(require_service_token),
 ) -> CameraOut:
     """Called by an edge worker's periodic heartbeat, and opportunistically
     by detection ingest (see core_api.detections.service.ingest_detection).
-    Not authenticated yet — see docs/05-DELIVERY-PLAN.md's hardening backlog."""
+    Gated by a shared service token, not a user login — the edge worker has
+    no human operator to log in as (see auth/dependencies.py)."""
     camera = await update_camera_health(session, camera_id, payload)
     if camera is None:
         raise HTTPException(status_code=404, detail=f"no camera with id {camera_id!r}")
@@ -98,7 +107,9 @@ async def update_camera_health_endpoint(
 
 @router.get("/cameras/{camera_id}/stream", response_model=CameraStreamOut)
 async def camera_stream_endpoint(
-    camera_id: str, session: AsyncSession = Depends(get_session)
+    camera_id: str,
+    session: AsyncSession = Depends(get_session),
+    _user: TokenPayload = Depends(current_user),
 ) -> CameraStreamOut:
     """Resolves a URL the Cameras screen's live-preview can hand straight to
     a <video> tag — never the camera's own RTSP/WHEP profile, which for a
@@ -116,6 +127,7 @@ async def bulk_import_endpoint(
     file: UploadFile,
     dry_run: bool = Query(default=True, description="Preview only; nothing is written when true"),
     session: AsyncSession = Depends(get_session),
+    _user: TokenPayload = Depends(current_user),
 ) -> BulkImportResult:
     content = (await file.read()).decode("utf-8-sig")  # -sig: tolerate an Excel-exported BOM
     result = await parse_and_import_csv(session, content, dry_run=dry_run)
@@ -127,6 +139,7 @@ async def bulk_import_endpoint(
 @router.post("/cameras/discover", response_model=dict)
 async def discover_from_catalogue_endpoint(
     session: AsyncSession = Depends(get_session),
+    _user: TokenPayload = Depends(current_user),
 ) -> dict[str, object]:
     """Catalogue-driven onboarding: fetch the government catalogue right now
     and upsert every camera it lists. Never hard-codes a camera id — see
@@ -149,6 +162,7 @@ async def discover_from_catalogue_endpoint(
 @router.get("/departments", response_model=list[DepartmentOut])
 async def list_departments_endpoint(
     session: AsyncSession = Depends(get_session),
+    _user: TokenPayload = Depends(current_user),
 ) -> list[DepartmentOut]:
     return await list_departments(session)
 
@@ -158,6 +172,7 @@ async def coverage_gaps_endpoint(
     coverage_radius_m: float = Query(default=500.0, gt=0),
     cell_size_m: float = Query(default=250.0, gt=0),
     session: AsyncSession = Depends(get_session),
+    _user: TokenPayload = Depends(current_user),
 ) -> CoverageGapReport:
     return await compute_coverage_gaps(
         session, coverage_radius_m=coverage_radius_m, cell_size_m=cell_size_m

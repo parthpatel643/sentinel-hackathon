@@ -8,6 +8,7 @@ from core_api.db.models import (
     Detection,
     Site,
     StreamProfile,
+    User,
     WatchlistEntry,
 )
 
@@ -19,6 +20,7 @@ __all__ = [
     "Detection",
     "Site",
     "StreamProfile",
+    "User",
     "WatchlistEntry",
     "get_engine",
     "get_session",

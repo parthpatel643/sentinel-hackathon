@@ -22,6 +22,7 @@ from core_api.db.models import (  # noqa: F401
     Detection,
     Site,
     StreamProfile,
+    User,
     WatchlistEntry,
 )
 from sentinel_core.config import get_settings
