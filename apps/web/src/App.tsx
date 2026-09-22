@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { Shell } from './components/layout/Shell'
 import { Home } from './routes/Home'
 import { Cameras } from './routes/Cameras'
+import { LiveWall } from './routes/LiveWall'
 import { FindVehicle } from './routes/FindVehicle'
 import { Alerts } from './routes/Alerts'
 import { Health } from './routes/Health'
@@ -35,6 +36,7 @@ export default function App() {
           <Shell>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/live-wall" element={<LiveWall />} />
               <Route path="/cameras" element={<Cameras />} />
               <Route path="/find-a-vehicle" element={<FindVehicle />} />
               <Route path="/alerts" element={<Alerts />} />

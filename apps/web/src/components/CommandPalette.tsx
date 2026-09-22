@@ -1,5 +1,5 @@
 import { Command } from 'cmdk'
-import { Bell, Camera as CameraIcon, LayoutGrid, LogOut, Search, Video, Activity } from 'lucide-react'
+import { Bell, Camera as CameraIcon, LayoutGrid, LogOut, Search, Video, Activity, Grid3x3 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
@@ -9,6 +9,7 @@ import { SeverityBadge, statusToSeverity } from './ui/SeverityBadge'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Home', icon: LayoutGrid, keywords: ['situational awareness', 'map'] },
+  { to: '/live-wall', label: 'Live Wall', icon: Grid3x3, keywords: ['grid', 'streams', 'wall'] },
   { to: '/cameras', label: 'Cameras', icon: CameraIcon, keywords: ['registry', 'feeds'] },
   { to: '/find-a-vehicle', label: 'Find a Vehicle', icon: Search, keywords: ['plate', 'route', 'search'] },
   { to: '/alerts', label: 'Alerts', icon: Bell, keywords: ['watchlist', 'hits'] },
