@@ -87,3 +87,33 @@ body {
 .maplibregl-canvas-container {
   filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92);
 }
+
+/* ⌘K command palette (cmdk ships unstyled — see components/CommandPalette.tsx) */
+.cmdk-group [cmdk-group-heading] {
+  padding: 0.5rem 0.75rem 0.25rem;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.cmdk-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.cmdk-item[data-selected='true'] {
+  background: var(--color-bg-overlay);
+  color: var(--color-accent);
+}
+
+.cmdk-item[data-selected='true'] svg {
+  color: var(--color-accent);
+}

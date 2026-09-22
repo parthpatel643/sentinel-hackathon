@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { camerasApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
 import { TopBar } from '../components/layout/TopBar'
@@ -27,6 +28,23 @@ export function Cameras() {
   const { data: cameras, loading } = usePolling(() => camerasApi.list(), 10000)
   const [view, setView] = useState<'table' | 'map'>('table')
   const [selected, setSelected] = useState<Camera | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // Lets the ⌘K palette (and any other deep link) jump straight to a
+  // camera's detail modal via /cameras?camera=<id> without duplicating
+  // the lookup logic anywhere else.
+  useEffect(() => {
+    const cameraId = searchParams.get('camera')
+    if (!cameraId || !cameras) return
+    const match = cameras.find((c) => c.camera_id === cameraId)
+    if (match) setSelected(match)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('camera')
+      return next
+    }, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cameras, searchParams])
 
   const markers: MapMarker[] =
     cameras

@@ -6,6 +6,7 @@ import { FindVehicle } from './routes/FindVehicle'
 import { Alerts } from './routes/Alerts'
 import { Login } from './routes/Login'
 import { AuthProvider, useAuth } from './lib/AuthContext'
+import { CommandPalette } from './components/CommandPalette'
 import type { ReactNode } from 'react'
 
 function AuthGate({ children }: { children: ReactNode }) {
@@ -17,7 +18,12 @@ function AuthGate({ children }: { children: ReactNode }) {
   if (!user) {
     return <Login />
   }
-  return <>{children}</>
+  return (
+    <>
+      <CommandPalette />
+      {children}
+    </>
+  )
 }
 
 export default function App() {
