@@ -4,12 +4,18 @@ call the "Find a Vehicle" screen's empty-result state offers)."""
 
 from __future__ import annotations
 
+import asyncio
+from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core_api.db.base import get_session
+from core_api.db.base import get_session, get_sessionmaker
+from core_api.db.models import Alert, EvidenceClip
+from core_api.evidence.schemas import EvidenceClipOut
+from core_api.evidence.service import get_clip_for_alert, request_seal_clip, seal_clip_task
 from core_api.watchlist.schemas import (
     AlertOut,
     AlertUpdate,
@@ -25,6 +31,7 @@ from core_api.watchlist.service import (
     retro_scan,
     update_alert,
 )
+from sentinel_core.config import get_settings
 
 router = APIRouter(prefix="/api/v1", tags=["watchlist"])
 
@@ -92,3 +99,51 @@ async def update_alert_endpoint(
         raise HTTPException(status_code=404, detail=f"no alert with id {alert_id}")
     await session.commit()
     return AlertOut.model_validate(alert)
+
+
+@router.post("/alerts/{alert_id}/seal-clip", response_model=EvidenceClipOut, status_code=202)
+async def seal_clip_endpoint(
+    alert_id: UUID,
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_session),
+) -> EvidenceClipOut:
+    """Kicks off event-clip recording for this alert's camera and returns
+    immediately with a 'pending' clip — sealing (recording, concatenating,
+    hashing) happens in the background over the next ~evidence_post_roll_s
+    seconds, per core_api/evidence/service.py. Poll GET .../clip until
+    status is 'sealed' or 'failed'."""
+    alert = await session.get(Alert, alert_id)
+    if alert is None:
+        raise HTTPException(status_code=404, detail=f"no alert with id {alert_id}")
+
+    clip = await request_seal_clip(session, alert)
+    settings = get_settings()
+    background_tasks.add_task(
+        seal_clip_task, clip.id, alert.camera_id, settings, get_sessionmaker()
+    )
+    return EvidenceClipOut.model_validate(clip)
+
+
+@router.get("/alerts/{alert_id}/clip", response_model=EvidenceClipOut)
+async def get_alert_clip_endpoint(
+    alert_id: UUID, session: AsyncSession = Depends(get_session)
+) -> EvidenceClipOut:
+    clip = await get_clip_for_alert(session, alert_id)
+    if clip is None:
+        raise HTTPException(
+            status_code=404, detail="No clip has been requested for this alert yet."
+        )
+    return EvidenceClipOut.model_validate(clip)
+
+
+@router.get("/evidence/clips/{clip_id}/video")
+async def stream_clip_video_endpoint(
+    clip_id: UUID, session: AsyncSession = Depends(get_session)
+) -> FileResponse:
+    clip = await session.get(EvidenceClip, clip_id)
+    if clip is None or clip.status != "sealed" or not clip.file_path:
+        raise HTTPException(status_code=404, detail="This clip is not sealed yet.")
+    path = Path(clip.file_path)
+    if not await asyncio.to_thread(path.is_file):
+        raise HTTPException(status_code=404, detail="Sealed clip file is missing on disk.")
+    return FileResponse(path, media_type="video/mp4", filename=f"{clip_id}.mp4")

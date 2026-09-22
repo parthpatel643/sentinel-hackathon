@@ -144,6 +144,20 @@ export interface Alert {
   created_at: string
 }
 
+export type EvidenceClipStatus = 'pending' | 'sealed' | 'failed'
+
+export interface EvidenceClip {
+  id: string
+  alert_id: string
+  camera_id: string
+  status: EvidenceClipStatus
+  sha256: string | null
+  duration_s: number | null
+  error: string | null
+  created_at: string
+  sealed_at: string | null
+}
+
 export interface BoloResult {
   watchlist_entry: WatchlistEntry
   retro_alerts_created: number

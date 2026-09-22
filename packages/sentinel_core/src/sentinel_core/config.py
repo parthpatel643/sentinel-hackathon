@@ -58,7 +58,9 @@ class Settings(BaseSettings):
 
     relay_api_url: str = Field(
         default="http://localhost:9997",
-        description="MediaMTX control API (read-only; we never publish to the gateway)",
+        description="MediaMTX control API. Read-only for the government gateway (we never "
+        "publish there); the evidence service (M7) does PATCH this same kind of API, but "
+        "only against our own local dev/* relay, to toggle recording for a seal window.",
     )
     core_api_url: str = Field(
         default="http://localhost:18000",
@@ -68,6 +70,28 @@ class Settings(BaseSettings):
     relay_rtsp_url: str = "rtsp://localhost:8554"
     relay_hls_url: str = "http://localhost:8888"
     relay_webrtc_url: str = "http://localhost:8889"
+
+    # --- Evidence / event-clip recording (M7) -------------------------------
+    # Model 4 is event-driven, not a statewide archive: recording is off by
+    # default (infra/compose/mediamtx.yml) and only turned on for this window
+    # when an alert's clip is sealed. `recordings_dir` must be the SAME path
+    # MediaMTX's container has bind-mounted (not a named volume) so core_api,
+    # running on the host, can read the segment files it writes.
+    recordings_dir: str = Field(
+        default="./data/recordings",
+        description="Host path MediaMTX's /recordings bind-mount also points at.",
+    )
+    evidence_post_roll_s: float = Field(
+        default=10.0,
+        description="How long to keep recording after a seal is requested. Must clear "
+        "MediaMTX's recordSegmentDuration so at least one full segment is written.",
+    )
+    evidence_dev_relay_path_pattern: str = Field(
+        default="~^dev/.*$",
+        description="The one MediaMTX path pattern the synthetic grid publishes under — "
+        "recording is toggled on this whole pattern (not per-camera) because that is the "
+        "only path entry that exists in mediamtx.yml's config today.",
+    )
 
     # --- Auth (M6 — a real login gate; full OIDC/RBAC/ABAC is M12) ---------
     jwt_secret: SecretStr = Field(

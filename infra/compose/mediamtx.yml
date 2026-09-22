@@ -77,7 +77,11 @@ pathDefaults:
   recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S-%f
   recordFormat: fmp4
   recordPartDuration: 1s
-  recordSegmentDuration: 1m
+  # Short segments (not the usual multi-minute archival default) because the
+  # evidence service (core_api/evidence/service.py) turns recording on only
+  # for the ~10s pre/post-roll window around an alert, not continuously — a
+  # 1-minute segment would almost never finish writing inside that window.
+  recordSegmentDuration: 5s
   recordDeleteAfter: 24h
 
 paths:

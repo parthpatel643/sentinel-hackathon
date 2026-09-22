@@ -13,6 +13,7 @@ import type {
   CoverageGapReport,
   Department,
   Detection,
+  EvidenceClip,
   IntegratorCompliance,
   TokenResponse,
   VehicleRoute,
@@ -73,4 +74,10 @@ export const alertsApi = {
   list: (status?: AlertStatus) => get<Alert[]>(`/api/v1/alerts${status ? `?status=${status}` : ''}`),
   update: (alertId: string, payload: { status: AlertStatus; resolved_by?: string; resolution_note?: string }) =>
     patch<Alert>(`/api/v1/alerts/${alertId}`, payload),
+  sealClip: (alertId: string) => post<EvidenceClip>(`/api/v1/alerts/${alertId}/seal-clip`),
+  getClip: (alertId: string) => get<EvidenceClip>(`/api/v1/alerts/${alertId}/clip`),
+  // Video streaming requires the same bearer-token auth as everything else,
+  // which a plain <video src> can't attach — fetched as a Blob instead, same
+  // pattern as detectionsApi.movementReport.
+  clipVideoBlob: (clipId: string) => getBlob(`/api/v1/evidence/clips/${clipId}/video`),
 }

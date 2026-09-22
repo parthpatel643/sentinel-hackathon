@@ -26,6 +26,7 @@ __all__ = [
     "Camera",
     "Department",
     "Detection",
+    "EvidenceClip",
     "Site",
     "StreamProfile",
     "User",
@@ -271,3 +272,36 @@ class User(Base):
 
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+
+
+class EvidenceClip(Base):
+    """A sealed, hashed event clip for one alert — docs/01-ARCHITECTURE.md
+    section 6.5's "on alert, a sealed pre/post-roll clip" (M7). Recording
+    only turns on for the seal window (Model 4 is event-driven, not a
+    statewide archive — see infra/compose/mediamtx.yml), so this captures
+    footage from the moment sealing was requested onward, not truly before
+    the alert; the alert's own detection snapshot is the closest thing to a
+    "before" artefact until a rolling pre-roll buffer is a real requirement.
+    `sha256`/`manifest` are only populated once `status` reaches `sealed` —
+    a tamper check must hash the actual delivered bytes, not a promise."""
+
+    __tablename__ = "evidence_clips"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    alert_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("alerts.id", ondelete="CASCADE"), index=True
+    )
+    camera_id: Mapped[str] = mapped_column(ForeignKey("cameras.camera_id", ondelete="CASCADE"))
+
+    status: Mapped[str] = mapped_column(default="pending", comment="pending | sealed | failed")
+    file_path: Mapped[str | None]
+    sha256: Mapped[str | None]
+    manifest: Mapped[dict[str, object] | None] = mapped_column(JSON)
+    duration_s: Mapped[float | None]
+    error: Mapped[str | None]
+
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    sealed_at: Mapped[datetime | None]
+
+    alert: Mapped[Alert] = relationship()
+    camera: Mapped[Camera] = relationship()

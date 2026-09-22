@@ -20,6 +20,7 @@ from core_api.db.models import (  # noqa: F401
     Camera,
     Department,
     Detection,
+    EvidenceClip,
     Site,
     StreamProfile,
     User,

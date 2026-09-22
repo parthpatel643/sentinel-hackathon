@@ -88,7 +88,10 @@ services:
       - "${SENTINEL_RELAY_API_PORT:-9997}:9997"   # control API, read-only
     volumes:
       - ./mediamtx.yml:/mediamtx.yml:ro
-      - mediamtx-recordings:/recordings
+      # Bind-mounted (not a named volume): the M7 evidence service
+      # (core_api/evidence/service.py) reads sealed segments directly off
+      # disk from the host process, not from inside a container.
+      - ../../data/recordings:/recordings
     # No container healthcheck: the image is built FROM scratch and has no shell
     # or wget, so any HEALTHCHECK command fails by definition. The relay is
     # probed over its HTTP API by /api/v1/health instead — which tests the path
@@ -98,4 +101,3 @@ volumes:
   postgres-data:
   nats-data:
   minio-data:
-  mediamtx-recordings:

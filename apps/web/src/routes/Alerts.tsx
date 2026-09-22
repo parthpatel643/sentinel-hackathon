@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Film } from 'lucide-react'
 import { alertsApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
 import { TopBar } from '../components/layout/TopBar'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { SeverityBadge, type Severity } from '../components/ui/SeverityBadge'
-import type { Alert, AlertStatus } from '../lib/types'
+import { SealedClipModal } from '../components/SealedClipModal'
+import type { Alert, AlertStatus, EvidenceClip } from '../lib/types'
 
 const FILTERS: { label: string; status?: AlertStatus }[] = [
   { label: 'Unacknowledged', status: 'new' },
@@ -32,7 +34,81 @@ function severityForAlert(alert: Alert): Severity {
   return 'low'
 }
 
-function AlertRow({ alert, onUpdated }: { alert: Alert; onUpdated: () => void }) {
+function ClipAction({ alert, onView }: { alert: Alert; onView: (clip: EvidenceClip) => void }) {
+  const [clip, setClip] = useState<EvidenceClip | null>(null)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    alertsApi
+      .getClip(alert.id)
+      .then((c) => !cancelled && setClip(c))
+      // A 404 just means no clip has been requested yet, which is already
+      // this component's initial state — nothing to do either way, so any
+      // other fetch error just leaves the "Seal clip" action available for
+      // the operator to retry rather than getting stuck.
+      .catch(() => {})
+      .finally(() => !cancelled && setLoaded(true))
+    return () => {
+      cancelled = true
+    }
+  }, [alert.id])
+
+  // While a seal is in flight, poll until it resolves — sealing runs a real
+  // ~10s recording window in the background (evidence/service.py), so this
+  // can't just be a one-shot fetch.
+  useEffect(() => {
+    if (clip?.status !== 'pending') return
+    const id = setInterval(() => {
+      alertsApi.getClip(alert.id).then(setClip).catch(() => {})
+    }, 2000)
+    return () => clearInterval(id)
+  }, [alert.id, clip?.status])
+
+  async function requestSeal() {
+    setClip(await alertsApi.sealClip(alert.id))
+  }
+
+  if (!loaded) return null
+
+  if (!clip || clip.status === 'failed') {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <Button size="sm" variant="ghost" onClick={requestSeal}>
+          <Film size={14} />
+          Seal clip
+        </Button>
+        {clip?.status === 'failed' && <p className="text-[11px] text-sev-critical">Sealing failed — try again</p>}
+      </div>
+    )
+  }
+
+  if (clip.status === 'pending') {
+    return (
+      <Button size="sm" variant="ghost" disabled>
+        <Film size={14} />
+        Sealing clip…
+      </Button>
+    )
+  }
+
+  return (
+    <Button size="sm" variant="ghost" onClick={() => onView(clip)}>
+      <Film size={14} />
+      Watch sealed clip
+    </Button>
+  )
+}
+
+function AlertRow({
+  alert,
+  onUpdated,
+  onViewClip,
+}: {
+  alert: Alert
+  onUpdated: () => void
+  onViewClip: (clip: EvidenceClip) => void
+}) {
   const [busy, setBusy] = useState<AlertStatus | null>(null)
 
   async function act(status: AlertStatus) {
@@ -82,12 +158,16 @@ function AlertRow({ alert, onUpdated }: { alert: Alert; onUpdated: () => void })
           />
         )}
       </div>
+      <div className="mt-3 flex justify-end border-t border-border-subtle/60 pt-3">
+        <ClipAction alert={alert} onView={onViewClip} />
+      </div>
     </Card>
   )
 }
 
 export function Alerts() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>(FILTERS[0])
+  const [viewingClip, setViewingClip] = useState<EvidenceClip | null>(null)
   const { data: alerts, refetch } = usePolling(() => alertsApi.list(filter.status), 6000, [filter.status])
 
   return (
@@ -110,10 +190,11 @@ export function Alerts() {
         {alerts?.length === 0 && <p className="text-sm text-text-tertiary">No alerts here.</p>}
         <div className="flex flex-col gap-3">
           {alerts?.map((alert) => (
-            <AlertRow key={alert.id} alert={alert} onUpdated={refetch} />
+            <AlertRow key={alert.id} alert={alert} onUpdated={refetch} onViewClip={setViewingClip} />
           ))}
         </div>
       </div>
+      <SealedClipModal clip={viewingClip} onClose={() => setViewingClip(null)} />
     </div>
   )
 }
