@@ -3,6 +3,8 @@
 
 > This document doubles as the **Technical Proposal (HLD)** deliverable. Export to PDF at submission time.
 
+> **Implementation status (M3, this session):** Model 1 (the mandatory registry + GIS foundation) is built and verified against a real PostGIS-backed Postgres — not just designed. See [`services/core_api/src/core_api/registry/`](../services/core_api/src/core_api/registry) (`service.py`, `bulk_import.py`, `gap_analysis.py`) and [`services/core_api/src/core_api/db/models.py`](../services/core_api/src/core_api/db/models.py). Async SQLAlchemy 2.0 + GeoAlchemy2 + Alembic, with real GIST-indexed geometry columns for camera location and FOV. All ~8 synthetic-grid cameras (a proxy for the ~50-camera government grid) auto-onboard via catalogue-driven upsert and are idempotently re-onboardable (a second sync updates in place, never duplicates). Coverage gap analysis is a genuine PostGIS `ST_SquareGrid` + `ST_Distance` query, not a mocked calculation — confirmed to correctly report both "covered" and "uncovered" outcomes depending on the configured radius. 34 integration tests (skipped, not failed, when Postgres isn't running — see `services/core_api/tests/conftest.py`) plus the full unit-test tier, all green. Two real async-SQLAlchemy bugs were found and fixed while building this: `pool_pre_ping=True` triggers a documented greenlet-context error with the asyncpg driver, and an ORM object returned from a write path must have every relationship it will be read through explicitly refreshed — async sessions do not support implicit lazy-loading.
+
 ---
 
 ## 1. Design principles

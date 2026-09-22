@@ -1,7 +1,7 @@
 """FastAPI application factory.
 
-M0 ships the skeleton and health surface only; the registry, search, alert and
-evidence routers arrive in milestones M3 onwards.
+M0 shipped the skeleton and health surface. M3 adds the registry (Model 1,
+mandatory) — search, alerts and evidence routers arrive in later milestones.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from core_api.routers.registry import router as registry_router
 from sentinel_core import configure_logging, get_settings
 from sentinel_core.schemas import SCHEMA_VERSION
 
@@ -30,6 +31,8 @@ def create_app() -> FastAPI:
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
     )
+
+    app.include_router(registry_router)
 
     @app.get("/api/v1/health", tags=["ops"])
     async def health() -> dict[str, Any]:

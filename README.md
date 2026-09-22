@@ -6,10 +6,10 @@ Onboards heterogeneous government CCTV feeds into one registry, runs continuous 
 watchlist correlation, raises prioritised real-time alerts, and reconstructs a vehicle's
 timestamped route across cameras on a GIS map — with a documented path to ~80,000 cameras.
 
-> **Status:** M0 + M1 + M2 complete — infrastructure, capture/reconnect pipeline, and a
-> real, tested ANPR pipeline (vehicle detection → tracking → plate detection → OCR →
-> temporal voting) are in place, verified against real open-source models. Next: M3
-> (camera registry + GIS).
+> **Status:** M0 + M1 + M2 + M3 complete — infrastructure, capture/reconnect pipeline, a
+> real tested ANPR pipeline, and the mandatory Model 1 camera registry (async SQLAlchemy
+> + PostGIS, catalogue-driven onboarding, bulk CSV import, coverage gap analysis) are all
+> in place and verified against real services. Next: M4 (unified live viewing + alerts).
 
 ## Quickstart
 
@@ -42,13 +42,19 @@ uv run python scripts/smoke_test_anpr.py
 | Path | Contents |
 |---|---|
 | [packages/sentinel_core](packages/sentinel_core) | Shared domain model: event envelope, PTS clock, plate normalisation, event-bus port |
-| [services/core_api](services/core_api) | REST + WebSocket API, registry, search, alerts |
+| [services/core_api](services/core_api) | REST + WebSocket API, camera registry (PostGIS), search, alerts |
 | [services/edge_agent](services/edge_agent) | Capture, decode, reconnect supervisor, catalogue client, ANPR analytics |
 | [infra/compose](infra/compose) | Local infrastructure stack and the pull-only relay config |
 | [scripts](scripts) | Synthetic test grid, capacity/ANPR benchmarks, model export, catalogue verification |
 | [evidence](evidence) | Benchmark CSVs and honest findings (capacity, synthetic-grid limitations) |
 | [tests](tests) | Cross-cutting suites, including automated integrator compliance |
 | [docs](docs) | Solution plan, HLD, ANPR pipeline, UX specs, scale plan |
+
+Run the registry migrations against the local stack with:
+
+```bash
+cd services/core_api && uv run --project ../.. alembic upgrade head
+```
 
 ## Documents
 

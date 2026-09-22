@@ -1,0 +1,235 @@
+"""Registry service tests against a real PostGIS-backed Postgres.
+
+See conftest.py for the transaction-rollback isolation: nothing here is
+ever actually persisted once a test ends.
+"""
+
+from __future__ import annotations
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from core_api.registry.schemas import GeoPointOut, StreamProfileOut
+from core_api.registry.service import (
+    camera_to_out,
+    get_camera,
+    list_cameras,
+    list_departments,
+    upsert_camera,
+)
+
+
+async def test_upsert_creates_a_new_camera(db_session: AsyncSession) -> None:
+    camera = await upsert_camera(
+        db_session,
+        camera_id="cam-001",
+        name="Junction Camera",
+        driver_id="rtsp",
+        department_name="Home Department",
+        site_name="Sarkhej Circle",
+        location=GeoPointOut(lat=23.0225, lon=72.5714),
+        tier="a_continuous",
+        status="unknown",
+        source="manual",
+        attributes={},
+        profiles=[StreamProfileOut(protocol="rtsp", url="rtsp://x/cam-001")],
+    )
+
+    assert camera.camera_id == "cam-001"
+    assert camera.department is not None
+    assert camera.department.name == "Home Department"
+    assert camera.site is not None
+    assert camera.site.name == "Sarkhej Circle"
+    assert len(camera.profiles) == 1
+
+
+async def test_upsert_is_idempotent_by_camera_id(db_session: AsyncSession) -> None:
+    """Catalogue-driven onboarding re-runs the same batch on every sync — a
+    camera seen twice must update in place, not duplicate."""
+    await upsert_camera(
+        db_session,
+        camera_id="cam-002",
+        name="Old Name",
+        driver_id="rtsp",
+        department_name=None,
+        site_name=None,
+        location=None,
+        tier="b_sampled",
+        status="unknown",
+        source="gov_catalogue",
+        attributes={},
+        profiles=[],
+    )
+    await upsert_camera(
+        db_session,
+        camera_id="cam-002",
+        name="New Name",
+        driver_id="rtsp",
+        department_name=None,
+        site_name=None,
+        location=None,
+        tier="a_continuous",
+        status="live",
+        source="gov_catalogue",
+        attributes={},
+        profiles=[],
+    )
+
+    cameras = await list_cameras(db_session)
+    matching = [c for c in cameras if c.camera_id == "cam-002"]
+    assert len(matching) == 1
+    assert matching[0].name == "New Name"
+    assert matching[0].tier == "a_continuous"
+
+
+async def test_upsert_replaces_stream_profiles_wholesale(db_session: AsyncSession) -> None:
+    """A camera whose catalogue entry drops a protocol between syncs must
+    lose that stale profile, not accumulate it forever."""
+    await upsert_camera(
+        db_session,
+        camera_id="cam-003",
+        name="Cam",
+        driver_id="rtsp",
+        department_name=None,
+        site_name=None,
+        location=None,
+        tier="b_sampled",
+        status="unknown",
+        source="manual",
+        attributes={},
+        profiles=[
+            StreamProfileOut(protocol="rtsp", url="rtsp://x/cam-003"),
+            StreamProfileOut(protocol="hls", url="https://x/cam-003.m3u8"),
+        ],
+    )
+    camera = await upsert_camera(
+        db_session,
+        camera_id="cam-003",
+        name="Cam",
+        driver_id="rtsp",
+        department_name=None,
+        site_name=None,
+        location=None,
+        tier="b_sampled",
+        status="unknown",
+        source="manual",
+        attributes={},
+        profiles=[StreamProfileOut(protocol="rtsp", url="rtsp://x/cam-003")],
+    )
+
+    assert {p.protocol for p in camera.profiles} == {"rtsp"}
+
+
+async def test_get_camera_returns_none_for_an_unknown_id(db_session: AsyncSession) -> None:
+    assert await get_camera(db_session, "does-not-exist") is None
+
+
+async def test_location_round_trips_through_postgis(db_session: AsyncSession) -> None:
+    """The whole point of using a real Geometry column: a lat/lon in, the
+    same lat/lon out, via actual PostGIS storage, not a mock."""
+    camera = await upsert_camera(
+        db_session,
+        camera_id="cam-004",
+        name="Cam",
+        driver_id="rtsp",
+        department_name=None,
+        site_name=None,
+        location=GeoPointOut(lat=23.0225, lon=72.5714),
+        tier="b_sampled",
+        status="unknown",
+        source="manual",
+        attributes={},
+        profiles=[],
+    )
+
+    out = camera_to_out(camera)
+    assert out.location is not None
+    assert abs(out.location.lat - 23.0225) < 1e-6
+    assert abs(out.location.lon - 72.5714) < 1e-6
+
+
+async def test_department_camera_count_reflects_assigned_cameras(db_session: AsyncSession) -> None:
+    await upsert_camera(
+        db_session,
+        camera_id="cam-005",
+        name="Cam",
+        driver_id="rtsp",
+        department_name="GSRTC",
+        site_name=None,
+        location=None,
+        tier="b_sampled",
+        status="unknown",
+        source="manual",
+        attributes={},
+        profiles=[],
+    )
+    await upsert_camera(
+        db_session,
+        camera_id="cam-006",
+        name="Cam",
+        driver_id="rtsp",
+        department_name="GSRTC",
+        site_name=None,
+        location=None,
+        tier="b_sampled",
+        status="unknown",
+        source="manual",
+        attributes={},
+        profiles=[],
+    )
+
+    departments = await list_departments(db_session)
+    gsrtc = next(d for d in departments if d.name == "GSRTC")
+    assert gsrtc.camera_count == 2
+
+
+async def test_list_cameras_filters_by_department(db_session: AsyncSession) -> None:
+    await upsert_camera(
+        db_session,
+        camera_id="cam-007",
+        name="Cam",
+        driver_id="rtsp",
+        department_name="Food & Civil Supplies",
+        site_name=None,
+        location=None,
+        tier="b_sampled",
+        status="unknown",
+        source="manual",
+        attributes={},
+        profiles=[],
+    )
+    await upsert_camera(
+        db_session,
+        camera_id="cam-008",
+        name="Cam",
+        driver_id="rtsp",
+        department_name="RTO",
+        site_name=None,
+        location=None,
+        tier="b_sampled",
+        status="unknown",
+        source="manual",
+        attributes={},
+        profiles=[],
+    )
+
+    filtered = await list_cameras(db_session, department_name="RTO")
+    assert [c.camera_id for c in filtered] == ["cam-008"]
+
+
+async def test_attributes_round_trip_as_a_json_dict(db_session: AsyncSession) -> None:
+    camera = await upsert_camera(
+        db_session,
+        camera_id="cam-009",
+        name="Cam",
+        driver_id="rtsp",
+        department_name=None,
+        site_name=None,
+        location=None,
+        tier="b_sampled",
+        status="unknown",
+        source="manual",
+        attributes={"mount": "pole", "height_m": "6"},
+        profiles=[],
+    )
+
+    assert camera.attributes == {"mount": "pole", "height_m": "6"}

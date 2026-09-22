@@ -12,8 +12,8 @@ import httpx
 import pytest
 from pydantic import SecretStr
 
-from edge_agent.adapters.gov_catalogue import CatalogueEntryError, GovCatalogueClient
 from sentinel_core.config import Settings
+from sentinel_core.gov_catalogue import CatalogueEntryError, GovCatalogueClient
 from sentinel_core.schemas import CameraStatus, StreamProtocol
 
 

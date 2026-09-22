@@ -2,7 +2,7 @@
 """Verify the government catalogue client against the REAL endpoint.
 
 The exact JSON shape of `cameras.json` was not confirmed at build time (see
-edge_agent/adapters/gov_catalogue.py). Run this once real credentials are in
+sentinel_core/gov_catalogue.py). Run this once real credentials are in
 your local `.env` (copy `.env.example`) to check the tolerant parser actually
 maps every field correctly, and to see the raw response if it doesn't.
 
@@ -21,14 +21,13 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "packages" / "sentinel_core" / "src"))
-sys.path.insert(0, str(REPO_ROOT / "services" / "edge_agent" / "src"))
 
 
 async def main(*, show_raw: bool) -> None:
     import httpx
 
-    from edge_agent.adapters.gov_catalogue import GovCatalogueClient
     from sentinel_core.config import get_settings
+    from sentinel_core.gov_catalogue import GovCatalogueClient
 
     settings = get_settings()
     if not settings.gov_access_email or not settings.gov_access_password.get_secret_value():
