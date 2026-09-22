@@ -1,0 +1,89 @@
+@import "tailwindcss";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+/* Design tokens — docs/03-UX-DESIGN.md section 2. Dark is the default
+   (control rooms are dim, video is the content); light is a documented next
+   step for the daytime office/admin use case, not implemented in this pass. */
+@theme {
+  --color-bg-base: oklch(0.16 0.006 250);
+  --color-bg-raised: oklch(0.2 0.008 250);
+  --color-bg-overlay: oklch(0.24 0.01 250);
+  --color-bg-inset: oklch(0.13 0.006 250);
+  --color-border-subtle: oklch(0.28 0.008 250);
+  --color-border-strong: oklch(0.38 0.01 250);
+
+  --color-text-primary: oklch(0.97 0.004 250);
+  --color-text-secondary: oklch(0.76 0.008 250);
+  --color-text-tertiary: oklch(0.58 0.008 250);
+
+  --color-accent: oklch(0.68 0.16 245);
+  --color-accent-hover: oklch(0.74 0.16 245);
+
+  --color-sev-critical: oklch(0.62 0.21 25);
+  --color-sev-high: oklch(0.75 0.17 65);
+  --color-sev-medium: oklch(0.72 0.13 230);
+  --color-sev-low: oklch(0.66 0.02 250);
+  --color-ok: oklch(0.72 0.16 155);
+
+  --font-ui: "Inter Variable", "Inter", system-ui, sans-serif;
+  --font-data: "Geist Mono", ui-monospace, "SF Mono", monospace;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.32);
+  --shadow-2: 0 4px 12px rgb(0 0 0 / 0.36);
+  --shadow-3: 0 12px 32px rgb(0 0 0 / 0.44);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Plates: mono, letter-spaced, slashed zero — a deliberate visual cue that
+   this is machine-read data (see docs/03-UX-DESIGN.md section 2.2). */
+.plate-mono {
+  font-family: var(--font-data);
+  font-variant-numeric: slashed-zero tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Darken the no-key OSM raster demo basemap to match the control-room dark
+   theme. Scoped to the canvas layer only (not `.maplibregl-marker` /
+   `.maplibregl-popup`, which are siblings in MapLibre's DOM, not
+   descendants) so markers keep their true colours. */
+.maplibregl-canvas-container {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92);
+}

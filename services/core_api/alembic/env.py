@@ -15,7 +15,15 @@ from sqlalchemy.sql.schema import SchemaItem
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from core_api.db.base import Base
-from core_api.db.models import Camera, Department, Site, StreamProfile  # noqa: F401
+from core_api.db.models import (  # noqa: F401
+    Alert,
+    Camera,
+    Department,
+    Detection,
+    Site,
+    StreamProfile,
+    WatchlistEntry,
+)
 from sentinel_core.config import get_settings
 
 # this is the Alembic Config object, which provides

@@ -12,6 +12,7 @@ from core_api.registry.bulk_import import BulkImportResult, parse_and_import_csv
 from core_api.registry.gap_analysis import compute_coverage_gaps
 from core_api.registry.schemas import (
     CameraCreate,
+    CameraHealthUpdate,
     CameraOut,
     CoverageGapReport,
     DepartmentOut,
@@ -22,6 +23,7 @@ from core_api.registry.service import (
     get_camera,
     list_cameras,
     list_departments,
+    update_camera_health,
     upsert_camera,
     upsert_from_descriptors,
 )
@@ -72,6 +74,22 @@ async def create_camera_endpoint(
         attributes=payload.attributes,
         profiles=payload.profiles,
     )
+    await session.commit()
+    return camera_to_out(camera)
+
+
+@router.patch("/cameras/{camera_id}/health", response_model=CameraOut)
+async def update_camera_health_endpoint(
+    camera_id: str,
+    payload: CameraHealthUpdate,
+    session: AsyncSession = Depends(get_session),
+) -> CameraOut:
+    """Called by an edge worker's periodic heartbeat, and opportunistically
+    by detection ingest (see core_api.detections.service.ingest_detection).
+    Not authenticated yet — see docs/05-DELIVERY-PLAN.md's hardening backlog."""
+    camera = await update_camera_health(session, camera_id, payload)
+    if camera is None:
+        raise HTTPException(status_code=404, detail=f"no camera with id {camera_id!r}")
     await session.commit()
     return camera_to_out(camera)
 

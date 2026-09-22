@@ -1,7 +1,8 @@
 """FastAPI application factory.
 
-M0 shipped the skeleton and health surface. M3 adds the registry (Model 1,
-mandatory) — search, alerts and evidence routers arrive in later milestones.
+M0 shipped the skeleton and health surface. M3 added the registry (Model 1,
+mandatory). M4/M5 add live detections, the vehicle-route reconstruction and
+the watchlist/alert/BOLO surface the Operator Console (M6) is built against.
 """
 
 from __future__ import annotations
@@ -9,8 +10,11 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from core_api.routers.detections import router as detections_router
 from core_api.routers.registry import router as registry_router
+from core_api.routers.watchlist import router as watchlist_router
 from sentinel_core import configure_logging, get_settings
 from sentinel_core.schemas import SCHEMA_VERSION
 
@@ -32,7 +36,17 @@ def create_app() -> FastAPI:
         openapi_url="/api/openapi.json",
     )
 
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_allow_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     app.include_router(registry_router)
+    app.include_router(detections_router)
+    app.include_router(watchlist_router)
 
     @app.get("/api/v1/health", tags=["ops"])
     async def health() -> dict[str, Any]:

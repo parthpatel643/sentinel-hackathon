@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 __all__ = [
     "CameraCreate",
+    "CameraHealthUpdate",
     "CameraOut",
     "CoverageGapReport",
     "DepartmentCreate",
@@ -85,11 +86,27 @@ class CameraOut(BaseModel):
     tier: str
     status: str
     last_seen_at: datetime | None
+    measured_fps: float | None = None
+    declared_fps: float | None = None
+    reconnects: int = 0
+    discontinuities: int = 0
     source: str
     attributes: dict[str, str]
     profiles: list[StreamProfileOut]
     created_at: datetime
     updated_at: datetime
+
+
+class CameraHealthUpdate(BaseModel):
+    """Posted by an edge worker's periodic heartbeat — the ops dashboard's
+    Integrator Compliance panel (docs/01-ARCHITECTURE.md section 12) reads
+    these same fields."""
+
+    status: str = Field(description="connecting | live | degraded | down")
+    measured_fps: float | None = None
+    declared_fps: float | None = None
+    reconnects: int | None = None
+    discontinuities: int | None = None
 
 
 class GapCell(BaseModel):

@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     log_json: bool = Field(default=True, description="Structured JSON logs; False for dev consoles")
     node_id: str = Field(default="edge-local-01", description="Identity stamped on every event")
 
+    cors_allow_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ],
+        description="Origins the Operator Console (apps/web) is served from in dev.",
+    )
+
     # Postgres connection is built from components, never as one literal
     # string. That is deliberate, not just style: a combined
     # scheme-colon-slash-slash-user-colon-pass-at-host literal is exactly the
@@ -51,6 +59,11 @@ class Settings(BaseSettings):
     relay_api_url: str = Field(
         default="http://localhost:9997",
         description="MediaMTX control API (read-only; we never publish to the gateway)",
+    )
+    core_api_url: str = Field(
+        default="http://localhost:18000",
+        description="core_api base URL — the edge worker posts detections/health here over HTTP, "
+        "never via a shared DB connection (see edge_agent.worker).",
     )
     relay_rtsp_url: str = "rtsp://localhost:8554"
     relay_hls_url: str = "http://localhost:8888"

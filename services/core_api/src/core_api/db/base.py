@@ -8,8 +8,11 @@ models' shape, not a connection).
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from datetime import datetime
 from functools import lru_cache
+from typing import ClassVar
 
+from sqlalchemy import DateTime
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -24,7 +27,19 @@ __all__ = ["Base", "get_engine", "get_session", "get_sessionmaker"]
 
 
 class Base(DeclarativeBase):
-    """Every ORM model in core_api inherits from this."""
+    """Every ORM model in core_api inherits from this.
+
+    `datetime` is mapped to a timezone-aware column (Postgres `timestamptz`)
+    for every model, project-wide, in this one place — not per-column. Every
+    datetime in the domain model (`sentinel_core.schemas.events.Event` et al)
+    is UTC-aware (`datetime.now(UTC)`); a naive `TIMESTAMP` column raises
+    asyncpg's "can't subtract offset-naive and offset-aware datetimes" the
+    first time an aware value is written or compared against it — hit while
+    building the M4 detections/watchlist tables, fixed here rather than by
+    stripping tzinfo at every call site.
+    """
+
+    type_annotation_map: ClassVar[dict[type, DateTime]] = {datetime: DateTime(timezone=True)}
 
 
 def _asyncpg_url(database_url: str) -> str:

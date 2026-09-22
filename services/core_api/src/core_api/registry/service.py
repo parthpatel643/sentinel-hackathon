@@ -11,6 +11,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
 from geoalchemy2.shape import to_shape
 from sqlalchemy import delete, select
@@ -19,6 +20,7 @@ from sqlalchemy.orm import selectinload
 
 from core_api.db.models import Camera, Department, Site, StreamProfile
 from core_api.registry.schemas import (
+    CameraHealthUpdate,
     CameraOut,
     DepartmentOut,
     GeoPointOut,
@@ -36,6 +38,7 @@ __all__ = [
     "get_or_create_site",
     "list_cameras",
     "list_departments",
+    "location_out",
     "upsert_camera",
     "upsert_from_descriptors",
 ]
@@ -47,7 +50,10 @@ def _point_wkt(lat: float, lon: float) -> str:
     return f"SRID=4326;POINT({lon} {lat})"
 
 
-def _location_out(geom: object | None) -> GeoPointOut | None:
+def location_out(geom: object | None) -> GeoPointOut | None:
+    """Convert a GeoAlchemy2 geometry value to the API's plain lat/lon shape.
+    Public: core_api.detections.service also needs this to render a route's
+    per-hop camera location, so it is not a registry-internal helper."""
     if geom is None:
         return None
     point = to_shape(geom)  # type: ignore[arg-type]
@@ -286,16 +292,52 @@ def camera_to_out(camera: Camera) -> CameraOut:
         driver_id=camera.driver_id,
         department_name=camera.department.name if camera.department else None,
         site_name=camera.site.name if camera.site else None,
-        location=_location_out(camera.location),
+        location=location_out(camera.location),
         tier=camera.tier,
         status=camera.status,
         last_seen_at=camera.last_seen_at,
+        measured_fps=camera.measured_fps,
+        declared_fps=camera.declared_fps,
+        reconnects=camera.reconnects,
+        discontinuities=camera.discontinuities,
         source=camera.source,
         attributes=camera.attributes,
         profiles=[StreamProfileOut.model_validate(p) for p in camera.profiles],
         created_at=camera.created_at,
         updated_at=camera.updated_at,
     )
+
+
+async def update_camera_health(
+    session: AsyncSession, camera_id: str, update: CameraHealthUpdate
+) -> Camera | None:
+    """Applied by an edge worker's periodic heartbeat. Only the fields the
+    worker actually reports are touched — a heartbeat that omits
+    measured_fps (e.g. a camera that hasn't produced a frame yet) must not
+    stomp the last known value with None."""
+    camera = await get_camera(session, camera_id)
+    if camera is None:
+        return None
+
+    camera.status = update.status
+    camera.last_seen_at = datetime.now(UTC)
+    if update.measured_fps is not None:
+        camera.measured_fps = update.measured_fps
+    if update.declared_fps is not None:
+        camera.declared_fps = update.declared_fps
+    if update.reconnects is not None:
+        camera.reconnects = update.reconnects
+    if update.discontinuities is not None:
+        camera.discontinuities = update.discontinuities
+
+    await session.flush()
+    # `updated_at` is server-generated (onupdate=func.now()) so the flush
+    # above marks it expired on this ORM instance; refresh it explicitly
+    # rather than let an implicit reload happen outside async/greenlet
+    # context the next time something reads it (MissingGreenlet) — the same
+    # class of bug as the relationship-refresh gotcha in upsert_camera.
+    await session.refresh(camera, attribute_names=["updated_at"])
+    return camera
 
 
 def department_to_out(department: Department, camera_count: int = 0) -> DepartmentOut:

@@ -1,0 +1,60 @@
+/** Every core_api call the frontend needs, grouped by resource. Route
+ * components call these, never `lib/http` directly — this file is the one
+ * place that knows the URL shapes. */
+
+import { get, patch, post } from './http'
+import type {
+  Alert,
+  AlertStatus,
+  BoloResult,
+  Camera,
+  CoverageGapReport,
+  Department,
+  Detection,
+  VehicleRoute,
+  WatchlistEntry,
+} from './types'
+
+export const camerasApi = {
+  list: (departmentName?: string) =>
+    get<Camera[]>(`/api/v1/cameras${departmentName ? `?department=${encodeURIComponent(departmentName)}` : ''}`),
+  get: (cameraId: string) => get<Camera>(`/api/v1/cameras/${encodeURIComponent(cameraId)}`),
+}
+
+export const departmentsApi = {
+  list: () => get<Department[]>('/api/v1/departments'),
+}
+
+export const coverageApi = {
+  gaps: () => get<CoverageGapReport>('/api/v1/coverage/gaps'),
+}
+
+export const detectionsApi = {
+  search: (params: { plate?: string; cameraId?: string; limit?: number } = {}) => {
+    const query = new URLSearchParams()
+    if (params.plate) query.set('plate', params.plate)
+    if (params.cameraId) query.set('camera_id', params.cameraId)
+    if (params.limit) query.set('limit', String(params.limit))
+    const qs = query.toString()
+    return get<Detection[]>(`/api/v1/detections${qs ? `?${qs}` : ''}`)
+  },
+  vehicleRoute: (plate: string) => get<VehicleRoute>(`/api/v1/vehicles/${encodeURIComponent(plate)}/route`),
+}
+
+export const watchlistApi = {
+  list: (activeOnly = true) => get<WatchlistEntry[]>(`/api/v1/watchlist?active_only=${activeOnly}`),
+  bolo: (payload: {
+    plate: string
+    entry_type?: string
+    priority?: string
+    case_reference?: string
+    requested_by?: string
+    notes?: string
+  }) => post<BoloResult>('/api/v1/bolo', payload),
+}
+
+export const alertsApi = {
+  list: (status?: AlertStatus) => get<Alert[]>(`/api/v1/alerts${status ? `?status=${status}` : ''}`),
+  update: (alertId: string, payload: { status: AlertStatus; resolved_by?: string; resolution_note?: string }) =>
+    patch<Alert>(`/api/v1/alerts/${alertId}`, payload),
+}
