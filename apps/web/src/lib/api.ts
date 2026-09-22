@@ -2,7 +2,7 @@
  * components call these, never `lib/http` directly — this file is the one
  * place that knows the URL shapes. */
 
-import { get, patch, post } from './http'
+import { get, getBlob, patch, post } from './http'
 import type {
   Alert,
   AlertStatus,
@@ -54,6 +54,7 @@ export const detectionsApi = {
     return get<Detection[]>(`/api/v1/detections${qs ? `?${qs}` : ''}`)
   },
   vehicleRoute: (plate: string) => get<VehicleRoute>(`/api/v1/vehicles/${encodeURIComponent(plate)}/route`),
+  movementReport: (plate: string) => getBlob(`/api/v1/vehicles/${encodeURIComponent(plate)}/movement-report`),
 }
 
 export const watchlistApi = {

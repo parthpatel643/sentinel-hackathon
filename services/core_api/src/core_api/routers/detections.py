@@ -7,6 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core_api.auth.dependencies import current_user, require_service_token
@@ -14,6 +15,7 @@ from core_api.auth.service import TokenPayload
 from core_api.db.base import get_session
 from core_api.detections.schemas import DetectionIn, DetectionOut, VehicleRoute
 from core_api.detections.service import get_vehicle_route, ingest_detection, search_detections
+from core_api.reports.service import build_movement_report_zip
 from core_api.watchlist.schemas import AlertOut
 from core_api.watchlist.service import correlate_detection
 
@@ -61,3 +63,21 @@ async def vehicle_route_endpoint(
     """The Find-a-Vehicle screen's single call: search + route reconstruction
     in one round trip."""
     return await get_vehicle_route(session, plate)
+
+
+@router.get("/vehicles/{plate}/movement-report")
+async def movement_report_endpoint(
+    plate: str,
+    session: AsyncSession = Depends(get_session),
+    user: TokenPayload = Depends(current_user),
+) -> Response:
+    """The Movement Report export — a zip of report.pdf, report.csv and a
+    hash manifest binding them together (docs/01-ARCHITECTURE.md §6.3/§6.5).
+    'This is literally the eval-day deliverable.'"""
+    route = await get_vehicle_route(session, plate)
+    zip_bytes, filename = build_movement_report_zip(route, generated_by=user.email)
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

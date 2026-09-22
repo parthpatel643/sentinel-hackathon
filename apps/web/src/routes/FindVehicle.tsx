@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { Download } from 'lucide-react'
 import { detectionsApi, watchlistApi } from '../lib/api'
 import { ApiError } from '../lib/http'
 import { MapView, type MapMarker } from '../components/MapView'
@@ -83,6 +84,41 @@ function ArmBoloPanel({ plate, onArmed }: { plate: string; onArmed: () => void }
       </Button>
       {error && <p className="text-xs text-sev-critical">{error}</p>}
     </Card>
+  )
+}
+
+function ExportReportButton({ plate }: { plate: string }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function download() {
+    setBusy(true)
+    setError(null)
+    try {
+      const { blob, filename } = await detectionsApi.movementReport(plate)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      setError('Export failed. Try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button size="sm" variant="secondary" onClick={download} disabled={busy}>
+        <Download size={14} />
+        {busy ? 'Preparing…' : 'Export report'}
+      </Button>
+      {error && <p className="text-xs text-sev-critical">{error}</p>}
+    </div>
   )
 }
 
@@ -179,15 +215,18 @@ export function FindVehicle() {
 
       {route && route.total_sightings > 0 && (
         <>
-          <div className="border-b border-border-subtle bg-bg-raised px-6 py-3">
-            <p className="plate-mono text-xl font-semibold text-text-primary">{route.plate_normalised}</p>
-            <p className="text-sm text-text-secondary">
-              {route.total_sightings} sighting{route.total_sightings === 1 ? '' : 's'} across{' '}
-              {new Set(route.points.map((p) => p.camera_id)).size} camera
-              {new Set(route.points.map((p) => p.camera_id)).size === 1 ? '' : 's'} ·{' '}
-              {route.first_seen_at && formatTime(route.first_seen_at)} →{' '}
-              {route.last_seen_at && formatTime(route.last_seen_at)}
-            </p>
+          <div className="flex items-center justify-between gap-4 border-b border-border-subtle bg-bg-raised px-6 py-3">
+            <div>
+              <p className="plate-mono text-xl font-semibold text-text-primary">{route.plate_normalised}</p>
+              <p className="text-sm text-text-secondary">
+                {route.total_sightings} sighting{route.total_sightings === 1 ? '' : 's'} across{' '}
+                {new Set(route.points.map((p) => p.camera_id)).size} camera
+                {new Set(route.points.map((p) => p.camera_id)).size === 1 ? '' : 's'} ·{' '}
+                {route.first_seen_at && formatTime(route.first_seen_at)} →{' '}
+                {route.last_seen_at && formatTime(route.last_seen_at)}
+              </p>
+            </div>
+            <ExportReportButton plate={route.plate_normalised} />
           </div>
           <div className="relative flex min-h-0 flex-1">
             <div className="relative flex-[1.4]">

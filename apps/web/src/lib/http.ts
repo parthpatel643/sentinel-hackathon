@@ -57,5 +57,28 @@ function patch<T>(path: string, body: unknown): Promise<T> {
   return request<T>(path, { method: 'PATCH', body: JSON.stringify(body) })
 }
 
-export { get, patch, post }
+/** For binary downloads (e.g. the Movement Report zip) — everything else
+ * in this file assumes a JSON body, which a zip response is not. */
+async function getBlob(path: string): Promise<{ blob: Blob; filename: string }> {
+  const token = getToken()
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!response.ok) {
+    if (response.status === 401) setToken(null)
+    let detail: unknown = null
+    try {
+      detail = await response.json()
+    } catch {
+      detail = await response.text()
+    }
+    throw new ApiError(response.status, detail)
+  }
+  const disposition = response.headers.get('Content-Disposition') ?? ''
+  const match = /filename="?([^"]+)"?/.exec(disposition)
+  const filename = match?.[1] ?? 'download'
+  return { blob: await response.blob(), filename }
+}
+
+export { get, patch, post, getBlob }
 export { API_BASE }
