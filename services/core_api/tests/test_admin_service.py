@@ -1,0 +1,75 @@
+"""Retention preview tests against a real Postgres. See conftest.py for the
+transaction-rollback isolation — nothing here is ever actually persisted
+once a test ends."""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from core_api.admin.service import preview_retention
+from core_api.detections.schemas import DetectionIn
+from core_api.detections.service import ingest_detection
+from core_api.registry.schemas import GeoPointOut
+from core_api.registry.service import upsert_camera
+
+NOW = datetime.now(UTC).replace(microsecond=0)
+
+
+async def _make_camera(session: AsyncSession, camera_id: str = "retention-cam-01") -> None:
+    await upsert_camera(
+        session,
+        camera_id=camera_id,
+        name="Retention Test Camera",
+        driver_id="rtsp",
+        department_name=None,
+        site_name=None,
+        location=GeoPointOut(lat=23.0225, lon=72.5714),
+        tier="a_continuous",
+        status="unknown",
+        source="manual",
+        attributes={},
+        profiles=[],
+    )
+
+
+async def _make_detection(session: AsyncSession, *, event_id: str, observed_at: datetime) -> None:
+    await ingest_detection(
+        session,
+        DetectionIn.model_validate(
+            {
+                "event_id": event_id,
+                "camera_id": "retention-cam-01",
+                "plate_text": "GJ01AB1234",
+                "plate_normalised": "GJ01AB1234",
+                "plate_ambiguity_key": "GJ01AB1234",
+                "plate_confidence": 0.9,
+                "pts_ms": 1000.0,
+                "observed_at": observed_at,
+                "node_id": "edge-local-01",
+            }
+        ),
+    )
+
+
+async def test_only_detections_older_than_the_cutoff_are_counted(db_session: AsyncSession) -> None:
+    await _make_camera(db_session)
+    await _make_detection(db_session, event_id="evt-old", observed_at=NOW - timedelta(days=40))
+    await _make_detection(db_session, event_id="evt-recent", observed_at=NOW - timedelta(days=1))
+
+    result = await preview_retention(
+        db_session, detections_older_than_days=30, clips_older_than_days=90
+    )
+
+    assert result.detections_affected == 1
+
+
+async def test_no_data_yields_a_zeroed_preview(db_session: AsyncSession) -> None:
+    result = await preview_retention(
+        db_session, detections_older_than_days=30, clips_older_than_days=90
+    )
+
+    assert result.detections_affected == 0
+    assert result.clips_affected == 0
+    assert result.clips_bytes_affected == 0

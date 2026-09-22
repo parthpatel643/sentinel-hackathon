@@ -7,7 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-__all__ = ["LoginRequest", "TokenResponse", "UserOut"]
+__all__ = ["LoginRequest", "TokenResponse", "UserCreate", "UserOut", "UserUpdate"]
 
 
 class LoginRequest(BaseModel):
@@ -29,3 +29,15 @@ class UserOut(BaseModel):
     role: str
     active: bool
     created_at: datetime
+
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8)
+    full_name: str
+    role: str = Field(default="operator", description="operator | admin")
+
+
+class UserUpdate(BaseModel):
+    role: str | None = Field(default=None, description="operator | admin")
+    active: bool | None = None

@@ -23,6 +23,7 @@ from core_api.watchlist.schemas import (
     BoloResult,
     WatchlistEntryCreate,
     WatchlistEntryOut,
+    WatchlistEntryUpdate,
 )
 from core_api.watchlist.service import (
     create_watchlist_entry,
@@ -30,6 +31,7 @@ from core_api.watchlist.service import (
     list_watchlist_entries,
     retro_scan,
     update_alert,
+    update_watchlist_entry,
 )
 from sentinel_core.config import get_settings
 
@@ -51,6 +53,19 @@ async def list_watchlist_endpoint(
 ) -> list[WatchlistEntryOut]:
     entries = await list_watchlist_entries(session, active_only=active_only)
     return [WatchlistEntryOut.model_validate(e) for e in entries]
+
+
+@router.patch("/watchlist/{entry_id}", response_model=WatchlistEntryOut)
+async def update_watchlist_entry_endpoint(
+    entry_id: UUID, payload: WatchlistEntryUpdate, session: AsyncSession = Depends(get_session)
+) -> WatchlistEntryOut:
+    """Admin Portal list management (docs/03-UX-DESIGN.md §6) — deactivate
+    an entry by hand rather than only ever waiting out valid_until."""
+    entry = await update_watchlist_entry(session, entry_id, active=payload.active)
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"no watchlist entry with id {entry_id}")
+    await session.commit()
+    return WatchlistEntryOut.model_validate(entry)
 
 
 @router.post("/bolo", response_model=BoloResult, status_code=201)

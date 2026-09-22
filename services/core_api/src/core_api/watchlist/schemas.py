@@ -14,6 +14,7 @@ __all__ = [
     "BoloResult",
     "WatchlistEntryCreate",
     "WatchlistEntryOut",
+    "WatchlistEntryUpdate",
 ]
 
 
@@ -41,6 +42,10 @@ class WatchlistEntryOut(BaseModel):
     valid_from: datetime
     valid_until: datetime | None
     created_at: datetime
+
+
+class WatchlistEntryUpdate(BaseModel):
+    active: bool
 
 
 class AlertOut(BaseModel):

@@ -9,6 +9,8 @@ edge worker calls (detection ingest, camera health heartbeats) — those use
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+
 from fastapi import Depends, Header, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -36,7 +38,7 @@ async def current_user(
         raise HTTPException(status_code=401, detail="Invalid or expired token") from exc
 
 
-def require_role(*roles: str) -> object:
+def require_role(*roles: str) -> Callable[[TokenPayload], Awaitable[TokenPayload]]:
     """`Depends(require_role("admin"))` for the handful of routes that need
     more than "any logged-in user" (M12's fuller RBAC is the place for
     anything more granular than a flat role check)."""

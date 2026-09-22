@@ -72,6 +72,21 @@ async def list_watchlist_entries(
     return list(result.scalars().all())
 
 
+async def update_watchlist_entry(
+    session: AsyncSession, entry_id: uuid.UUID, *, active: bool | None
+) -> WatchlistEntry | None:
+    """The Admin Portal's list-management action (docs/03-UX-DESIGN.md §6):
+    deactivating an entry by hand, rather than only ever waiting out its
+    valid_until expiry."""
+    entry = await session.get(WatchlistEntry, entry_id)
+    if entry is None:
+        return None
+    if active is not None:
+        entry.active = active
+    await session.flush()
+    return entry
+
+
 async def _active_entries_matching(
     session: AsyncSession, *, plate_normalised: str, plate_ambiguity_key: str
 ) -> list[tuple[WatchlistEntry, str]]:

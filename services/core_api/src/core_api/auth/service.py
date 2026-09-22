@@ -10,6 +10,7 @@ not a finished security model.
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -27,9 +28,12 @@ __all__ = [
     "TokenPayload",
     "authenticate_user",
     "create_access_token",
+    "create_user",
     "decode_access_token",
     "get_user_by_email",
     "hash_password",
+    "list_users",
+    "update_user",
     "verify_password",
 ]
 
@@ -102,4 +106,34 @@ async def authenticate_user(session: AsyncSession, email: str, password: str) ->
         return None
     if not verify_password(password, user.hashed_password):
         return None
+    return user
+
+
+async def list_users(session: AsyncSession) -> list[User]:
+    result = await session.execute(select(User).order_by(User.email))
+    return list(result.scalars().all())
+
+
+async def create_user(
+    session: AsyncSession, *, email: str, password: str, full_name: str, role: str
+) -> User:
+    user = User(
+        email=email, hashed_password=hash_password(password), full_name=full_name, role=role
+    )
+    session.add(user)
+    await session.flush()
+    return user
+
+
+async def update_user(
+    session: AsyncSession, user_id: uuid.UUID, *, role: str | None, active: bool | None
+) -> User | None:
+    user = await session.get(User, user_id)
+    if user is None:
+        return None
+    if role is not None:
+        user.role = role
+    if active is not None:
+        user.active = active
+    await session.flush()
     return user

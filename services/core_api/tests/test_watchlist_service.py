@@ -20,6 +20,7 @@ from core_api.watchlist.service import (
     list_watchlist_entries,
     retro_scan,
     update_alert,
+    update_watchlist_entry,
 )
 
 ANCHOR = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
@@ -251,3 +252,27 @@ async def test_update_alert_returns_none_for_an_unknown_id(db_session: AsyncSess
     import uuid
 
     assert await update_alert(db_session, uuid.uuid4(), AlertUpdate(status="acknowledged")) is None
+
+
+async def test_update_watchlist_entry_can_deactivate_and_reactivate(
+    db_session: AsyncSession,
+) -> None:
+    entry = await create_watchlist_entry(
+        db_session, WatchlistEntryCreate(plate="GJ01AB1234", entry_type="stolen")
+    )
+
+    deactivated = await update_watchlist_entry(db_session, entry.id, active=False)
+    assert deactivated is not None
+    assert deactivated.active is False
+
+    reactivated = await update_watchlist_entry(db_session, entry.id, active=True)
+    assert reactivated is not None
+    assert reactivated.active is True
+
+
+async def test_update_watchlist_entry_returns_none_for_an_unknown_id(
+    db_session: AsyncSession,
+) -> None:
+    import uuid
+
+    assert await update_watchlist_entry(db_session, uuid.uuid4(), active=False) is None

@@ -17,7 +17,9 @@ import type {
   Detection,
   EvidenceClip,
   IntegratorCompliance,
+  RetentionPreview,
   TokenResponse,
+  UserCreate,
   VehicleRoute,
   WatchlistEntry,
 } from './types'
@@ -26,6 +28,18 @@ export const authApi = {
   login: (email: string, password: string) =>
     post<TokenResponse>('/api/v1/auth/login', { email, password }),
   me: () => get<AuthUser>('/api/v1/auth/me'),
+}
+
+export const usersApi = {
+  list: () => get<AuthUser[]>('/api/v1/auth/users'),
+  create: (payload: UserCreate) => post<AuthUser>('/api/v1/auth/users', payload),
+  update: (userId: string, payload: { role?: string; active?: boolean }) =>
+    patch<AuthUser>(`/api/v1/auth/users/${userId}`, payload),
+}
+
+export const adminApi = {
+  retentionPreview: (detectionsDays: number, clipsDays: number) =>
+    get<RetentionPreview>(`/api/v1/admin/retention-preview?detections_days=${detectionsDays}&clips_days=${clipsDays}`),
 }
 
 export const camerasApi = {
@@ -77,6 +91,8 @@ export const watchlistApi = {
     requested_by?: string
     notes?: string
   }) => post<BoloResult>('/api/v1/bolo', payload),
+  update: (entryId: string, active: boolean) =>
+    patch<WatchlistEntry>(`/api/v1/watchlist/${entryId}`, { active }),
 }
 
 export const alertsApi = {

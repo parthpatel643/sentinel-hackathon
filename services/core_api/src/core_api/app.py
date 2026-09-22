@@ -17,6 +17,7 @@ from core_api.auth.dependencies import current_user
 from core_api.auth.service import TokenPayload
 from core_api.db.base import get_session
 from core_api.registry.service import codecs_in_use
+from core_api.routers.admin import router as admin_router
 from core_api.routers.auth import router as auth_router
 from core_api.routers.detections import router as detections_router
 from core_api.routers.registry import router as registry_router
@@ -51,6 +52,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(auth_router)
+    app.include_router(admin_router)
     app.include_router(registry_router)
     app.include_router(detections_router)
     # watchlist_router has no machine-called endpoints (unlike registry/

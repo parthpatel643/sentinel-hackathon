@@ -4,6 +4,7 @@ isolation — nothing here is ever actually persisted once a test ends."""
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import jwt
@@ -15,9 +16,12 @@ from core_api.auth.service import (
     InvalidTokenError,
     authenticate_user,
     create_access_token,
+    create_user,
     decode_access_token,
     get_user_by_email,
     hash_password,
+    list_users,
+    update_user,
     verify_password,
 )
 from core_api.db.models import User
@@ -165,3 +169,56 @@ async def test_get_user_by_email_returns_none_for_an_unknown_address(
     db_session: AsyncSession,
 ) -> None:
     assert await get_user_by_email(db_session, "ghost@example.com") is None
+
+
+async def test_create_user_hashes_the_password_not_the_plaintext(db_session: AsyncSession) -> None:
+    user = await create_user(
+        db_session,
+        email="new@example.com",
+        password="s3cret!",
+        full_name="New Operator",
+        role="operator",
+    )
+
+    assert user.hashed_password != "s3cret!"
+    assert await authenticate_user(db_session, "new@example.com", "s3cret!") is not None
+
+
+async def test_list_users_returns_every_account_ordered_by_email(db_session: AsyncSession) -> None:
+    await create_user(
+        db_session, email="zed@example.com", password="pw", full_name="Zed", role="operator"
+    )
+    await create_user(
+        db_session, email="amy@example.com", password="pw", full_name="Amy", role="admin"
+    )
+
+    users = await list_users(db_session)
+
+    emails = [u.email for u in users]
+    assert "amy@example.com" in emails
+    assert "zed@example.com" in emails
+    assert emails.index("amy@example.com") < emails.index("zed@example.com")
+
+
+async def test_update_user_changes_role_and_active_independently(db_session: AsyncSession) -> None:
+    user = await create_user(
+        db_session,
+        email="promote@example.com",
+        password="pw",
+        full_name="Promote Me",
+        role="operator",
+    )
+
+    updated = await update_user(db_session, user.id, role="admin", active=None)
+    assert updated is not None
+    assert updated.role == "admin"
+    assert updated.active is True
+
+    deactivated = await update_user(db_session, user.id, role=None, active=False)
+    assert deactivated is not None
+    assert deactivated.role == "admin"
+    assert deactivated.active is False
+
+
+async def test_update_user_returns_none_for_an_unknown_id(db_session: AsyncSession) -> None:
+    assert await update_user(db_session, uuid.uuid4(), role="admin", active=None) is None

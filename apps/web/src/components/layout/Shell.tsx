@@ -1,4 +1,4 @@
-import { Activity, Bell, Camera as CameraIcon, LayoutGrid, LogOut, Search, ShieldCheck, Grid3x3 } from 'lucide-react'
+import { Activity, Bell, Camera as CameraIcon, LayoutGrid, LogOut, Search, ShieldCheck, Grid3x3, Settings } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '../../lib/cn'
@@ -40,6 +40,22 @@ export function Shell({ children }: { children: ReactNode }) {
             <span className="leading-tight text-center">{label}</span>
           </NavLink>
         ))}
+        {user?.role === 'admin' && (
+          <NavLink
+            to="/admin"
+            className={({ isActive }) =>
+              cn(
+                'flex w-16 flex-col items-center gap-1 rounded-md py-2.5 text-[11px] font-medium transition-colors duration-fast',
+                isActive
+                  ? 'bg-accent/15 text-accent'
+                  : 'text-text-tertiary hover:bg-bg-overlay hover:text-text-secondary',
+              )
+            }
+          >
+            <Settings size={19} strokeWidth={2.1} />
+            <span className="leading-tight text-center">Admin</span>
+          </NavLink>
+        )}
         <div className="flex-1" />
         <button
           type="button"

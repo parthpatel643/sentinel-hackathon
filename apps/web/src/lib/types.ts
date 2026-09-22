@@ -17,6 +17,21 @@ export interface AuthUser {
   created_at: string
 }
 
+export interface UserCreate {
+  email: string
+  password: string
+  full_name: string
+  role?: string
+}
+
+export interface RetentionPreview {
+  detections_older_than_days: number
+  clips_older_than_days: number
+  detections_affected: number
+  clips_affected: number
+  clips_bytes_affected: number
+}
+
 export interface TokenResponse {
   access_token: string
   token_type: string

@@ -6,6 +6,7 @@ import { LiveWall } from './routes/LiveWall'
 import { FindVehicle } from './routes/FindVehicle'
 import { Alerts } from './routes/Alerts'
 import { Health } from './routes/Health'
+import { AdminPortal } from './routes/AdminPortal'
 import { Login } from './routes/Login'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import { CommandPalette } from './components/CommandPalette'
@@ -41,6 +42,7 @@ export default function App() {
               <Route path="/find-a-vehicle" element={<FindVehicle />} />
               <Route path="/alerts" element={<Alerts />} />
               <Route path="/health" element={<Health />} />
+              <Route path="/admin" element={<AdminPortal />} />
             </Routes>
           </Shell>
         </AuthGate>

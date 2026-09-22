@@ -1,5 +1,5 @@
 import { Command } from 'cmdk'
-import { Bell, Camera as CameraIcon, LayoutGrid, LogOut, Search, Video, Activity, Grid3x3 } from 'lucide-react'
+import { Bell, Camera as CameraIcon, LayoutGrid, LogOut, Search, Video, Activity, Grid3x3, Settings } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
@@ -15,6 +15,13 @@ const NAV_ITEMS = [
   { to: '/alerts', label: 'Alerts', icon: Bell, keywords: ['watchlist', 'hits'] },
   { to: '/health', label: 'Health', icon: Activity, keywords: ['compliance', 'integrator', 'status'] },
 ]
+
+const ADMIN_NAV_ITEM = {
+  to: '/admin',
+  label: 'Admin Portal',
+  icon: Settings,
+  keywords: ['users', 'roles', 'watchlist', 'retention', 'audit'],
+}
 
 /** Global ⌘K / Ctrl+K launcher, mounted once at the app shell. Every
  * destination and action here is also reachable by mouse (docs/03-UX-DESIGN.md
@@ -96,17 +103,19 @@ export function CommandPalette() {
         )}
 
         <Command.Group heading="Go to" className="cmdk-group">
-          {NAV_ITEMS.filter(
-            (item) =>
-              !trimmedSearch ||
-              item.label.toLowerCase().includes(trimmedSearch.toLowerCase()) ||
-              item.keywords.some((k) => k.includes(trimmedSearch.toLowerCase())),
-          ).map(({ to, label, icon: Icon }) => (
-            <Command.Item key={to} value={label} onSelect={() => go(to)} className="cmdk-item">
-              <Icon size={16} className="text-text-tertiary" />
-              <span>{label}</span>
-            </Command.Item>
-          ))}
+          {[...NAV_ITEMS, ...(user?.role === 'admin' ? [ADMIN_NAV_ITEM] : [])]
+            .filter(
+              (item) =>
+                !trimmedSearch ||
+                item.label.toLowerCase().includes(trimmedSearch.toLowerCase()) ||
+                item.keywords.some((k) => k.includes(trimmedSearch.toLowerCase())),
+            )
+            .map(({ to, label, icon: Icon }) => (
+              <Command.Item key={to} value={label} onSelect={() => go(to)} className="cmdk-item">
+                <Icon size={16} className="text-text-tertiary" />
+                <span>{label}</span>
+              </Command.Item>
+            ))}
         </Command.Group>
 
         {matchingCameras.length > 0 && (
