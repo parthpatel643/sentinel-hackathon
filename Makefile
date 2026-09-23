@@ -6,13 +6,14 @@ SHELL := /bin/bash
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 
 .DEFAULT_GOAL := help
-.PHONY: help install up down logs ps api test lint fmt types check audit secrets-scan sbom clean
+.PHONY: help install up down logs ps api web worker seed test lint fmt types check audit secrets-scan sbom clean
 
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
 
 install: ## Install all workspace dependencies
 	uv sync --all-packages
+	cd apps/web && npm install
 
 up: ## Start the local infrastructure stack
 	$(COMPOSE) up -d
@@ -28,8 +29,20 @@ logs: ## Tail stack logs
 ps: ## Show stack status
 	$(COMPOSE) ps
 
+# 18000, not 18080: apps/web/.env and sentinel_core.config's `core_api_url`
+# both default here, so binding anything else gives a stack whose own parts
+# cannot reach each other.
 api: ## Run the core API with reload
-	uv run uvicorn core_api.app:app --reload --port 18080
+	uv run --package core_api uvicorn core_api.app:app --reload --port 18000
+
+web: ## Run the operator console (Vite dev server)
+	cd apps/web && npm run dev
+
+worker: ## Run an edge worker against the synthetic grid (SOURCE=gov for the real grid)
+	uv run --package edge-agent python -m edge_agent.worker --source $(or $(SOURCE),synthetic)
+
+seed: ## Create the default operator login
+	uv run --package core_api python scripts/seed_admin_user.py
 
 test: ## Run the test suite
 	uv run pytest
