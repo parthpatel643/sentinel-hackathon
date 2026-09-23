@@ -34,6 +34,7 @@ import argparse
 import asyncio
 import json
 import logging
+import signal
 from pathlib import Path
 from typing import Any
 
@@ -498,7 +499,7 @@ async def main() -> None:
             api_base_url,
         )
         try:
-            await asyncio.gather(
+            pipelines = asyncio.gather(
                 *(
                     _run_camera(
                         client, descriptor, vehicle_detector, plate_reader, via_relay=via_relay
@@ -506,6 +507,19 @@ async def main() -> None:
                     for descriptor in descriptors
                 )
             )
+            # Without this, SIGTERM — which is how this process is actually
+            # stopped, by `kill`, a container stop or a supervisor — takes the
+            # interpreter down where it stands, and the `finally` below never
+            # runs. The relay paths would then stay pinned open exactly as if
+            # the release had never been written. Turning the signal into a
+            # cancellation lets the stack unwind normally instead.
+            loop = asyncio.get_running_loop()
+            for signame in (signal.SIGTERM, signal.SIGINT):
+                loop.add_signal_handler(signame, pipelines.cancel)
+            try:
+                await pipelines
+            except asyncio.CancelledError:
+                logger.info("shutting down on signal")
         finally:
             await _release_warmed_paths(settings)
 
