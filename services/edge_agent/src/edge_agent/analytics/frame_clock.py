@@ -36,6 +36,15 @@ import numpy as np
 
 __all__ = ["FrameClockReader", "parse_overlay_timestamp"]
 
+# Letters are allowed on purpose: several cameras print a weekday between
+# the date and the time ("13-06-2026 Sat 21:01:53"), and excluding letters
+# made Tesseract render it as digit noise that corrupted the numbers either
+# side of it. The parser skips non-digits, so reading them costs nothing.
+_TESSERACT_CONFIG = (
+    "--psm 7 -c tessedit_char_whitelist="
+    "0123456789-/: ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+)
+
 logger = logging.getLogger(__name__)
 
 # Gujarat. The overlay is the camera's local wall clock with no zone marker,
@@ -96,8 +105,10 @@ class FrameClockReader:
     information.
     """
 
-    crop_height: float = 0.075
-    crop_width: float = 0.45
+    # (height, width) as fractions of the frame, tightest first. Fractions
+    # rather than pixels because the fleet mixes 1920x1080 and 1280x720 and
+    # the overlay scales with the frame.
+    crop_candidates: tuple[tuple[float, float], ...] = ((0.075, 0.45), (0.12, 0.60))
     tz: timezone = IST
     # Tuned on real frames from both fleet resolutions; the OSD is near-white.
     threshold: int = 160
@@ -110,9 +121,17 @@ class FrameClockReader:
     # A camera clock can run slightly ahead of ours; a year cannot.
     max_future_skew_s: float = 300.0
     max_age_years: int = 5
+    # Each OCR attempt shells out to tesseract, and a camera whose overlay
+    # cannot be read pays for every crop and variant before giving up. Paid
+    # once a second per camera that is failing, that is real load for no
+    # information, so repeated failure backs off.
+    failure_backoff_after: int = 5
+    failure_backoff_s: float = 30.0
 
     _anchor: datetime | None = None
     _candidate: datetime | None = None
+    _consecutive_failures: int = 0
+    _next_attempt_second: int = -1
     _last_read_second: int | None = None
     _unavailable_logged: bool = False
 
@@ -127,11 +146,22 @@ class FrameClockReader:
             second = int(pts_ms // 1000)
             if second == self._last_read_second:
                 return self._anchor
+            if second < self._next_attempt_second:
+                # Backing off after repeated failures — see failure_backoff_s.
+                return self._anchor
             self._last_read_second = second
 
         text = self._ocr(frame)
         if text is None:
+            self._consecutive_failures += 1
+            if (
+                self._consecutive_failures >= self.failure_backoff_after
+                and self._last_read_second is not None
+            ):
+                self._next_attempt_second = self._last_read_second + int(self.failure_backoff_s)
             return self._anchor
+        self._consecutive_failures = 0
+        self._next_attempt_second = -1
         parsed = parse_overlay_timestamp(text, tz=self.tz)
         if parsed is None or not self._is_plausible(parsed):
             return self._anchor
@@ -175,6 +205,20 @@ class FrameClockReader:
         return value >= now - timedelta(days=365 * self.max_age_years)
 
     def _ocr(self, frame: np.ndarray) -> str | None:
+        """First crop whose text parses to a plausible timestamp.
+
+        The fleet does not share one overlay layout. Measured across real
+        cameras: some print `17-06-2026 18:04:42` tight in the top-left,
+        others `13-06-2026 Sat 21:01:53` set lower and wider, and one uses
+        slashes with the weekday after the time. A single crop cannot serve
+        them.
+
+        Order matters, and not for speed. A crop larger than the overlay
+        drags in scene content, and that measurably corrupts the read — the
+        same cam06 frame that reads correctly in a tight crop returned the
+        year as 2036 in a looser one. So the tightest crop is tried first and
+        a looser one is only reached when it finds nothing usable.
+        """
         try:
             import pytesseract
         except ImportError:  # pragma: no cover - depends on the environment
@@ -182,36 +226,35 @@ class FrameClockReader:
             return None
 
         height, width = frame.shape[:2]
-        crop = frame[
-            : max(1, int(height * self.crop_height)), : max(1, int(width * self.crop_width))
-        ]
-        if crop.size == 0:
-            return None
-        grey = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop
+        for crop_height, crop_width in self.crop_candidates:
+            crop = frame[
+                : max(1, int(height * crop_height)), : max(1, int(width * crop_width))
+            ]
+            if crop.size == 0:
+                continue
+            grey = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop
 
-        # Two attempts, cheapest-and-best first. The OSD is white text with a
-        # dark outline, so a fixed high threshold isolates it cleanly from
-        # almost any scene — Otsu, which picks its level from the whole crop,
-        # was measurably worse because the scene behind the text dominates it.
-        # The border matters: PSM 7 reads a single text *line* and does badly
-        # when glyphs touch the image edge. Plain greyscale is the fallback
-        # for scenes bright enough to wash the threshold out.
-        binary = cv2.threshold(grey, self.threshold, 255, cv2.THRESH_BINARY)[1]
-        padded = cv2.copyMakeBorder(binary, 12, 12, 12, 12, cv2.BORDER_CONSTANT, value=0)
+            # The OSD is light text with a dark outline over arbitrary scene
+            # content, so a fixed high threshold isolates it better than Otsu,
+            # which picks its level from the whole crop and lets the scene
+            # dominate. The border matters too: PSM 7 reads a single text
+            # *line* and does badly when glyphs touch the image edge. Plain
+            # greyscale is the fallback for scenes bright enough to wash the
+            # threshold out.
+            binary = cv2.threshold(grey, self.threshold, 255, cv2.THRESH_BINARY)[1]
+            padded = cv2.copyMakeBorder(binary, 12, 12, 12, 12, cv2.BORDER_CONSTANT, value=0)
 
-        for candidate in (padded, grey):
-            try:
-                text = str(
-                    pytesseract.image_to_string(
-                        candidate,
-                        config="--psm 7 -c tessedit_char_whitelist=0123456789-: ",
+            for candidate in (padded, grey):
+                try:
+                    text = str(
+                        pytesseract.image_to_string(candidate, config=_TESSERACT_CONFIG)
                     )
-                )
-            except Exception as exc:  # pragma: no cover - binary missing/broken
-                self._warn_once(f"tesseract failed: {exc}")
-                return None
-            if _TIMESTAMP_RE.search(text):
-                return text
+                except Exception as exc:  # pragma: no cover - binary missing/broken
+                    self._warn_once(f"tesseract failed: {exc}")
+                    return None
+                parsed = parse_overlay_timestamp(text, tz=self.tz)
+                if parsed is not None and self._is_plausible(parsed):
+                    return text
         return None
 
     def _warn_once(self, reason: str) -> None:

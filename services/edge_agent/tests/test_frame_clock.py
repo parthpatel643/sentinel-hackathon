@@ -41,6 +41,32 @@ def test_separators_are_optional(text: str, expected: tuple[int, ...]) -> None:
     ) == expected
 
 
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # Real layouts observed across the fleet — they do not agree.
+        ("13-06-2026 Sat 21:01:53", (2026, 6, 13, 15, 31, 53)),  # weekday mid-string
+        ("13/06/2026 21:01:32 Sat", (2026, 6, 13, 15, 31, 32)),  # slashes, weekday last
+        ("17-06-2026 18:04:42", (2026, 6, 17, 12, 34, 42)),
+    ],
+)
+def test_the_fleets_different_overlay_layouts_all_parse(
+    text: str, expected: tuple[int, ...]
+) -> None:
+    """Cameras print a weekday in different places and some use slashes. The
+    parser keys off the digits and skips whatever sits between them."""
+    parsed = parse_overlay_timestamp(text)
+    assert parsed is not None
+    assert (
+        parsed.year,
+        parsed.month,
+        parsed.day,
+        parsed.hour,
+        parsed.minute,
+        parsed.second,
+    ) == expected
+
+
 def test_the_overlay_is_local_time_and_is_stored_as_utc() -> None:
     """The camera stamps its own wall clock with no zone marker. Gujarat is
     UTC+5:30, so 18:04:42 IST is 12:34:42 UTC — applied explicitly rather
@@ -169,3 +195,39 @@ def test_a_plausible_advance_is_accepted() -> None:
     reader._ocr = lambda frame: "17-06-2026 18:04:45"  # type: ignore[method-assign]
     advanced = reader.read(_blank_frame(), pts_ms=3000.0)
     assert advanced == datetime(2026, 6, 17, 12, 34, 45, tzinfo=UTC)
+
+
+def test_a_camera_that_cannot_be_read_backs_off() -> None:
+    """Each attempt shells out to tesseract for every crop and variant. A
+    camera whose overlay is unreadable — one in the fleet sits over a lit
+    shop front and never resolves — would otherwise pay that cost every
+    second forever, for no information."""
+    reader = FrameClockReader(failure_backoff_after=3, failure_backoff_s=30.0)
+    attempts = 0
+
+    def failing(frame: np.ndarray) -> str | None:
+        nonlocal attempts
+        attempts += 1
+        return None
+
+    reader._ocr = failing  # type: ignore[method-assign]
+    for second in range(1, 11):
+        reader.read(_blank_frame(), pts_ms=second * 1000.0)
+
+    assert attempts == 3, "should stop attempting once the failure threshold is hit"
+
+    # Well past the backoff window, it tries again rather than giving up forever.
+    reader.read(_blank_frame(), pts_ms=45_000.0)
+    assert attempts == 4
+
+
+def test_a_successful_read_clears_the_backoff() -> None:
+    reader = FrameClockReader(failure_backoff_after=2, failure_backoff_s=30.0)
+    reader._ocr = lambda frame: None  # type: ignore[method-assign]
+    reader.read(_blank_frame(), pts_ms=1000.0)
+    reader.read(_blank_frame(), pts_ms=2000.0)
+
+    reader._ocr = lambda frame: "17-06-2026 18:04:42"  # type: ignore[method-assign]
+    reader.read(_blank_frame(), pts_ms=40_000.0)
+    reader.read(_blank_frame(), pts_ms=41_000.0)
+    assert reader.read(_blank_frame(), pts_ms=42_000.0) is not None
