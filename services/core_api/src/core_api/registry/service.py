@@ -32,6 +32,12 @@ from core_api.registry.schemas import (
     StreamProfileOut,
 )
 from sentinel_core.config import Settings
+from sentinel_core.relay import (
+    ensure_relay_path,
+    is_relay_hosted,
+    relay_hls_url,
+    relay_path_for,
+)
 from sentinel_core.schemas import CameraDescriptor
 
 __all__ = [
@@ -371,70 +377,6 @@ def department_to_out(department: Department, camera_count: int = 0) -> Departme
     )
 
 
-_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1"})
-
-
-def _same_relay_host(hostname: str, relay_hostname: str) -> bool:
-    """`localhost` and `127.0.0.1` are the same machine but not the same
-    string — a raw netloc comparison treated the synthetic grid's own
-    cameras (registered as `127.0.0.1:8554`) as an unrecognised external
-    source whenever `relay_rtsp_url` was configured with `localhost`
-    instead, which is exactly the default in sentinel_core.config."""
-    if hostname == relay_hostname:
-        return True
-    return hostname in _LOOPBACK_HOSTS and relay_hostname in _LOOPBACK_HOSTS
-
-
-async def _ensure_external_relay_path(
-    *,
-    rtsp_url: str,
-    path_name: str,
-    settings: Settings,
-    client: httpx.AsyncClient,
-) -> bool:
-    """Makes MediaMTX relay `rtsp_url` locally under `path_name`, as an
-    on-demand PULL source, so the browser never sees the camera's own
-    (often credentialed) URL and the compliance guide's "consume only, never
-    publish to the gateway" holds: MediaMTX itself opens the RTSP connection
-    as a client, exactly like `edge_agent`'s own capture does, and nothing is
-    pushed anywhere. `sourceOnDemand` means MediaMTX doesn't actually dial the
-    camera until a viewer first requests the path, so registering 30 cameras
-    up front costs nothing until someone actually opens one.
-
-    Idempotent and safe under a race: if the path already exists (a concurrent
-    request beat this one to it), MediaMTX's `add` returns 400 with a specific
-    "path already exists" error — treated as success, not a failure, since the
-    desired end state (the path exists) is exactly what happened either way.
-
-    Returns whether the path is now known to exist. Never raises — a
-    MediaMTX outage must degrade to "preview unavailable", not a 500 on the
-    whole Cameras screen.
-    """
-    add_url = f"{settings.relay_api_url}/v3/config/paths/add/{path_name}"
-    try:
-        get_response = await client.get(f"{settings.relay_api_url}/v3/config/paths/get/{path_name}")
-        if get_response.status_code == 200:
-            return True
-        add_response = await client.post(
-            add_url,
-            json={"source": rtsp_url, "sourceOnDemand": True, "rtspTransport": "tcp"},
-        )
-        if add_response.status_code == 200:
-            return True
-        if add_response.status_code == 400 and "already exists" in add_response.text:
-            return True
-        logger.warning(
-            "MediaMTX refused to add relay path %r: %s %s",
-            path_name,
-            add_response.status_code,
-            add_response.text,
-        )
-        return False
-    except httpx.HTTPError as exc:
-        logger.warning("could not reach the local relay to add path %r: %s", path_name, exc)
-        return False
-
-
 async def resolve_camera_stream(
     camera: Camera, settings: Settings, *, client: httpx.AsyncClient | None = None
 ) -> CameraStreamOut:
@@ -444,40 +386,25 @@ async def resolve_camera_stream(
     an embedded email:password (see routers/registry.py's docstring on this
     endpoint for why that must never reach the browser).
 
-    Two cases:
-    1. The camera is already relayed through *our own* local MediaMTX (the M1
-       synthetic grid, published to `dev/*` — see infra/compose/mediamtx.yml):
-       its RTSP profile host matches `settings.relay_rtsp_url`, so the
-       equivalent local, unauthenticated HLS URL is derived directly by
-       swapping the scheme/host for the relay's HLS host and keeping the RTSP
-       path.
-    2. The camera is external (gov-catalogue or, eventually, a department's
-       own ONVIF camera): its credentialed RTSP URL is never handed to the
-       browser. Instead, MediaMTX is told (via its own control API — never
-       the government's) to PULL that RTSP feed itself, republished locally
-       under `{relay_external_path_prefix}/{camera_id}`, and *that* local,
-       credential-free HLS URL is returned instead.
+    Cameras already published into our own relay (the synthetic grid, under
+    `dev/*`) resolve directly. Everything else is republished as a local
+    PULL path first — see `sentinel_core.relay`, which the edge worker uses
+    for the same camera, so the gateway sees one connection rather than one
+    per consumer.
     """
     rtsp_profile = next((p for p in camera.profiles if p.protocol == "rtsp"), None)
     if rtsp_profile is None:
         return CameraStreamOut(available=False, reason="This camera has no RTSP profile on file.")
 
-    relay = urlsplit(settings.relay_rtsp_url)
-    parsed = urlsplit(rtsp_profile.url)
-    same_host = (
-        parsed.hostname is not None
-        and relay.hostname is not None
-        and _same_relay_host(parsed.hostname, relay.hostname)
-    )
-    if same_host and parsed.port == relay.port:
-        hls_url = f"{settings.relay_hls_url.rstrip('/')}{parsed.path}/index.m3u8"
-        return CameraStreamOut(available=True, hls_url=hls_url)
+    if is_relay_hosted(rtsp_profile.url, settings):
+        path = urlsplit(rtsp_profile.url).path.lstrip("/")
+        return CameraStreamOut(available=True, hls_url=relay_hls_url(path, settings))
 
-    path_name = f"{settings.relay_external_path_prefix}/{camera.camera_id}"
+    path_name = relay_path_for(camera.camera_id, settings)
     owns_client = client is None
     client = client or httpx.AsyncClient(timeout=5.0)
     try:
-        ok = await _ensure_external_relay_path(
+        ok = await ensure_relay_path(
             rtsp_url=rtsp_profile.url, path_name=path_name, settings=settings, client=client
         )
     finally:
@@ -492,5 +419,4 @@ async def resolve_camera_stream(
                 "temporarily down."
             ),
         )
-    hls_url = f"{settings.relay_hls_url.rstrip('/')}/{path_name}/index.m3u8"
-    return CameraStreamOut(available=True, hls_url=hls_url)
+    return CameraStreamOut(available=True, hls_url=relay_hls_url(path_name, settings))

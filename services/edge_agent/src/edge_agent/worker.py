@@ -49,8 +49,14 @@ from edge_agent.analytics.zone_rules import Zone, ZoneRuleEngine
 from edge_agent.pipeline.capture import CaptureConfig
 from edge_agent.pipeline.supervisor import CameraSupervisor
 from sentinel_core.clock import Frame
-from sentinel_core.config import get_settings
+from sentinel_core.config import Settings, get_settings
 from sentinel_core.gov_catalogue import GovCatalogueClient
+from sentinel_core.relay import (
+    ensure_relay_path,
+    is_relay_hosted,
+    relay_path_for,
+    relay_rtsp_url,
+)
 from sentinel_core.schemas import AnprPayload, CameraDescriptor, Event, StreamProtocol
 
 logger = logging.getLogger("edge_agent.worker")
@@ -81,6 +87,55 @@ def _load_synthetic_descriptors() -> list[CameraDescriptor]:
 def _rtsp_url(descriptor: CameraDescriptor) -> str | None:
     profile = descriptor.profile_for(StreamProtocol.RTSP)
     return profile.url if profile else None
+
+
+async def _resolve_capture_url(
+    descriptor: CameraDescriptor,
+    settings: Settings,
+    *,
+    via_relay: bool,
+) -> str | None:
+    """Decide what this worker actually opens for a camera.
+
+    For an external feed that is the *local relay path*, not the camera's own
+    URL. MediaMTX holds a single connection to the gateway and fans it out to
+    this pipeline and to every browser tile, instead of each consumer opening
+    its own copy — see `sentinel_core.relay` for why that matters against the
+    gateway's per-account viewing quota.
+
+    `sourceOnDemand` is disabled for these paths: this worker is a permanent
+    reader, and letting the path tear itself down between reconnects would add
+    a fresh dial to every recovery.
+
+    Falls back to dialling the camera directly if the relay cannot be set up,
+    and says so loudly. A demo that keeps running on a degraded path is worth
+    more than one that stops, but silently using twice the gateway's quota is
+    exactly the bug this function exists to fix, so it must never be quiet.
+    """
+    url = _rtsp_url(descriptor)
+    if url is None or not via_relay or is_relay_hosted(url, settings):
+        return url
+
+    path_name = relay_path_for(descriptor.camera_id, settings)
+    async with httpx.AsyncClient(timeout=10.0) as relay_client:
+        ok = await ensure_relay_path(
+            rtsp_url=url,
+            path_name=path_name,
+            settings=settings,
+            client=relay_client,
+            on_demand=False,
+        )
+    if not ok:
+        logger.warning(
+            "%s: could not register relay path %r — falling back to dialling the camera "
+            "directly. This opens a SECOND connection to the gateway for any camera also "
+            "being previewed, against its per-account viewing quota.",
+            descriptor.camera_id,
+            path_name,
+        )
+        return url
+    logger.info("%s: consuming via local relay path %s", descriptor.camera_id, path_name)
+    return relay_rtsp_url(path_name, settings)
 
 
 async def _register_camera(client: httpx.AsyncClient, descriptor: CameraDescriptor) -> None:
@@ -182,15 +237,17 @@ async def _run_camera(
     descriptor: CameraDescriptor,
     vehicle_detector: VehicleDetector,
     plate_reader: FastAlprPlateReader,
+    *,
+    via_relay: bool = True,
 ) -> None:
     camera_id = descriptor.camera_id
-    url = _rtsp_url(descriptor)
+    settings = get_settings()
+    url = await _resolve_capture_url(descriptor, settings, via_relay=via_relay)
     if url is None:
         logger.warning("skipping %s: no rtsp profile in the catalogue", camera_id)
         return
 
     supervisor = CameraSupervisor(config=CaptureConfig(camera_id=camera_id, url=url))
-    settings = get_settings()
     tamper_detector = TamperDetector()
     pipeline = AnprPipeline(
         vehicle_detector,
@@ -332,6 +389,13 @@ def _parse_args() -> argparse.Namespace:
         help="comma-separated camera ids to run instead of the first --limit from the catalogue "
         "(e.g. cam01,cam04).",
     )
+    parser.add_argument(
+        "--direct",
+        action="store_true",
+        help="dial each camera directly instead of consuming it through the local relay. "
+        "Opens one gateway connection per consumer rather than per camera, so a camera that "
+        "is also being previewed costs two — only use this to isolate a relay problem.",
+    )
     return parser.parse_args()
 
 
@@ -393,15 +457,19 @@ async def main() -> None:
         for descriptor in descriptors:
             await _register_camera(client, descriptor)
 
+        via_relay = not args.direct
         logger.info(
-            "starting %d camera pipeline(s) (source=%s) against %s",
+            "starting %d camera pipeline(s) (source=%s, transport=%s) against %s",
             len(descriptors),
             args.source,
+            "local relay" if via_relay else "direct to camera",
             api_base_url,
         )
         await asyncio.gather(
             *(
-                _run_camera(client, descriptor, vehicle_detector, plate_reader)
+                _run_camera(
+                    client, descriptor, vehicle_detector, plate_reader, via_relay=via_relay
+                )
                 for descriptor in descriptors
             )
         )

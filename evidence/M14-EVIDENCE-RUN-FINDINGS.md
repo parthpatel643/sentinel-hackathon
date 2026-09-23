@@ -38,35 +38,63 @@ not because of anything in this platform, but because the upstream grid will
 cut it off. The run above is the honest maximum shape: a modest camera count
 for a bounded window.
 
-## 2. Live preview doubles our connection count against that quota
+## 2. Live preview doubled our connection count — fixed and measured
 
-This is the most actionable finding of the run, and it is our problem, not
+This was the most actionable finding of the run, and it was our problem, not
 theirs.
 
 The integrator guide is explicit: *"Each connected client receives its own
 copy of the stream. Open only the cameras you are actively processing."*
 
-Right now Sentinel opens **two** connections to the gateway for any camera
-that is both analysed and previewed:
+**The bug.** Sentinel opened **two** connections to the gateway for any camera
+that was both analysed and previewed:
 
-1. the edge worker dials the camera's RTSP URL directly for analytics, and
-2. MediaMTX separately dials the *same* RTSP URL to republish it as
-   `ext/<camera_id>` for the browser (added in the live-preview fix).
+1. the edge worker dialled the camera's RTSP URL directly for analytics, and
+2. MediaMTX separately dialled the *same* URL to republish it as
+   `ext/<camera_id>` for the browser.
 
-So watching the six cameras we were already analysing consumed twelve
-streams' worth of the quota, and very plausibly accelerated the cooldown
-above.
+So watching the six cameras we were already analysing consumed twelve streams'
+worth of the quota, and very plausibly accelerated the cooldown above.
 
-**The fix is architectural and worth doing:** point the edge worker at the
-local relay path (`rtsp://localhost:8554/ext/<camera_id>`) instead of at the
-gateway. MediaMTX then holds exactly one upstream connection per camera and
-fans it out locally to both the analytics pipeline and every browser tile —
-which is what a relay is *for*, and which also makes the "pace your load"
-guidance structurally true rather than a thing we have to remember.
+**The fix.** The edge worker now consumes the *local relay path*
+(`rtsp://localhost:8554/ext/<camera_id>`) rather than the gateway. MediaMTX
+holds exactly one upstream connection per camera and fans it out to the
+analytics pipeline and to every browser tile — which is what a relay is for,
+and which makes "pace your load" structurally true instead of something each
+call site has to remember. The path-management logic lives in
+`sentinel_core.relay` and is shared by the worker and `core_api`, so the two
+cannot drift into handling it differently.
 
-Not implemented in this commit: it changes the worker's source resolution and
-needs verification against a live feed, which the cooldown currently prevents.
-Recorded here so it is a known, scoped piece of work rather than a surprise.
+`sourceOnDemand` is disabled for worker-driven paths: the worker is a
+permanent reader, and letting a path tear itself down between reconnects would
+add a fresh dial to every recovery.
+
+**Measured, with three cameras analysed and four previewed in a browser:**
+
+```
+$ lsof -nP -iTCP@<gateway>:8554 -sTCP:ESTABLISHED | grep -c ESTABLISHED
+4
+
+$ curl -s localhost:9997/v3/paths/list
+  ext/cam01  ready=True  readers=2 ['hlsSession', 'rtspSession']
+  ext/cam02  ready=True  readers=2 ['hlsSession', 'rtspSession']
+  ext/cam03  ready=True  readers=2 ['hlsSession', 'rtspSession']
+  ext/cam04  ready=True  readers=1 ['hlsSession']
+```
+
+Four distinct cameras, **four** gateway connections. Each of the three
+analysed cameras shows two local readers — the browser's `hlsSession` and the
+worker's `rtspSession` — sharing a single upstream. Under the old behaviour
+the same workload cost seven connections. Every connection now originates from
+the Docker VM running MediaMTX; the worker process holds none.
+
+Compliance is unchanged: MediaMTX dials the camera as an RTSP *client*,
+exactly as the worker's own capture did. Nothing is published to the gateway.
+
+**Fallback.** If the relay cannot be reached, the worker logs a prominent
+warning and dials the camera directly, so a relay problem degrades the demo
+rather than stopping it. `--direct` forces the old behaviour for isolating a
+relay fault, and says in its help text what it costs.
 
 ## 3. Zone rules and tamper detection are validated on real footage
 
