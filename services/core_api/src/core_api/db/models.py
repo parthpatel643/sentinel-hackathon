@@ -255,12 +255,15 @@ class Alert(Base):
 
 
 class User(Base):
-    """An Operator Console account. Deliberately minimal for M6 — full
-    OIDC/RBAC/ABAC and Postgres row-level-security tenancy is M12's scope
-    (docs/05-DELIVERY-PLAN.md); this is enough to require a real login
-    before any API call succeeds, not a placeholder that's silently
-    unenforced. `role` is a plain string, not an enum, so adding a role
-    later is a data migration, not a schema one."""
+    """An Operator Console account. `role` is a plain string, not an enum,
+    so adding a role later is a data migration, not a schema one.
+
+    `department_id` (M12) is the ABAC attribute the Postgres RLS policies
+    on cameras/detections/alerts are keyed on — `NULL` means "not scoped to
+    one department" (sees/writes everything, the natural default for an
+    HQ/admin account), a set value means "restricted to that department's
+    cameras, plus any camera with no department assigned yet." See
+    docs/08-SECURITY-HARDENING.md."""
 
     __tablename__ = "users"
 
@@ -269,6 +272,9 @@ class User(Base):
     hashed_password: Mapped[str]
     full_name: Mapped[str]
     role: Mapped[str] = mapped_column(default="operator", comment="operator | admin")
+    department_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("departments.id", ondelete="SET NULL")
+    )
     active: Mapped[bool] = mapped_column(default=True)
 
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())

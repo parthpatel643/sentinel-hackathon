@@ -48,6 +48,15 @@ class Settings(BaseSettings):
     db_password: str = "sentinel"
     db_name: str = "sentinel"
 
+    # M12: core_api's own runtime queries connect as this narrower,
+    # non-superuser role (not `db_user` above, which stays superuser-owned
+    # for migrations/DDL) — Postgres RLS policies are unconditionally
+    # bypassed by superusers and table owners, so enforcing department
+    # tenancy for real requires the app to genuinely not be either. See
+    # infra/compose/init/02-app-role.sql and docs/08-SECURITY-HARDENING.md.
+    db_app_user: str = "sentinel_app"
+    db_app_password: str = "sentinel-app-dev-password"
+
     valkey_url: RedisDsn = Field(default=RedisDsn("redis://localhost:16379/0"))
     nats_url: str = "nats://localhost:14222"
 
@@ -113,6 +122,26 @@ class Settings(BaseSettings):
         "(detection ingest, camera health) instead of a human's JWT.",
     )
 
+    # --- mTLS edge gateway (M12) ---------------------------------------------
+    # docs/01-ARCHITECTURE.md §6.4-adjacent security doc: mTLS is terminated
+    # at a reverse proxy (infra/compose/edge_gateway/nginx.conf), not inside
+    # core_api's own ASGI app — uvicorn/FastAPI has no standard way to hand a
+    # verified peer client certificate up to application code. nginx forwards
+    # the verified client cert's CN as a header *alongside* a shared secret
+    # only nginx and core_api know; core_api only trusts the CN when both are
+    # present and the secret matches, so a request that reaches core_api
+    # directly (bypassing the gateway) can't spoof an edge identity. This is
+    # additive to `edge_service_token` above, not a replacement for it — the
+    # gateway adds network-layer admission control (must present a valid
+    # client cert to open a connection at all); the service token remains the
+    # application-layer authorization check on the endpoint itself.
+    mtls_gateway_shared_secret: SecretStr = Field(
+        default=SecretStr("dev-only-edge-gateway-secret"),
+        description="Shared secret the edge-gateway nginx proxy attaches (alongside the "
+        "verified client cert CN) so core_api can trust the CN header only when it "
+        "genuinely came through the mTLS-terminating gateway.",
+    )
+
     # --- Government test grid ("Sentinel Camera Grid") ---------------------
     # Per the integrator guide: HLS is served from a CDN host behind a portal
     # password; RTSP/WHEP carry media directly from a public IP (a CDN cannot
@@ -167,6 +196,15 @@ class Settings(BaseSettings):
         scheme = "postgresql"
         return (
             f"{scheme}://{self.db_user}:{self.db_password}@"
+            f"{self.db_host}:{self.db_port}/{self.db_name}"
+        )
+
+    @property
+    def app_database_url(self) -> str:
+        """The connection core_api's own request-handling code actually
+        uses (see core_api/db/base.py) — same database, narrower role."""
+        return (
+            f"postgresql://{self.db_app_user}:{self.db_app_password}@"
             f"{self.db_host}:{self.db_port}/{self.db_name}"
         )
 

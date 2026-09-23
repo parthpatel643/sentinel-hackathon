@@ -50,6 +50,7 @@ class TokenPayload:
     user_id: str
     email: str
     role: str
+    department_id: str | None = None
 
 
 def hash_password(password: str) -> str:
@@ -71,6 +72,7 @@ def create_access_token(user: User, settings: Settings) -> str:
         "sub": str(user.id),
         "email": user.email,
         "role": user.role,
+        "department_id": str(user.department_id) if user.department_id else None,
         "iat": now,
         "exp": now + timedelta(minutes=settings.jwt_expires_minutes),
     }
@@ -92,7 +94,9 @@ def decode_access_token(token: str, settings: Settings) -> TokenPayload:
     role = claims.get("role")
     if not user_id or not email or not role:
         raise InvalidTokenError("token is missing required claims")
-    return TokenPayload(user_id=user_id, email=email, role=role)
+    return TokenPayload(
+        user_id=user_id, email=email, role=role, department_id=claims.get("department_id")
+    )
 
 
 async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
@@ -115,10 +119,20 @@ async def list_users(session: AsyncSession) -> list[User]:
 
 
 async def create_user(
-    session: AsyncSession, *, email: str, password: str, full_name: str, role: str
+    session: AsyncSession,
+    *,
+    email: str,
+    password: str,
+    full_name: str,
+    role: str,
+    department_id: uuid.UUID | None = None,
 ) -> User:
     user = User(
-        email=email, hashed_password=hash_password(password), full_name=full_name, role=role
+        email=email,
+        hashed_password=hash_password(password),
+        full_name=full_name,
+        role=role,
+        department_id=department_id,
     )
     session.add(user)
     await session.flush()
@@ -126,7 +140,12 @@ async def create_user(
 
 
 async def update_user(
-    session: AsyncSession, user_id: uuid.UUID, *, role: str | None, active: bool | None
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    *,
+    role: str | None,
+    active: bool | None,
+    department_id: uuid.UUID | None = None,
 ) -> User | None:
     user = await session.get(User, user_id)
     if user is None:
@@ -135,5 +154,7 @@ async def update_user(
         user.role = role
     if active is not None:
         user.active = active
+    if department_id is not None:
+        user.department_id = department_id
     await session.flush()
     return user

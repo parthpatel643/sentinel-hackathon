@@ -23,6 +23,7 @@ from core_api.routers.detections import router as detections_router
 from core_api.routers.field import router as field_router
 from core_api.routers.registry import router as registry_router
 from core_api.routers.watchlist import router as watchlist_router
+from core_api.security.tenancy import TenancyMiddleware
 from sentinel_core import configure_logging, get_settings
 from sentinel_core.schemas import SCHEMA_VERSION
 
@@ -51,6 +52,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # M12: decodes the caller's JWT (best-effort) so get_session can apply
+    # department-scoped Postgres RLS — see core_api/security/tenancy.py.
+    app.add_middleware(TenancyMiddleware)
 
     app.include_router(auth_router)
     app.include_router(admin_router)

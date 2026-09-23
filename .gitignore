@@ -18,6 +18,13 @@ htmlcov/
 .env
 .env.local
 
+# mTLS certs/keys are generated locally by scripts/generate_mtls_certs.sh,
+# never committed — see infra/tls/README.md
+infra/tls/*.crt
+infra/tls/*.key
+infra/tls/*.srl
+infra/tls/*.csr
+
 # Model weights are downloaded, never committed (see models/README.md)
 models/weights/
 *.pt

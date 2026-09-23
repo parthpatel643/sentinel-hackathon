@@ -71,6 +71,7 @@ async def create_user_endpoint(
             password=payload.password,
             full_name=payload.full_name,
             role=payload.role,
+            department_id=payload.department_id,
         )
         await session.commit()
     except IntegrityError as exc:
@@ -88,7 +89,13 @@ async def update_user_endpoint(
     session: AsyncSession = Depends(get_session),
     _admin: TokenPayload = Depends(require_role("admin")),
 ) -> UserOut:
-    user = await update_user(session, user_id, role=payload.role, active=payload.active)
+    user = await update_user(
+        session,
+        user_id,
+        role=payload.role,
+        active=payload.active,
+        department_id=payload.department_id,
+    )
     if user is None:
         raise HTTPException(status_code=404, detail=f"no user with id {user_id}")
     await session.commit()

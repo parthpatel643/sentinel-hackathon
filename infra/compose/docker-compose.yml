@@ -97,6 +97,27 @@ services:
     # probed over its HTTP API by /api/v1/health instead — which tests the path
     # we actually depend on.
 
+  edge-gateway:
+    # M12: mTLS termination for edge-node -> core-api traffic. Real mutual
+    # TLS at the transport layer (see edge_gateway/default.conf.template) —
+    # not simulated. core_api itself runs as a host process (not in this
+    # compose file, like the other services here), so this proxies to it via
+    # Docker Desktop's host.docker.internal; override SENTINEL_CORE_API_UPSTREAM
+    # for a different core_api location.
+    image: nginx:1.27-alpine
+    container_name: sentinel-edge-gateway
+    profiles: ["mtls"]  # opt-in: `docker compose --profile mtls up -d edge-gateway`
+    environment:
+      CORE_API_UPSTREAM: "${SENTINEL_CORE_API_UPSTREAM:-host.docker.internal:18000}"
+      MTLS_GATEWAY_SHARED_SECRET: "${SENTINEL_MTLS_GATEWAY_SHARED_SECRET:-dev-only-edge-gateway-secret}"
+    ports:
+      - "${SENTINEL_EDGE_GATEWAY_PORT:-8443}:8443"
+    volumes:
+      - ./edge_gateway/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ../tls:/etc/nginx/tls:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
 volumes:
   postgres-data:
   nats-data:

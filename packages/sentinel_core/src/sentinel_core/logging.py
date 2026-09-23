@@ -40,7 +40,13 @@ def configure_logging(*, level: str = "INFO", json_output: bool = True) -> None:
         logger_factory=structlog.PrintLoggerFactory(file=sys.stdout),
         cache_logger_on_first_use=True,
     )
-    logging.basicConfig(format="%(message)s", stream=sys.stdout, level=level)
+    # force=True: uvicorn attaches its own root-logger handler before this
+    # runs, and plain logging.basicConfig() is a documented no-op once any
+    # handler already exists — without force=True, every plain
+    # `logging.getLogger(__name__).info(...)` call in the app (gov_registry,
+    # detection ingest audit signals, ...) would silently vanish instead of
+    # reaching stdout. Found while verifying M12's mTLS audit logging.
+    logging.basicConfig(format="%(message)s", stream=sys.stdout, level=level, force=True)
     _configured = True
 
 
