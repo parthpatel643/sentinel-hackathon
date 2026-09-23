@@ -6,7 +6,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 
 .DEFAULT_GOAL := help
-.PHONY: help install up down logs ps api web worker seed test lint fmt types check audit secrets-scan sbom clean
+.PHONY: help install up down logs ps api web worker deck seed test lint fmt types check audit secrets-scan sbom clean
 
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -40,6 +40,9 @@ web: ## Run the operator console (Vite dev server)
 
 worker: ## Run an edge worker against the synthetic grid (SOURCE=gov for the real grid)
 	uv run --package edge-agent python -m edge_agent.worker --source $(or $(SOURCE),synthetic)
+
+deck: ## Build the submission deck (docs/Sentinel-Platform-Deck.pptx)
+	NODE_PATH=$$(npm root -g) node scripts/build_deck.mjs
 
 seed: ## Create the default operator login
 	uv run --package core_api python scripts/seed_admin_user.py

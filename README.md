@@ -206,6 +206,10 @@ npm run screenshots   # regenerate docs/images from a live stack
 npm run docs:pdf      # build docs/Sentinel-Platform-HLD.pdf (61pp, gitignored)
 ```
 
+```bash
+make deck             # build docs/Sentinel-Platform-Deck.pptx (15 slides, gitignored)
+```
+
 The submission PDF is deliberately not committed — a checked-in PDF that
 silently disagrees with the markdown it came from is worse than none, the same
 reasoning applied to SBOMs. Regenerate it as the last step before submitting.

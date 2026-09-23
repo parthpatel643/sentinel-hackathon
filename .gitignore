@@ -44,6 +44,8 @@ sbom/
 # the markdown it was built from is worse than no PDF. Regenerate it as the
 # last step before submitting.
 docs/Sentinel-Platform-HLD.pdf
+docs/Sentinel-Platform-Deck.pptx
+docs/deck-qa.pdf
 
 # Node
 node_modules/
