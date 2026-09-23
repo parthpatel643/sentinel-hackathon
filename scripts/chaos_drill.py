@@ -214,6 +214,22 @@ def _pick_live_camera(token: str, *, external: bool = False) -> str | None:
     return None
 
 
+def _external_discontinuities(token: str) -> dict[str, int]:
+    """Current discontinuity count for every live external camera, keyed by id."""
+    response = httpx.get(
+        f"{CORE_API_URL}/api/v1/cameras",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=10.0,
+    )
+    response.raise_for_status()
+    pids = _read_grid_pids()
+    return {
+        camera["camera_id"]: camera.get("discontinuities") or 0
+        for camera in response.json()
+        if camera["status"] == "live" and camera["camera_id"] not in pids
+    }
+
+
 # --- Drill 1: feed loss -----------------------------------------------------
 
 
@@ -460,51 +476,56 @@ def drill_scene_cut(token: str) -> DrillResult:
         result.observations.append(console.step(result.summary))
         return result
 
-    baseline = _get_camera(token, camera_id)
-    baseline_disc = baseline.get("discontinuities", 0)
+    # Watch every live external camera, not just one: the loop point belongs to
+    # the feed, so pinning the drill to a single camera makes catching a cut a
+    # coin toss. An earlier run of this drill sat on one camera for 25 minutes
+    # and saw nothing while the fleet as a whole recorded five discontinuities.
+    baseline = _external_discontinuities(token)
     result.observations.append(
         console.step(
-            f"watching {camera_id} for a real loop-point cut: "
-            f"discontinuities={baseline_disc} fps={baseline.get('measured_fps')}"
+            f"watching {len(baseline)} live external camera(s) for a real loop-point cut: "
+            + ", ".join(f"{cam}={count}" for cam, count in sorted(baseline.items()))
         )
     )
 
-    saw_cut, observed = _wait_for_camera(
-        token,
-        camera_id,
-        lambda c: c.get("discontinuities", 0) > baseline_disc,
-        timeout_s=SCENE_CUT_WATCH_S,
-        poll_s=5.0,
-    )
-    if not saw_cut or observed is None:
+    deadline = time.monotonic() + SCENE_CUT_WATCH_S
+    cut_camera: str | None = None
+    while time.monotonic() < deadline and cut_camera is None:
+        time.sleep(5.0)
+        current = _external_discontinuities(token)
+        for cam, count in current.items():
+            if count > baseline.get(cam, 0):
+                cut_camera = cam
+                result.observations.append(
+                    console.step(
+                        f"real discontinuity observed on {cam} after {console.elapsed():.0f}s: "
+                        f"{baseline.get(cam, 0)} -> {count}"
+                    )
+                )
+                break
+
+    if cut_camera is None:
         result.outcome = "SKIPPED"
         result.summary = (
-            f"No discontinuity occurred on {camera_id} within "
+            f"No discontinuity occurred on any live external camera within "
             f"{SCENE_CUT_WATCH_S / 60:.0f} minutes. Inconclusive rather than a failure — "
             "the loop point is the feed's to choose, not ours. Re-run for longer to catch one."
         )
         result.observations.append(console.step(result.summary))
         return result
 
-    result.observations.append(
-        console.step(
-            f"real discontinuity observed after {console.elapsed():.0f}s: "
-            f"discontinuities={baseline_disc} -> {observed.get('discontinuities')}"
-        )
-    )
-
     # The cut must not wedge the camera: it has to still be analysing, with a
-    # heartbeat newer than the cut itself rather than a stale last value.
+    # real frame rate rather than a stale last value.
     still_running, after = _wait_for_camera(
         token,
-        camera_id,
+        cut_camera,
         lambda c: c["status"] == "live" and (c.get("measured_fps") or 0) > 0,
         timeout_s=120,
         poll_s=5.0,
     )
     if not still_running or after is None:
         result.summary = (
-            f"{camera_id} stopped analysing after a scene cut (status/measured_fps did not "
+            f"{cut_camera} stopped analysing after a scene cut (status/measured_fps did not "
             "recover within 120s) — long-lived state did not survive the cut."
         )
         result.observations.append(console.step(result.summary))
@@ -512,9 +533,9 @@ def drill_scene_cut(token: str) -> DrillResult:
 
     result.outcome = "PASS"
     result.summary = (
-        f"{camera_id} absorbed a real PTS discontinuity at its loop point "
-        f"(discontinuities {baseline_disc} -> {after.get('discontinuities')}) and kept "
-        f"analysing ({after.get('measured_fps')} fps), without operator action."
+        f"{cut_camera} absorbed a real PTS discontinuity at its loop point "
+        f"(discontinuities {baseline.get(cut_camera, 0)} -> {after.get('discontinuities')}) and "
+        f"kept analysing ({after.get('measured_fps')} fps), without operator action."
     )
     result.observations.append(console.step(result.summary))
     return result
