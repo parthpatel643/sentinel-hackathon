@@ -31,6 +31,7 @@ from core_api.registry.schemas import (
     StreamProfileIn,
     StreamProfileOut,
 )
+from sentinel_core.camera_names import format_camera_name
 from sentinel_core.config import Settings
 from sentinel_core.relay import (
     ensure_relay_path,
@@ -314,9 +315,15 @@ async def list_departments(session: AsyncSession) -> list[DepartmentOut]:
 
 
 def camera_to_out(camera: Camera) -> CameraOut:
+    # Derived here rather than stored: `name` stays exactly as the catalogue
+    # gave it (an evidence trail must be able to show the source's own value),
+    # and the readable form is recomputed whenever formatting improves.
+    display = format_camera_name(camera.name, camera_id=camera.camera_id)
     return CameraOut(
         camera_id=camera.camera_id,
         name=camera.name,
+        display_name=display.label,
+        locality=display.locality,
         driver_id=camera.driver_id,
         department_name=camera.department.name if camera.department else None,
         site_name=camera.site.name if camera.site else None,

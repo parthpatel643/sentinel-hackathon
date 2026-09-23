@@ -95,6 +95,16 @@ class CameraCreate(BaseModel):
 class CameraOut(BaseModel):
     camera_id: str
     name: str
+    display_name: str = Field(
+        default="",
+        description="Readable label derived from `name` for maps and lists. `name` is "
+        "always the catalogue's own value, kept verbatim for provenance.",
+    )
+    locality: str = Field(
+        default="",
+        description="Place or administrative area lifted out of `name`, empty when the "
+        "name carries none. Shown as a second line under `display_name`.",
+    )
     driver_id: str
     department_name: str | None
     site_name: str | None
