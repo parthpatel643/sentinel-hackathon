@@ -11,15 +11,26 @@ built yet: this endpoint only ever reads.
 from __future__ import annotations
 
 import asyncio
+import time
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core_api.admin.schemas import IntegrationStatusOut
 from core_api.db.models import Detection, EvidenceClip
+from sentinel_core.gov_registry import (
+    AfisProvider,
+    EGujCopProvider,
+    PersonQuery,
+    RegistryError,
+    SarthiProvider,
+    VahanProvider,
+)
 
-__all__ = ["RetentionPreview", "preview_retention"]
+__all__ = ["RetentionPreview", "check_integration_statuses", "preview_retention"]
 
 
 class RetentionPreview:
@@ -65,3 +76,79 @@ async def preview_retention(
         clips_affected=len(clip_paths),
         clips_bytes_affected=clips_bytes_affected,
     )
+
+
+async def check_integration_statuses() -> list[IntegrationStatusOut]:
+    """Drives one representative lookup against each ExternalRegistry
+    provider (docs/01-ARCHITECTURE.md §6.4) and reports whether the round
+    trip genuinely succeeded — this is what lets the Admin Portal's
+    Integrations tab say "Connected (mock)" honestly instead of asserting
+    it. Every provider here runs against its own built-in mock transport
+    (no real government credential exists in this deployment); swapping a
+    provider to a real `base_url`/`api_key`/`transport` is the only change
+    needed for this same check to report a real connection."""
+    checks: list[tuple[str, str, str, str, Callable[[], Awaitable[object]]]] = [
+        (
+            "vahan",
+            "VAHAN",
+            "Vehicle registration lookups",
+            "lookup_vehicle('GJ01AB1234')",
+            lambda: VahanProvider().lookup_vehicle("GJ01AB1234"),
+        ),
+        (
+            "sarthi",
+            "SARTHI",
+            "Driving licence lookups",
+            "lookup_licence('GJ0120190001234')",
+            lambda: SarthiProvider().lookup_licence("GJ0120190001234"),
+        ),
+        (
+            "egujcop",
+            "eGujCop",
+            "FIR / case-record cross-reference",
+            "lookup_person(full_name='Suresh Chauhan')",
+            lambda: EGujCopProvider().lookup_person(PersonQuery(full_name="Suresh Chauhan")),
+        ),
+        (
+            "afis",
+            "AFIS",
+            "Fingerprint/identity cross-reference",
+            "lookup_person(photo_hash='sha256:af1s0001')",
+            lambda: AfisProvider().lookup_person(PersonQuery(photo_hash="sha256:af1s0001")),
+        ),
+    ]
+
+    statuses: list[IntegrationStatusOut] = []
+    for provider_id, name, description, sample_operation, call in checks:
+        started = time.monotonic()
+        try:
+            result = await call()
+            latency_ms = (time.monotonic() - started) * 1000
+            connected = True
+            detail = (
+                "Demonstration mock — the code path (auth, retry/circuit-breaker, rate "
+                "limit, PII-redacted audit log) is real and round-tripped successfully "
+                "just now; there is no live government credential behind it yet. See "
+                "docs/07-DRIVER-SDK.md."
+                if result
+                else "Demonstration mock — round trip succeeded but the sample query "
+                "had no match in the representative dataset."
+            )
+        except RegistryError as exc:
+            latency_ms = (time.monotonic() - started) * 1000
+            connected = False
+            detail = f"Mock round trip failed: {exc}"
+        statuses.append(
+            IntegrationStatusOut(
+                provider_id=provider_id,
+                name=name,
+                description=description,
+                mode="mock",
+                connected=connected,
+                detail=detail,
+                sample_operation=sample_operation,
+                sample_latency_ms=round(latency_ms, 2),
+                checked_at=datetime.now(UTC),
+            )
+        )
+    return statuses

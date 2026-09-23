@@ -295,6 +295,8 @@ sequenceDiagram
 
 One `ExternalRegistry` port with `lookup_vehicle(plate)`, `lookup_licence(dl_no)`, `lookup_person(...)`, `push_alert(...)`. Implementations: `VahanProvider`, `SarthiProvider`, `EGujCopProvider`, `AfisProvider` — each shipped with a **conformant mock** driven by a representative dataset we create, plus a documented request/response contract, retry/circuit-breaker policy, rate limits, field-level audit and PII redaction rules. The message to the jury: *"On the day you grant access, this is a credential change, not a project."*
 
+> **Implemented** in `packages/sentinel_core/src/sentinel_core/gov_registry/` (base.py's `ExternalRegistry` Protocol + `resilience.py`'s shared `RateLimiter`/`CircuitBreaker`/`with_retry`, then one file per provider). Each provider talks HTTP to a `base_url` behind an injectable `transport` exactly like the M11 camera drivers do; with no real government credential in this deployment, `transport=None` falls back to a built-in mock transport serving a representative dataset from the same file — so the retry/circuit-breaker/rate-limit code path is genuinely exercised, not bypassed for the demo. `VehicleRecord`/`LicenceRecord`/`PersonRecord.audit_safe_dict()` mask PII fields (name, address, chassis/engine number, DOB) for the `RegistryAuditEvent` every call emits. The Admin Portal's Integrations tab (`GET /api/v1/admin/integrations`) drives one real representative lookup per provider live and reports "Connected (mock)" only if that round trip actually succeeded just now.
+
 ### 6.5 Evidence service & chain of custody
 
 - Snapshot at detection; on alert, a sealed pre/post-roll clip.

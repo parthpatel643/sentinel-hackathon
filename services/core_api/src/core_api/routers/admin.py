@@ -5,8 +5,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core_api.admin.schemas import RetentionPreviewOut
-from core_api.admin.service import preview_retention
+from core_api.admin.schemas import IntegrationStatusOut, RetentionPreviewOut
+from core_api.admin.service import check_integration_statuses, preview_retention
 from core_api.auth.dependencies import require_role
 from core_api.auth.service import TokenPayload
 from core_api.db.base import get_session
@@ -34,3 +34,14 @@ async def retention_preview_endpoint(
         clips_affected=result.clips_affected,
         clips_bytes_affected=result.clips_bytes_affected,
     )
+
+
+@router.get("/integrations", response_model=list[IntegrationStatusOut])
+async def integrations_endpoint(
+    _admin: TokenPayload = Depends(require_role("admin")),
+) -> list[IntegrationStatusOut]:
+    """Drives a real representative lookup against each ExternalRegistry
+    provider (VAHAN/SARTHI/eGujCop/AFIS — docs/01-ARCHITECTURE.md §6.4) and
+    reports whether it genuinely round-tripped, so the Admin Portal's
+    Integrations tab can say "Connected (mock)" honestly."""
+    return await check_integration_statuses()

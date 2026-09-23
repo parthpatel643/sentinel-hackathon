@@ -32,6 +32,18 @@ export interface RetentionPreview {
   clips_bytes_affected: number
 }
 
+export interface IntegrationStatus {
+  provider_id: string
+  name: string
+  description: string
+  mode: string
+  connected: boolean
+  detail: string
+  sample_operation: string
+  sample_latency_ms: number | null
+  checked_at: string
+}
+
 export interface TokenResponse {
   access_token: string
   token_type: string

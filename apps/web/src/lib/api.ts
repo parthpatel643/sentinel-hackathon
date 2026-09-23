@@ -17,6 +17,7 @@ import type {
   Detection,
   EvidenceClip,
   FieldSighting,
+  IntegrationStatus,
   IntegratorCompliance,
   PlateLookup,
   RetentionPreview,
@@ -42,6 +43,7 @@ export const usersApi = {
 export const adminApi = {
   retentionPreview: (detectionsDays: number, clipsDays: number) =>
     get<RetentionPreview>(`/api/v1/admin/retention-preview?detections_days=${detectionsDays}&clips_days=${clipsDays}`),
+  integrations: () => get<IntegrationStatus[]>('/api/v1/admin/integrations'),
 }
 
 export const camerasApi = {

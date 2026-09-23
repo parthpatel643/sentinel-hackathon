@@ -7,7 +7,7 @@ import { Input } from '../components/ui/Input'
 import { adminApi, usersApi, watchlistApi } from '../lib/api'
 import { useAuth } from '../lib/AuthContext'
 import { ApiError } from '../lib/http'
-import type { AuthUser, RetentionPreview, WatchlistEntry } from '../lib/types'
+import type { AuthUser, IntegrationStatus, RetentionPreview, WatchlistEntry } from '../lib/types'
 
 type Section = 'users' | 'watchlist' | 'retention' | 'integrations' | 'audit'
 
@@ -266,27 +266,65 @@ function RetentionSection() {
 }
 
 function IntegrationsSection() {
-  const cards = [
-    { name: 'VAHAN', description: 'Vehicle registration lookups' },
-    { name: 'SARTHI', description: 'Driving licence lookups' },
-    { name: 'eGujCop', description: 'FIR / case-record cross-reference' },
-    { name: 'AFIS', description: 'Fingerprint/identity cross-reference' },
-  ]
+  const [statuses, setStatuses] = useState<IntegrationStatus[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  function load() {
+    setLoading(true)
+    setError(null)
+    adminApi
+      .integrations()
+      .then(setStatuses)
+      .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not reach the integrations check.'))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(load, [])
+
+  if (error) {
+    return (
+      <Card className="p-6 text-center text-sm text-text-tertiary">
+        {error}
+        <Button variant="secondary" className="mt-3" onClick={load}>
+          Retry
+        </Button>
+      </Card>
+    )
+  }
+
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {cards.map((c) => (
-        <Card key={c.name} className="p-4">
-          <div className="flex items-center justify-between">
-            <p className="font-medium text-text-primary">{c.name}</p>
-            <span className="rounded-full bg-bg-inset px-2 py-0.5 text-xs text-text-tertiary">Not connected</span>
-          </div>
-          <p className="mt-1 text-xs text-text-tertiary">{c.description}</p>
-          <p className="mt-3 text-xs text-text-tertiary">
-            Connector not built yet — on the day access is granted, this becomes a credential change, not a
-            project.
-          </p>
-        </Card>
-      ))}
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-xs text-text-tertiary">
+          Each card runs a real sample lookup against that provider's driver right now.
+        </p>
+        <Button variant="secondary" onClick={load} disabled={loading}>
+          {loading ? 'Checking…' : 'Recheck'}
+        </Button>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {(statuses ?? []).map((s) => (
+          <Card key={s.provider_id} className="p-4">
+            <div className="flex items-center justify-between">
+              <p className="font-medium text-text-primary">{s.name}</p>
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs ${
+                  s.connected ? 'bg-ok/12 text-ok' : 'bg-sev-critical/12 text-sev-critical'
+                }`}
+              >
+                {s.connected ? 'Connected (mock)' : 'Error'}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-text-tertiary">{s.description}</p>
+            <p className="mt-3 text-xs text-text-tertiary">{s.detail}</p>
+            <p className="mt-2 plate-mono text-[11px] text-text-tertiary">
+              {s.sample_operation}
+              {s.sample_latency_ms !== null && ` — ${s.sample_latency_ms.toFixed(1)}ms`}
+            </p>
+          </Card>
+        ))}
+      </div>
     </div>
   )
 }

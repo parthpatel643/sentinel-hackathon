@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core_api.admin.service import preview_retention
+from core_api.admin.service import check_integration_statuses, preview_retention
 from core_api.detections.schemas import DetectionIn
 from core_api.detections.service import ingest_detection
 from core_api.registry.schemas import GeoPointOut
@@ -73,3 +73,16 @@ async def test_no_data_yields_a_zeroed_preview(db_session: AsyncSession) -> None
     assert result.detections_affected == 0
     assert result.clips_affected == 0
     assert result.clips_bytes_affected == 0
+
+
+async def test_check_integration_statuses_reports_all_four_providers_connected() -> None:
+    statuses = await check_integration_statuses()
+
+    provider_ids = {s.provider_id for s in statuses}
+    assert provider_ids == {"vahan", "sarthi", "egujcop", "afis"}
+    assert all(s.mode == "mock" for s in statuses)
+    assert all(s.connected for s in statuses)
+    assert all(s.sample_latency_ms is not None and s.sample_latency_ms >= 0 for s in statuses)
+    # Honesty check: the detail text must not overclaim a live connection.
+    assert all("mock" in s.detail.lower() for s in statuses)
+
