@@ -7,9 +7,10 @@ behind code generation).
 WS-Security UsernameToken digest auth (the ONVIF-mandated auth mechanism)
 is implemented for real: SHA-1(nonce + created + password), not stubbed.
 
-Tested against a real (if minimal) mock ONVIF device server in
-tests/fixtures/mock_onvif_server.py — see test_onvif_driver.py and
-test_driver_conformance.py.
+Tested against a minimal mock ONVIF device server (an httpx.MockTransport
+handler) inlined directly in test_onvif_driver.py and
+test_driver_conformance.py — deliberately not a shared fixtures package,
+to avoid a pytest package-name collision with services/edge_agent/tests.
 """
 
 from __future__ import annotations

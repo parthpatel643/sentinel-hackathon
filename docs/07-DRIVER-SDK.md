@@ -3,8 +3,9 @@
 *Companion to [01-ARCHITECTURE.md §4.1](./01-ARCHITECTURE.md#41-federation-adapter-framework-model-3).
 This document exists because M11's exit criterion is "onboarding department
 27 is a driver, not a release — demonstrated, not asserted." What follows is
-the demonstration: a real interface, two real drivers against it, and a
-conformance suite that runs the same contract against both.*
+the demonstration: a real interface, two real drivers against it, four
+contract-shaped vendor shims proving the pattern generalizes, and a
+conformance suite that runs the same contract against all six.*
 
 ---
 
@@ -43,7 +44,7 @@ class CameraSource(Protocol):
 | `rtsp` | `services/edge_agent/src/edge_agent/adapters/rtsp_driver.py` | Real — implements `CameraSource`, wrapping the M1 capture pipeline (`pipeline/capture.py`) that has driven this project's synthetic grid since the beginning. |
 | `onvif` | `packages/sentinel_core/src/sentinel_core/drivers/onvif.py` | Real — implements `CameraSource` via WS-Discovery (UDP multicast probe, with a directed-host fallback that's the reliable path on segmented CCTV networks), `GetDeviceInformation`, `GetProfiles`/`GetStreamUri`, and PTZ `ContinuousMove`/`Stop`. Hand-rolled SOAP/XML (no WSDL-based client library), with real WS-Security UsernameToken digest auth — not HTTP Basic, which most ONVIF devices reject. |
 | *(gov catalogue)* | `packages/sentinel_core/src/sentinel_core/gov_catalogue.py` | Real, but **not** a `CameraSource` — a separate, simpler discovery-only client (list cameras + bulk-import) predating this Protocol, already wired into the onboarding wizard's "Connect a department system" step. Left as-is rather than force-fit into `CameraSource`, since it has no stream-open/health-check responsibility of its own (cameras it discovers are onboarded as plain `rtsp` sources). |
-| `milestone` / `genetec` / `hikvision` / `dahua` | *(M11, in progress)* | Contract-shaped mock(s); see the vendor-shim section once built. |
+| `milestone` / `genetec` / `hikvision` / `dahua` | `packages/sentinel_core/.../drivers/{milestone,genetec,hikvision,dahua}.py` | Contract-shaped mocks — real protocol shape, proven against a mock server, not a licensed vendor SDK. See §7 below. |
 
 ## 3. Why ONVIF is hand-rolled SOAP, not a WSDL client library
 
@@ -98,7 +99,36 @@ against every driver in `_DRIVER_CASES`, parametrized:
 Adding driver #3 to this suite is one new `DriverCase(...)` entry — that
 line is the actual evidence for "a driver, not a release."
 
-## 6. Adding a new driver (the "department 27" walkthrough)
+## 6. The vendor shims — proving the pattern generalizes
+
+`docs/05-DELIVERY-PLAN.md`'s M11 exit criterion calls for "vendor shims
+(Milestone/Genetec/Hikvision/Dahua) against mock servers." Four
+`CameraSource` implementations exist for exactly this — deliberately at
+"contract + conformance-tested mock" fidelity, not a licensed vendor SDK
+integration (no SDK licence is used or implied for any of them):
+
+| Driver | Wire format | Auth | Why this one's useful to demonstrate |
+|---|---|---|---|
+| `hikvision.py` | ISAPI: plain HTTP + XML | RFC 7616 HTTP Digest (`httpx.DigestAuth`) | The most common "just a standard, no SDK needed" shape — a huge share of the deployed base speaks ISAPI even on non-Hikvision-branded rebadged cameras. |
+| `dahua.py` | CGI: plain HTTP + flat `key=value` text (not XML/JSON) | HTTP Digest | A genuinely different response wire format from every other driver — proves the `CameraSource` port doesn't assume JSON/XML anywhere. |
+| `milestone.py` | REST/JSON | OAuth2 password-grant, bearer token (`/IDP/connect/token`) | The enterprise-VMS shape: auth is a separate token exchange, not per-request credentials. |
+| `genetec.py` | REST/JSON | Login call returns a session token, sent back as a custom `Session` header (not a cookie, not a bearer token) | A third distinct auth shape again — proves the port handles "however this vendor does it," not just one auth pattern. |
+
+Each shim is genuinely exercised end-to-end in
+`packages/sentinel_core/tests/test_vendor_shims.py` (vendor-specific edge
+cases — multi-channel discovery, disabled/no-stream cameras, wrong-password
+rejection) and in `tests/test_driver_conformance.py` (the shared five-check
+contract). The Hikvision/Dahua mocks **recompute the real digest response
+server-side** to verify a request, the same way `test_onvif_driver.py`'s
+mock does for WS-Security — auth is proven, not assumed.
+
+All four are directed-discovery-only (`DiscoveryScope(host=...)`,
+`scope.host=None` returns `[]`): none of these protocols has a broadcast
+discovery mechanism the way ONVIF's WS-Discovery does, and in every real
+deployment of these VMS/NVR products the operator already knows the
+Management Server or device IP being onboarded.
+
+## 7. Adding a new driver (the "department 27" walkthrough)
 
 1. Implement `CameraSource`'s three async methods for the new
    protocol/vendor SDK, plus `driver_id` and `capabilities`.
