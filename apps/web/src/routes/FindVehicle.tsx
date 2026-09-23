@@ -25,12 +25,41 @@ function requestMessage(error: unknown, fallback: string): string {
 function SightingEvidence({ point }: { point: RoutePoint }) {
   const { t } = useTranslation()
   const [imageFailed, setImageFailed] = useState(false)
+  const [snapshotUrl, setSnapshotUrl] = useState<string | null>(null)
+
+  // `snapshot_uri` is an internal `snapshot://<ulid>` reference, not a URL a
+  // browser can load — pointing <img src> at it produced
+  // ERR_UNKNOWN_URL_SCHEME and an empty evidence panel. The real frame comes
+  // from the bearer-authed snapshot endpoint, which <img> cannot call
+  // directly, so it is fetched as a Blob and shown via an object URL.
+  useEffect(() => {
+    if (!point.event_id || !point.snapshot_uri) {
+      setSnapshotUrl(null)
+      return
+    }
+    let objectUrl: string | null = null
+    let cancelled = false
+    setImageFailed(false)
+    detectionsApi
+      .snapshotBlob(point.event_id)
+      .then(({ blob }) => {
+        if (cancelled) return
+        objectUrl = URL.createObjectURL(blob)
+        setSnapshotUrl(objectUrl)
+      })
+      .catch(() => !cancelled && setImageFailed(true))
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [point.event_id, point.snapshot_uri])
+
   return (
     <section aria-label={t('investigation:evidence')} className="iw-evidence">
       <div className="iw-section-heading"><h2>{t('investigation:evidence')}</h2><Camera size={17} /></div>
       <div className="iw-snapshot">
-        {point.snapshot_uri && !imageFailed
-          ? <img src={point.snapshot_uri} alt={t('investigation:snapshotAlt', { camera: point.camera_name })} onError={() => setImageFailed(true)} />
+        {snapshotUrl && !imageFailed
+          ? <img src={snapshotUrl} alt={t('investigation:snapshotAlt', { camera: point.camera_name })} onError={() => setImageFailed(true)} />
           : <><ScanLine size={32} strokeWidth={1.3} /><p>{t(imageFailed ? 'investigation:snapshotFailed' : 'investigation:noSnapshot')}</p></>}
       </div>
       <div className="iw-evidence-copy">

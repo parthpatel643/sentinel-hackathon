@@ -114,6 +114,7 @@ async def get_vehicle_route(
 
     points = [
         RoutePoint(
+            event_id=detection.event_id,
             camera_id=camera.camera_id,
             camera_name=camera.name,
             location=location_out(camera.location),

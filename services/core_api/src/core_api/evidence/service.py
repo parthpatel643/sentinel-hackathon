@@ -12,15 +12,19 @@ always-on rolling buffer, a materially different (and more expensive)
 design this milestone does not implement; the alert's own detection
 snapshot remains the only "before" artefact until that's built.
 
-Only cameras relayed through our own local dev/* MediaMTX instance can be
-*sealed* today: `_patch_dev_relay_recording` toggles `record` on the single
-dev/* path pattern configured in mediamtx.yml, and nothing else. This is
-narrower than live *preview*, which `registry.service.resolve_camera_stream`
-now also solves for external (gov-catalogue) cameras by proxying them
-through an on-demand `ext/*` relay path — but recording that same on-demand
-path is a separate, still-unimplemented feature: it would need per-path
-(not path-pattern) record toggling, since external cameras don't share one
-static path the way the whole synthetic grid does.
+Sealing follows whichever relay path actually carries the camera: `dev/<id>`
+for the synthetic grid, which publishes straight into the relay, and
+`ext/<id>` for external (government) cameras, which `sentinel_core.relay`
+republishes as PULL sources. Resolving that per camera matters — assuming
+`dev/` meant sealing a government camera failed with "No recordings
+directory for camera at data/recordings/dev/cam06" while the camera was
+streaming perfectly well.
+
+The two are toggled differently because MediaMTX patches config *entries*,
+not the paths they match: `dev/*` is one wildcard entry in mediamtx.yml, so
+a dev camera is toggled through that pattern, while `ext/*` paths are added
+individually at runtime and are patched directly — which also means
+recording one government camera no longer starts recording every other one.
 """
 
 from __future__ import annotations
@@ -32,33 +36,60 @@ import time
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.orm import selectinload
 
-from core_api.db.models import Alert, EvidenceClip
+from core_api.db.models import Alert, Camera, EvidenceClip
 from sentinel_core.config import Settings
+from sentinel_core.relay import is_relay_hosted, relay_path_for
 
 __all__ = ["get_clip_for_alert", "request_seal_clip", "seal_clip_task"]
 
 
-async def _patch_dev_relay_recording(settings: Settings, *, record: bool) -> None:
-    """Toggle recording on the whole dev/* path pattern. Not per-camera:
-    mediamtx.yml only defines one wildcard path entry for the entire
-    synthetic grid today, so this is the only patch target that exists."""
+def relay_path_for_camera(camera: Camera, settings: Settings) -> str:
+    """Which MediaMTX path carries this camera.
+
+    The synthetic grid publishes straight into the relay under `dev/<id>`;
+    everything else is republished as a PULL source under `ext/<id>` by
+    `sentinel_core.relay`. Sealing used to assume `dev/` unconditionally,
+    so sealing a clip for a government camera failed with "No recordings
+    directory for camera at data/recordings/dev/cam06" — the camera was
+    there, just not where this code was looking.
+    """
+    rtsp = next((p for p in camera.profiles if p.protocol == "rtsp"), None)
+    if rtsp is not None and is_relay_hosted(rtsp.url, settings):
+        return urlsplit(rtsp.url).path.strip("/")
+    return relay_path_for(camera.camera_id, settings)
+
+
+async def _patch_relay_recording(settings: Settings, path: str, *, record: bool) -> None:
+    """Toggle recording for one relay path.
+
+    The target depends on how the path got there. `dev/*` paths are matched
+    by a single wildcard entry in mediamtx.yml, and MediaMTX patches config
+    *entries*, not the paths they match — so a dev camera has to be toggled
+    through that pattern. `ext/*` paths are added individually at runtime,
+    so they are patched directly, which also means recording one government
+    camera no longer starts recording every other one.
+    """
+    dev_prefix = settings.evidence_dev_relay_path_pattern
+    target = dev_prefix if path.startswith("dev/") else path
     async with httpx.AsyncClient(timeout=5.0) as client:
         await client.patch(
-            f"{settings.relay_api_url}/v3/config/paths/patch/{settings.evidence_dev_relay_path_pattern}",
+            f"{settings.relay_api_url}/v3/config/paths/patch/{target}",
             json={"record": record},
         )
 
 
-def _camera_recording_dir(settings: Settings, camera_id: str) -> Path:
-    # scripts/synthetic_grid.py publishes to dev/<camera_id>, and mediamtx.yml's
-    # recordPath template is /recordings/%path/... — this must match that
-    # path segment exactly.
-    return Path(settings.recordings_dir) / "dev" / camera_id
+def _recording_dir_for_path(settings: Settings, relay_path: str) -> Path:
+    # mediamtx.yml's recordPath template is /recordings/%path/..., and
+    # /recordings is bind-mounted to `recordings_dir` on the host — so the
+    # directory mirrors the relay path exactly.
+    return Path(settings.recordings_dir) / relay_path
 
 
 def _probe_duration_s(path: Path) -> float | None:
@@ -219,7 +250,21 @@ async def seal_clip_task(
     """Runs in the background after the seal-clip endpoint has already
     responded. Opens its own DB session since the request's session is
     closed by the time this runs."""
-    recordings_dir = _camera_recording_dir(settings, camera_id)
+    async with session_factory() as lookup:
+        camera = (
+            await lookup.execute(
+                select(Camera)
+                .where(Camera.camera_id == camera_id)
+                .options(selectinload(Camera.profiles))
+            )
+        ).scalar_one_or_none()
+    if camera is None:
+        async with session_factory() as session:
+            await _mark_failed(session, clip_id, f"No camera {camera_id!r} in the registry.")
+        return
+
+    relay_path = relay_path_for_camera(camera, settings)
+    recordings_dir = _recording_dir_for_path(settings, relay_path)
     existing_before = await asyncio.to_thread(
         lambda: set(recordings_dir.glob("*.mp4")) if recordings_dir.exists() else set()
     )
@@ -227,9 +272,9 @@ async def seal_clip_task(
 
     async with session_factory() as session:
         try:
-            await _patch_dev_relay_recording(settings, record=True)
+            await _patch_relay_recording(settings, relay_path, record=True)
             await asyncio.sleep(settings.evidence_post_roll_s)
-            await _patch_dev_relay_recording(settings, record=False)
+            await _patch_relay_recording(settings, relay_path, record=False)
             # MediaMTX needs a moment to flush and close the in-progress
             # segment file after the config patch takes effect.
             await asyncio.sleep(2.0)

@@ -4,11 +4,32 @@ row, and tamper detection (the whole point of a hash chain)."""
 
 from __future__ import annotations
 
-from sqlalchemy import update
+from collections.abc import AsyncIterator
+
+import pytest_asyncio
+from sqlalchemy import delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core_api.audit.service import GENESIS_HASH, record_audit_event, verify_chain
 from core_api.db.models import AuditLogEntry
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _empty_audit_log(db_session: AsyncSession) -> AsyncIterator[None]:
+    """These tests reason about the chain as a whole — the genesis row, the
+    row count, an empty log — so they need the table empty at the start.
+
+    It is not, in practice. The audit log is append-only by design and other
+    suites legitimately write to it (creating a user through the real API is
+    an audited action), as does any manual testing against the same dev
+    database. That made these tests pass or fail on collection order and on
+    whatever a developer had clicked recently, which is a property no test
+    should have. The db_session fixture rolls this back like every other
+    write here, so it clears the table for the test without destroying a
+    real log.
+    """
+    await db_session.execute(delete(AuditLogEntry))
+    yield
 
 
 async def test_the_first_row_chains_from_the_genesis_hash(db_session: AsyncSession) -> None:

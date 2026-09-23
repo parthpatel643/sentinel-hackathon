@@ -104,6 +104,11 @@ export const detectionsApi = {
   },
   vehicleRoute: (plate: string) => get<VehicleRoute>(`/api/v1/vehicles/${encodeURIComponent(plate)}/route`),
   movementReport: (plate: string) => getBlob(`/api/v1/vehicles/${encodeURIComponent(plate)}/movement-report`),
+  // The snapshot endpoint is bearer-authed like everything else, which a
+  // plain <img src> cannot attach — and `snapshot_uri` is an internal
+  // `snapshot://<ulid>` reference, not a loadable URL. Fetched as a Blob and
+  // shown via an object URL, the same pattern as clipVideoBlob.
+  snapshotBlob: (eventId: string) => getBlob(`/api/v1/detections/${encodeURIComponent(eventId)}/snapshot`),
 }
 
 export const watchlistApi = {

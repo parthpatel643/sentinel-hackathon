@@ -66,8 +66,45 @@ async def client() -> AsyncIterator[httpx.AsyncClient]:
         yield ac
 
 
-ADMIN_EMAIL = "admin@sentinel-platform.com"
-ADMIN_PASSWORD = "sentinel-admin-2026"
+# Deliberately NOT the seeded admin. Depending on that account's documented
+# default password coupled the suite to a deployment's credentials: rotating
+# it before exposing an instance publicly — which is exactly what you must do
+# — made these four tests fail with 401. The suite now mints its own
+# short-lived admin instead, so credential hygiene and the test suite stop
+# fighting each other.
+ADMIN_PASSWORD = "rls-test-admin-password-123"
+
+
+@pytest_asyncio.fixture
+async def admin_credentials() -> AsyncIterator[str]:
+    """An admin created directly in the database, the same way the seed
+    script bootstraps the first one — there is no API to create an admin
+    without already holding an admin token."""
+    from core_api.auth.service import hash_password
+    from core_api.db.models import User
+
+    email = f"rls-test-admin-{uuid.uuid4().hex[:8]}@sentinel-platform.example"
+    session_factory = get_sessionmaker()
+    async with session_factory() as session:
+        session.add(
+            User(
+                email=email,
+                hashed_password=hash_password(ADMIN_PASSWORD),
+                full_name="RLS Test Admin",
+                role="admin",
+            )
+        )
+        await session.commit()
+    try:
+        yield email
+    finally:
+        async with session_factory() as session:
+            user = (
+                await session.execute(select(User).where(User.email == email))
+            ).scalar_one_or_none()
+            if user is not None:
+                await session.delete(user)
+                await session.commit()
 
 
 async def _login(client: httpx.AsyncClient, email: str, password: str) -> str:
@@ -78,11 +115,13 @@ async def _login(client: httpx.AsyncClient, email: str, password: str) -> str:
 
 
 @pytest_asyncio.fixture
-async def tenancy_fixture(client: httpx.AsyncClient) -> AsyncIterator[dict[str, str]]:
+async def tenancy_fixture(
+    client: httpx.AsyncClient, admin_credentials: str
+) -> AsyncIterator[dict[str, str]]:
     """Two departments, one camera each, one operator user scoped to each
     department. Real commits, real cleanup."""
     suffix = uuid.uuid4().hex[:8]
-    admin_token = await _login(client, ADMIN_EMAIL, ADMIN_PASSWORD)
+    admin_token = await _login(client, admin_credentials, ADMIN_PASSWORD)
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
 
     dept_a_name = f"RLS Test Alpha {suffix}"
@@ -197,13 +236,13 @@ async def test_the_other_departments_user_only_sees_their_own_camera(
 
 
 async def test_an_unscoped_admin_sees_both_departments_cameras(
-    client: httpx.AsyncClient, tenancy_fixture: dict[str, str]
+    client: httpx.AsyncClient, tenancy_fixture: dict[str, str], admin_credentials: str
 ) -> None:
-    """The seeded admin account has no department_id (NULL) — the RLS
+    """An admin account has no department_id (NULL) — the RLS
     policy's documented meaning of NULL is "unrestricted," not "sees
     nothing," which is what makes it safe to turn on without breaking every
     existing HQ/admin workflow."""
-    admin_token = await _login(client, ADMIN_EMAIL, ADMIN_PASSWORD)
+    admin_token = await _login(client, admin_credentials, ADMIN_PASSWORD)
 
     resp = await client.get("/api/v1/cameras", headers={"Authorization": f"Bearer {admin_token}"})
     resp.raise_for_status()

@@ -66,6 +66,12 @@ class RoutePoint(BaseModel):
     plate match from a (not yet implemented) appearance-based bridge — see
     docs/01-ARCHITECTURE.md section 6.3 for the full design."""
 
+    event_id: str = Field(
+        default="",
+        description="Addresses GET /detections/{event_id}/snapshot. Without it a client "
+        "holding a route has no way to fetch the frame behind a sighting: snapshot_uri is "
+        "an internal `snapshot://<ulid>` reference, not a URL a browser can load.",
+    )
     camera_id: str
     camera_name: str
     location: GeoPointOut | None

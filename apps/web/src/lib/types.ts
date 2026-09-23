@@ -214,6 +214,8 @@ export interface Detection {
 export type MatchRung = 'exact' | 'ambiguity_class'
 
 export interface RoutePoint {
+  /** Addresses the snapshot endpoint; `snapshot_uri` is an internal reference. */
+  event_id?: string
   camera_id: string
   camera_name: string
   location: GeoPoint | null
