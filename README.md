@@ -161,6 +161,7 @@ Reviewers should not have to guess which parts are load-bearing.
 | [M14 — Evidence run](evidence/M14-EVIDENCE-RUN.md) | Auto-generated from a real run: throughput, read quality, analytics, latency |
 | [M14 — Findings](evidence/M14-EVIDENCE-RUN-FINDINGS.md) | What those numbers meant, and the problems the run exposed |
 | [M15 — Chaos drills](evidence/M15-CHAOS-DRILLS.md) | Feed kills, blocked RTSP, scene cuts — with what was and was not proven |
+| [M15 — Fresh-clone test](evidence/M15-FRESH-CLONE-TEST.md) | Proof the quickstart works from a clean checkout, and the bug that caught |
 | [M1 — Capacity findings](evidence/M1-CAPACITY-FINDINGS.md) | How many streams this hardware actually sustains |
 | [M2 — Synthetic grid limitation](evidence/M2-SYNTHETIC-GRID-DISCONTINUITY-FINDING.md) | Why the local fixture cannot reproduce a real PTS discontinuity |
 | [M4 — Government grid integration](evidence/M4-GOV-CAMERA-GRID-INTEGRATION.md) | First live run against the real grid, and the two real bugs it found |
