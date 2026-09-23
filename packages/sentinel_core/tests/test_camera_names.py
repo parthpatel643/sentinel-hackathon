@@ -100,3 +100,10 @@ def test_an_empty_name_falls_back_to_the_camera_id() -> None:
 def test_full_joins_label_and_locality_for_single_line_use() -> None:
     assert format_camera_name("08 majewadi-gate-junagadh").full == "Majewadi Gate · Junagadh"
     assert format_camera_name("04 Paldi Circle").full == "Paldi Circle"
+
+
+def test_dot_separated_initialisms_keep_their_case() -> None:
+    """"O.N.G.C." cannot match the acronym list because the dots are part of
+    the token, and title-casing it produced "O.n.g.c." on the live map."""
+    assert format_camera_name("03 O.N.G.C. Office").label == "O.N.G.C. Office"
+    assert format_camera_name("R.T.O. Circle").label.startswith("R.T.O.")

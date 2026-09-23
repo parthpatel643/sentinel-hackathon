@@ -99,6 +99,10 @@ def _titlecase(text: str) -> str:
         lowered = word.lower()
         if lowered in _ACRONYMS:
             words.append(lowered.upper())
+        elif re.fullmatch(r"(?:[a-z]\.){2,}", lowered):
+            # Dot-separated initialisms — "O.N.G.C." — which the acronym list
+            # cannot match because the dots are part of the token.
+            words.append(word.upper())
         elif lowered in _PARTICLES and index > 0:
             words.append(lowered)
         elif re.fullmatch(r"[a-z]?\d+", lowered):

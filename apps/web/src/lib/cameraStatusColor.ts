@@ -29,3 +29,27 @@ export const CAMERA_STATUS_COLOR: Record<CameraStatus, string> = {
 export function cameraStatusColor(status: string): string {
   return CAMERA_STATUS_COLOR[status as CameraStatus] ?? CAMERA_STATUS_COLOR.unknown
 }
+
+/**
+ * The name to show a human. Falls back to the catalogue's raw `name` when the
+ * API predates `display_name`, and to the id when there is no name at all, so
+ * a camera is never rendered nameless.
+ */
+export function cameraLabel(camera: {
+  camera_id: string
+  name?: string
+  display_name?: string
+}): string {
+  return camera.display_name || camera.name || camera.camera_id
+}
+
+/** `display_name`, with the locality appended when the name carries one. */
+export function cameraLabelWithLocality(camera: {
+  camera_id: string
+  name?: string
+  display_name?: string
+  locality?: string
+}): string {
+  const label = cameraLabel(camera)
+  return camera.locality ? `${label} · ${camera.locality}` : label
+}

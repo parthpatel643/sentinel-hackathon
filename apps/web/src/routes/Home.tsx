@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { Activity, ArrowRight, Bell, Camera as CameraIcon, CheckCircle2, ChevronRight, List, Map, Radio, RefreshCw, ScanLine, Search } from 'lucide-react'
 import { alertsApi, camerasApi, detectionsApi } from '../lib/api'
-import { cameraStatusColor } from '../lib/cameraStatusColor'
+import { cameraLabel, cameraLabelWithLocality, cameraStatusColor } from '../lib/cameraStatusColor'
 import { usePolling } from '../lib/usePolling'
 import { navigateTabs } from '../lib/tabs'
 import { MapView, type MapMarker } from '../components/MapView'
@@ -55,12 +55,12 @@ export function Home() {
     const query = cameraQuery.trim().toLowerCase()
     return (cameras ?? []).filter(camera =>
       (status === 'all' || camera.status === status) &&
-      (!query || `${camera.name} ${camera.camera_id}`.toLowerCase().includes(query)),
+      (!query || `${camera.name} ${camera.display_name ?? ''} ${camera.camera_id}`.toLowerCase().includes(query)),
     )
   }, [cameras, cameraQuery, status])
   const markers = useMemo<MapMarker[]>(() => filteredCameras.flatMap(camera => camera.location ? [{
     id: camera.camera_id, lat: camera.location.lat, lon: camera.location.lon,
-    color: cameraStatusColor(camera.status), label: `${camera.name} · ${t(`cameraStatus.${camera.status}`)}`,
+    color: cameraStatusColor(camera.status), label: `${cameraLabelWithLocality(camera)} · ${t(`cameraStatus.${camera.status}`)}`,
     onClick: () => setSelected(camera),
   }] : []), [filteredCameras, t])
   const counts = Object.fromEntries(STATUSES.map(state => [state, cameras?.filter(camera => camera.status === state).length]))
@@ -124,7 +124,7 @@ export function Home() {
                   {filteredCameras.map(camera => (
                     <button type="button" key={camera.camera_id} onClick={() => setSelected(camera)}>
                       <span className="camera-list-icon"><CameraIcon size={20} aria-hidden="true" /></span>
-                      <span className="camera-list-name"><strong>{camera.name}</strong><span>{camera.department_name ?? camera.camera_id}{!camera.location && ` · ${t('command:noLocation')}`}</span></span>
+                      <span className="camera-list-name"><strong>{cameraLabel(camera)}</strong><span>{camera.department_name ?? camera.camera_id}{!camera.location && ` · ${t('command:noLocation')}`}</span></span>
                       <SeverityBadge severity={statusToSeverity(camera.status)} label={t(`cameraStatus.${camera.status}`)} />
                       <ChevronRight size={16} aria-hidden="true" />
                     </button>
@@ -152,12 +152,12 @@ export function Home() {
                 {Boolean(alertsError) && <RequestError onRetry={refreshAlerts} />}
                 {!alerts && !alertsError && <p className="command-activity-empty">{t('common.loading')}</p>}
                 {alerts?.length === 0 && !alertsError && <div className="command-activity-empty"><CheckCircle2 size={30} /><h3>{t('home.nothingNeedsYou')}</h3><p>{t('workspace.queueDescription')}</p></div>}
-                {alerts?.slice(0, 8).map(alert => <ActivityEntry key={alert.id} item={alert} cameraName={cameras?.find(camera => camera.camera_id === alert.camera_id)?.name} />)}
+                {alerts?.slice(0, 8).map(alert => <ActivityEntry key={alert.id} item={alert} cameraName={(() => { const c = cameras?.find(camera => camera.camera_id === alert.camera_id); return c && cameraLabel(c) })()} />)}
               </> : <>
                 {Boolean(detectionsError) && <RequestError onRetry={refreshDetections} />}
                 {!detections && !detectionsError && <p className="command-activity-empty">{t('common.loading')}</p>}
                 {detections?.length === 0 && !detectionsError && <div className="command-activity-empty"><ScanLine size={30} /><p>{t('command:noDetections')}</p></div>}
-                {detections?.map(detection => <ActivityEntry key={detection.event_id} item={detection} cameraName={cameras?.find(camera => camera.camera_id === detection.camera_id)?.name} />)}
+                {detections?.map(detection => <ActivityEntry key={detection.event_id} item={detection} cameraName={(() => { const c = cameras?.find(camera => camera.camera_id === detection.camera_id); return c && cameraLabel(c) })()} />)}
               </>}
             </div>
             <footer>{activityView === 'alerts' ? <Link to="/alerts" className="text-link">{t('command:reviewAlerts')}<ArrowRight size={15} /></Link> : <span>{t('command:recentDescription')}</span>}</footer>

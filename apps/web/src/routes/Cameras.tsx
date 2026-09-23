@@ -13,7 +13,7 @@ import { Input } from '../components/ui/Input'
 import { RequestError } from '../components/ui/RequestError'
 import { CameraDetailModal } from '../components/CameraDetailModal'
 import { OnboardingWizard } from '../components/OnboardingWizard'
-import { cameraStatusColor } from '../lib/cameraStatusColor'
+import { cameraLabel, cameraLabelWithLocality, cameraStatusColor } from '../lib/cameraStatusColor'
 import type { Camera } from '../lib/types'
 import './monitoring-workspace.css'
 
@@ -52,7 +52,7 @@ export function Cameras() {
 
   const filteredCameras = cameras?.filter((camera) =>
     (status === 'all' || camera.status === status) &&
-    `${camera.name} ${camera.camera_id}`.toLowerCase().includes(query.trim().toLowerCase()),
+    `${camera.name} ${camera.display_name ?? ''} ${camera.camera_id}`.toLowerCase().includes(query.trim().toLowerCase()),
   )
   const markers: MapMarker[] =
     filteredCameras
@@ -62,7 +62,7 @@ export function Cameras() {
         lat: c.location.lat,
         lon: c.location.lon,
         color: cameraStatusColor(c.status),
-        label: c.name,
+        label: cameraLabelWithLocality(c),
         onClick: () => setSelected(c),
       })) ?? []
 
@@ -110,7 +110,7 @@ export function Cameras() {
         <div className="registry-map-layout">
           <section className="registry-map-list" aria-label={t('monitoring:mapList')}>
             <h3>{t('monitoring:mapList')}</h3>
-            {(filteredCameras ?? []).map((camera) => <button key={camera.camera_id} aria-label={camera.name} onClick={() => setSelected(camera)}><CameraIcon size={17} /><span><strong>{camera.name}</strong><small>{camera.location ? `${camera.location.lat.toFixed(4)}, ${camera.location.lon.toFixed(4)}` : t('monitoring:locationMissing')}</small></span><SeverityBadge severity={statusToSeverity(camera.status)} label={t(`cameraStatus.${camera.status}`)} /></button>)}
+            {(filteredCameras ?? []).map((camera) => <button key={camera.camera_id} aria-label={cameraLabel(camera)} onClick={() => setSelected(camera)}><CameraIcon size={17} /><span><strong>{cameraLabel(camera)}</strong><small>{camera.location ? `${camera.location.lat.toFixed(4)}, ${camera.location.lon.toFixed(4)}` : t('monitoring:locationMissing')}</small></span><SeverityBadge severity={statusToSeverity(camera.status)} label={t(`cameraStatus.${camera.status}`)} /></button>)}
             {cameras && filteredCameras?.length === 0 && <p className="monitoring-help">{t(cameras.length === 0 ? 'workspace.noCameras' : 'workspace.noMatchingCameras')}</p>}
           </section>
           <div className="registry-map-canvas">
@@ -147,7 +147,7 @@ export function Cameras() {
                       className="cursor-pointer border-b border-border-subtle/60 last:border-0 hover:bg-bg-overlay"
                     >
                       <td className="px-4 py-2.5">
-                        <button type="button" onClick={() => setSelected(camera)} className="min-h-10 text-left font-medium text-text-primary hover:text-accent">{camera.name}</button>
+                        <button type="button" onClick={() => setSelected(camera)} className="min-h-10 text-left font-medium text-text-primary hover:text-accent">{cameraLabel(camera)}</button>
                         <div className="text-xs text-text-tertiary">{camera.camera_id}</div>
                       </td>
                       <td className="px-4 py-2.5 text-text-secondary">{camera.department_name ?? t('common.unknown')}</td>
