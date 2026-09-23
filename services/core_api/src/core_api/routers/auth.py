@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core_api.audit.service import record_audit_event
 from core_api.auth.dependencies import current_user, require_role
 from core_api.auth.schemas import LoginRequest, TokenResponse, UserCreate, UserOut, UserUpdate
 from core_api.auth.service import (
@@ -62,7 +63,7 @@ async def list_users_endpoint(
 async def create_user_endpoint(
     payload: UserCreate,
     session: AsyncSession = Depends(get_session),
-    _admin: TokenPayload = Depends(require_role("admin")),
+    admin: TokenPayload = Depends(require_role("admin")),
 ) -> UserOut:
     try:
         user = await create_user(
@@ -72,6 +73,14 @@ async def create_user_endpoint(
             full_name=payload.full_name,
             role=payload.role,
             department_id=payload.department_id,
+        )
+        await record_audit_event(
+            session,
+            actor_email=admin.email,
+            action="user_created",
+            resource_type="user",
+            resource_id=str(user.id),
+            detail={"email": user.email, "role": user.role},
         )
         await session.commit()
     except IntegrityError as exc:
@@ -87,7 +96,7 @@ async def update_user_endpoint(
     user_id: UUID,
     payload: UserUpdate,
     session: AsyncSession = Depends(get_session),
-    _admin: TokenPayload = Depends(require_role("admin")),
+    admin: TokenPayload = Depends(require_role("admin")),
 ) -> UserOut:
     user = await update_user(
         session,
@@ -98,5 +107,13 @@ async def update_user_endpoint(
     )
     if user is None:
         raise HTTPException(status_code=404, detail=f"no user with id {user_id}")
+    await record_audit_event(
+        session,
+        actor_email=admin.email,
+        action="user_updated",
+        resource_type="user",
+        resource_id=str(user_id),
+        detail={"role": payload.role, "active": payload.active},
+    )
     await session.commit()
     return UserOut.model_validate(user)

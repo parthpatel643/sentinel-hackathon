@@ -152,14 +152,18 @@ async def test_resolve_original_path_resolves_against_the_originals_directory(
         assert path == original_path
 
 
-def test_record_reveal_audit_returns_the_captured_reason_and_actor() -> None:
-    event = record_reveal_audit(
+async def test_record_reveal_audit_persists_a_hash_chained_row(db_session: AsyncSession) -> None:
+    entry = await record_reveal_audit(
+        db_session,
         event_id="evt-audit-001",
         actor_email="admin@sentinel-platform.com",
         reason="Case FIR/2024/1",
     )
 
-    assert event.event_id == "evt-audit-001"
-    assert event.actor_email == "admin@sentinel-platform.com"
-    assert event.reason == "Case FIR/2024/1"
-    assert event.revealed_at.tzinfo is not None
+    assert entry.action == "face_reveal"
+    assert entry.resource_type == "detection"
+    assert entry.resource_id == "evt-audit-001"
+    assert entry.actor_email == "admin@sentinel-platform.com"
+    assert entry.detail == {"reason": "Case FIR/2024/1"}
+    assert entry.created_at.tzinfo is not None
+    assert len(entry.row_hash) == 64

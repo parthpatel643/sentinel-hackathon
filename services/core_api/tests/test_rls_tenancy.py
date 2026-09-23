@@ -158,6 +158,16 @@ async def tenancy_fixture(client: httpx.AsyncClient) -> AsyncIterator[dict[str, 
                 {"a": dept_a_name, "b": dept_b_name},
             )
             await session.commit()
+            # Deliberately NOT deleting the audit_log rows this test's user
+            # creation left behind: deleting a row from the *middle* of a
+            # hash chain breaks the chain for every row after it forever —
+            # exactly the tamper-detection behaviour the chain exists to
+            # have. Test-created audit entries are real audit entries (the
+            # actions genuinely happened); the dev-DB-wide `DELETE FROM
+            # audit_log` this session already runs before `make check`
+            # (alongside detections/cameras/etc.) is the right place to
+            # reset the chain to empty between clean test runs, not a
+            # per-test partial delete here.
 
 
 async def test_a_department_scoped_user_only_sees_their_own_camera(

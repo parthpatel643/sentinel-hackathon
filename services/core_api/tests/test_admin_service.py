@@ -8,7 +8,12 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core_api.admin.service import check_integration_statuses, preview_retention
+from core_api.admin.service import (
+    check_integration_statuses,
+    execute_retention,
+    list_audit_log,
+    preview_retention,
+)
 from core_api.detections.schemas import DetectionIn
 from core_api.detections.service import ingest_detection
 from core_api.registry.schemas import GeoPointOut
@@ -86,3 +91,60 @@ async def test_check_integration_statuses_reports_all_four_providers_connected()
     # Honesty check: the detail text must not overclaim a live connection.
     assert all("mock" in s.detail.lower() for s in statuses)
 
+
+async def test_execute_retention_deletes_only_detections_older_than_the_cutoff(
+    db_session: AsyncSession,
+) -> None:
+    await _make_camera(db_session)
+    await _make_detection(db_session, event_id="evt-old", observed_at=NOW - timedelta(days=40))
+    await _make_detection(db_session, event_id="evt-recent", observed_at=NOW - timedelta(days=1))
+
+    result = await execute_retention(
+        db_session,
+        detections_older_than_days=30,
+        clips_older_than_days=90,
+        actor_email="admin@sentinel-platform.com",
+    )
+
+    assert result.detections_deleted == 1
+    remaining = await preview_retention(
+        db_session, detections_older_than_days=0, clips_older_than_days=90
+    )
+    assert remaining.detections_affected == 1  # only "evt-recent" is left
+
+
+async def test_execute_retention_records_a_hash_chained_audit_entry(
+    db_session: AsyncSession,
+) -> None:
+    await _make_camera(db_session)
+    await _make_detection(
+        db_session, event_id="evt-audit-ret", observed_at=NOW - timedelta(days=40)
+    )
+
+    await execute_retention(
+        db_session,
+        detections_older_than_days=30,
+        clips_older_than_days=90,
+        actor_email="admin@sentinel-platform.com",
+    )
+
+    entries = await list_audit_log(db_session)
+    retention_entries = [e for e in entries if e.action == "retention_executed"]
+    assert len(retention_entries) == 1
+    assert retention_entries[0].actor_email == "admin@sentinel-platform.com"
+    assert retention_entries[0].detail["detections_deleted"] == 1
+
+
+async def test_execute_retention_with_nothing_to_delete_is_a_no_op(
+    db_session: AsyncSession,
+) -> None:
+    result = await execute_retention(
+        db_session,
+        detections_older_than_days=30,
+        clips_older_than_days=90,
+        actor_email="admin@sentinel-platform.com",
+    )
+
+    assert result.detections_deleted == 0
+    assert result.clips_deleted == 0
+    assert result.clips_bytes_deleted == 0

@@ -13,16 +13,17 @@ section 7) is an M4 concern, deliberately out of scope for the registry.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from geoalchemy2 import Geometry
-from sqlalchemy import JSON, ForeignKey, UniqueConstraint, func
+from sqlalchemy import JSON, ForeignKey, Identity, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core_api.db.base import Base
 
 __all__ = [
     "Alert",
+    "AuditLogEntry",
     "Camera",
     "Department",
     "Detection",
@@ -335,3 +336,38 @@ class FieldSightingReport(Base):
     photo_path: Mapped[str | None]
 
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class AuditLogEntry(Base):
+    """M12's hash-chained audit trail — docs/01-ARCHITECTURE.md §7: "audit_log
+    rows carry prev_hash/row_hash — an append-only hash chain, verifiable by
+    a CLI command" (see scripts/verify_audit_log.py). `row_hash` is
+    SHA-256(prev_hash + a canonical JSON of every other field) — computed
+    and verified in core_api/audit/service.py, never at the ORM layer, so
+    the exact hashing algorithm lives in one auditable place. Appends are
+    serialized with a Postgres advisory lock (see
+    `audit/service.py::record_audit_event`) so two concurrent writers can
+    never race on "what was the previous row's hash.\""""
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    # A separate strictly-monotonic column (not the UUID `id`, and not
+    # `created_at`, which two rows could in principle share at whatever
+    # timestamp precision) — this is what the chain's "previous row" lookup
+    # orders by, so it can never be ambiguous.
+    seq: Mapped[int] = mapped_column(Identity(always=False), unique=True, index=True)
+    actor_email: Mapped[str | None]
+    action: Mapped[str] = mapped_column(
+        comment="e.g. 'face_reveal', 'user_created', 'watchlist_entry_created', "
+        "'retention_executed'"
+    )
+    resource_type: Mapped[str]
+    resource_id: Mapped[str | None]
+    detail: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    # A Python-side default (not server_default): the exact value must be
+    # known *before* the row is hashed, and a DB-assigned server_default
+    # wouldn't be visible to Python until after the row round-trips.
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
+    prev_hash: Mapped[str]
+    row_hash: Mapped[str] = mapped_column(unique=True, index=True)

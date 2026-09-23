@@ -3,6 +3,7 @@
 from core_api.db.base import Base, get_engine, get_session, get_sessionmaker
 from core_api.db.models import (
     Alert,
+    AuditLogEntry,
     Camera,
     Department,
     Detection,
@@ -16,6 +17,7 @@ from core_api.db.models import (
 
 __all__ = [
     "Alert",
+    "AuditLogEntry",
     "Base",
     "Camera",
     "Department",

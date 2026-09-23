@@ -7,7 +7,13 @@ import { Input } from '../components/ui/Input'
 import { adminApi, usersApi, watchlistApi } from '../lib/api'
 import { useAuth } from '../lib/AuthContext'
 import { ApiError } from '../lib/http'
-import type { AuthUser, IntegrationStatus, RetentionPreview, WatchlistEntry } from '../lib/types'
+import type {
+  AuditLogEntry,
+  AuthUser,
+  IntegrationStatus,
+  RetentionPreview,
+  WatchlistEntry,
+} from '../lib/types'
 
 type Section = 'users' | 'watchlist' | 'retention' | 'integrations' | 'audit'
 
@@ -210,13 +216,36 @@ function RetentionSection() {
   const [detectionsDays, setDetectionsDays] = useState(30)
   const [clipsDays, setClipsDays] = useState(90)
   const [preview, setPreview] = useState<RetentionPreview | null>(null)
+  const [confirming, setConfirming] = useState(false)
+  const [executing, setExecuting] = useState(false)
+  const [result, setResult] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  function loadPreview() {
+    adminApi.retentionPreview(detectionsDays, clipsDays).then(setPreview)
+  }
 
   useEffect(() => {
-    const id = setTimeout(() => {
-      adminApi.retentionPreview(detectionsDays, clipsDays).then(setPreview)
-    }, 200)
+    const id = setTimeout(loadPreview, 200)
     return () => clearTimeout(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detectionsDays, clipsDays])
+
+  function executeNow() {
+    setExecuting(true)
+    setError(null)
+    adminApi
+      .retentionExecute(detectionsDays, clipsDays)
+      .then((r) => {
+        setResult(
+          `Deleted ${r.detections_deleted.toLocaleString()} detection(s) and ${r.clips_deleted.toLocaleString()} clip(s) (${bytesLabel(r.clips_bytes_deleted)}).`,
+        )
+        setConfirming(false)
+        loadPreview()
+      })
+      .catch((e) => setError(e instanceof ApiError ? e.message : 'Deletion failed.'))
+      .finally(() => setExecuting(false))
+  }
 
   return (
     <Card className="flex flex-col gap-5 p-5">
@@ -257,9 +286,30 @@ function RetentionSection() {
             ` About ${preview.clips_affected.toLocaleString()} clip(s) affected right now — ${bytesLabel(preview.clips_bytes_affected)}.`}
         </p>
       </div>
+      {!confirming ? (
+        <Button variant="danger" onClick={() => setConfirming(true)}>
+          Delete now
+        </Button>
+      ) : (
+        <div className="rounded-md border border-sev-critical/30 bg-sev-critical/5 p-3">
+          <p className="text-sm text-text-primary">
+            This permanently deletes the data described above right now — it cannot be undone.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Button variant="danger" onClick={executeNow} disabled={executing}>
+              {executing ? 'Deleting…' : 'Yes, delete permanently'}
+            </Button>
+            <Button variant="secondary" onClick={() => setConfirming(false)} disabled={executing}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+      {result && <p className="text-sm text-ok">{result}</p>}
+      {error && <p className="text-sm text-sev-critical">{error}</p>}
       <p className="rounded-md bg-bg-inset px-3 py-2 text-xs text-text-tertiary">
-        These sliders preview real counts and file sizes from the live database — no data is deleted by this
-        screen yet. Wiring an actual scheduled deletion job is a documented next step.
+        Every deletion is recorded in the tamper-evident audit log (see the Audit log tab) with who ran it and
+        exactly what was removed.
       </p>
     </Card>
   )
@@ -330,11 +380,105 @@ function IntegrationsSection() {
 }
 
 function AuditSection() {
+  const [entries, setEntries] = useState<AuditLogEntry[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [verifying, setVerifying] = useState(false)
+  const [verifyResult, setVerifyResult] = useState<string | null>(null)
+  const [verifyOk, setVerifyOk] = useState<boolean | null>(null)
+
+  function load() {
+    adminApi
+      .auditLog()
+      .then(setEntries)
+      .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load the audit log.'))
+  }
+
+  useEffect(load, [])
+
+  function verify() {
+    setVerifying(true)
+    setVerifyResult(null)
+    adminApi
+      .verifyAuditLog()
+      .then((r) => {
+        setVerifyOk(r.intact)
+        setVerifyResult(
+          r.intact
+            ? `Chain intact — ${r.rows_checked.toLocaleString()} row(s) verified.`
+            : `Tampering detected at row ${r.first_broken_seq}: ${r.detail}`,
+        )
+      })
+      .catch((e) => {
+        setVerifyOk(false)
+        setVerifyResult(e instanceof ApiError ? e.message : 'Verification failed.')
+      })
+      .finally(() => setVerifying(false))
+  }
+
+  function detailSummary(entry: AuditLogEntry): string {
+    const parts = Object.entries(entry.detail).map(([k, v]) => `${k}: ${String(v)}`)
+    return parts.join(', ') || '—'
+  }
+
+  if (error) {
+    return <Card className="p-6 text-center text-sm text-text-tertiary">{error}</Card>
+  }
+
   return (
-    <Card className="p-6 text-center text-sm text-text-tertiary">
-      The tamper-evident audit log (with hash-chain "Verify integrity") is a later phase of this build — not
-      wired up yet.
-    </Card>
+    <div className="flex flex-col gap-4">
+      <Card className="flex items-center justify-between p-4">
+        <div>
+          <p className="text-sm font-medium text-text-primary">Tamper-evident audit trail</p>
+          <p className="text-xs text-text-tertiary">
+            Every sensitive action (face reveals, user changes, watchlist edits, retention deletions) is
+            hash-chained — editing any row after the fact breaks every row after it.
+          </p>
+          {verifyResult && (
+            <p className={`mt-1.5 text-xs ${verifyOk ? 'text-ok' : 'text-sev-critical'}`}>{verifyResult}</p>
+          )}
+        </div>
+        <Button variant="secondary" onClick={verify} disabled={verifying}>
+          {verifying ? 'Verifying…' : 'Verify integrity'}
+        </Button>
+      </Card>
+
+      <Card className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-border-subtle text-xs uppercase tracking-wide text-text-tertiary">
+            <tr>
+              <th className="px-4 py-2.5 font-medium">When</th>
+              <th className="px-4 py-2.5 font-medium">Actor</th>
+              <th className="px-4 py-2.5 font-medium">Action</th>
+              <th className="px-4 py-2.5 font-medium">Resource</th>
+              <th className="px-4 py-2.5 font-medium">Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries?.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-4 py-6 text-center text-text-tertiary">
+                  No audited actions yet.
+                </td>
+              </tr>
+            )}
+            {entries?.map((e) => (
+              <tr key={e.id} className="border-b border-border-subtle/60 last:border-0">
+                <td className="px-4 py-2.5 plate-mono text-xs text-text-tertiary">
+                  {new Date(e.created_at).toLocaleString()}
+                </td>
+                <td className="px-4 py-2.5 text-text-secondary">{e.actor_email ?? '—'}</td>
+                <td className="px-4 py-2.5 text-text-primary">{e.action}</td>
+                <td className="px-4 py-2.5 text-xs text-text-tertiary">
+                  {e.resource_type}
+                  {e.resource_id ? ` / ${e.resource_id}` : ''}
+                </td>
+                <td className="px-4 py-2.5 text-xs text-text-tertiary">{detailSummary(e)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
   )
 }
 

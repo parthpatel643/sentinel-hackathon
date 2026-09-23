@@ -218,3 +218,68 @@ files against the real model with no crash, the pipeline wiring via unit
 tests with a fake writer, and the full core_api HTTP surface (serve +
 reveal + role gate) against manually-seeded detection rows.
 
+## 4. Hash-chained audit log + verification CLI + retention execution
+
+**Decision: a real append-only hash chain, not a plain timestamped log
+table.** docs/01-ARCHITECTURE.md §7: "audit_log rows carry prev_hash/
+row_hash — an append-only hash chain, verifiable by a CLI command."
+
+**What's real:**
+
+- `AuditLogEntry` (migration `c882d80a41a6`): `row_hash =
+  SHA256(prev_hash + canonical_json(id, actor_email, action,
+  resource_type, resource_id, detail, created_at))`. The first row chains
+  from a fixed, documented genesis value (`"0" * 64`); every row after
+  chains from the previous row's actual stored `row_hash`.
+- `core_api/audit/service.py`'s `record_audit_event` serializes
+  concurrent appends with a **Postgres transaction-scoped advisory lock**
+  (`pg_advisory_xact_lock`) around the read-previous-hash-then-insert
+  sequence — without it, two concurrent callers could both read the same
+  "last row" and each compute a `row_hash` chained from the same
+  `prev_hash`, silently forking the chain instead of extending it. A
+  dedicated strictly-monotonic `seq` (Postgres `IDENTITY`) column — not
+  the UUID `id`, and not `created_at`, which two rows could in principle
+  share at whatever timestamp precision — is what "the previous row"
+  unambiguously means.
+- **Found and fixed a real bug while building this**: SQLAlchemy's ORM
+  `default=` (as opposed to `server_default=`) is *not* evaluated at
+  object construction — `AuditLogEntry(...).id`/`.created_at` are
+  genuinely `None` until the object is flushed. Hashing before that first
+  flush would have silently hashed the placeholder `None`s. Fixed with an
+  explicit flush-then-hash-then-flush sequence.
+- `verify_chain` walks every row in insertion (`seq`) order, recomputing
+  each row's hash from its own stored fields and the *previous row's
+  stored hash* — any row edited in place breaks its own recomputed hash,
+  and (because the next row's `prev_hash` no longer matches) every row
+  after it too. **Verified for real**: created two real audit rows via
+  live HTTP actions, confirmed the CLI (`scripts/verify_audit_log.py`)
+  and the Admin Portal's "Verify integrity" button both report the chain
+  intact — then directly `UPDATE`d one row's `detail` in Postgres (a
+  simulated insider tamper) and confirmed both the CLI (non-zero exit
+  code) and the UI immediately reported the exact broken row and why.
+- Wired into a representative, meaningful set of actions (not literally
+  everything in the app — a deliberate scoping choice): admin user
+  create/update, watchlist entry create/update, face-reveal (§3 above),
+  and retention execution (below). Government-registry lookups (M11) have
+  their own separate `RegistryAuditEvent` structured-log trail rather than
+  this table — a documented, not accidental, split.
+- **Retention policy engine, the execution half**: `execute_retention`
+  (docs/05-DELIVERY-PLAN.md's M12 "retention policy engine") is the real
+  deletion the M10 preview sliders were always previewing — deletes
+  sealed clips' files from disk *and* rows, and detection rows, older
+  than the configured cutoffs, and records exactly what it deleted
+  (counts, bytes) as its own audited action. The Admin Portal's Retention
+  tab gained a "Delete now" button behind an explicit confirm step.
+
+**Honest gaps:**
+- Not every mutating action in the app is audited — the set above is
+  representative of "sensitive" actions, not exhaustive. Extending
+  coverage to more actions is additive (one `record_audit_event` call
+  each), not a redesign.
+- Retention execution is a manual admin action (a button), not a
+  scheduled background job — docs/01-ARCHITECTURE.md's "enforced by a
+  scheduled job, with a visible countdown" is the fuller vision; this
+  ships the enforcement mechanism and its audit trail, not the scheduler.
+- `pip-audit`/`npm audit`, SBOM generation, secret scanning and signed
+  media URLs (the remaining M12 delivery-plan bullet) are not yet built.
+

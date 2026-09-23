@@ -32,6 +32,34 @@ export interface RetentionPreview {
   clips_bytes_affected: number
 }
 
+export interface RetentionExecutionResult {
+  detections_older_than_days: number
+  clips_older_than_days: number
+  detections_deleted: number
+  clips_deleted: number
+  clips_bytes_deleted: number
+}
+
+export interface AuditLogEntry {
+  id: string
+  seq: number
+  actor_email: string | null
+  action: string
+  resource_type: string
+  resource_id: string | null
+  detail: Record<string, unknown>
+  created_at: string
+  prev_hash: string
+  row_hash: string
+}
+
+export interface AuditChainVerification {
+  intact: boolean
+  rows_checked: number
+  first_broken_seq: number | null
+  detail: string | null
+}
+
 export interface IntegrationStatus {
   provider_id: string
   name: string

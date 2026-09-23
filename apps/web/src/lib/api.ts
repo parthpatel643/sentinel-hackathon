@@ -6,6 +6,8 @@ import { get, getBlob, patch, post, postForm } from './http'
 import type {
   Alert,
   AlertStatus,
+  AuditChainVerification,
+  AuditLogEntry,
   AuthUser,
   BoloResult,
   BulkImportResult,
@@ -20,6 +22,7 @@ import type {
   IntegrationStatus,
   IntegratorCompliance,
   PlateLookup,
+  RetentionExecutionResult,
   RetentionPreview,
   TokenResponse,
   UserCreate,
@@ -43,6 +46,13 @@ export const usersApi = {
 export const adminApi = {
   retentionPreview: (detectionsDays: number, clipsDays: number) =>
     get<RetentionPreview>(`/api/v1/admin/retention-preview?detections_days=${detectionsDays}&clips_days=${clipsDays}`),
+  retentionExecute: (detectionsDays: number, clipsDays: number) =>
+    post<RetentionExecutionResult>('/api/v1/admin/retention-execute', {
+      detections_older_than_days: detectionsDays,
+      clips_older_than_days: clipsDays,
+    }),
+  auditLog: (limit = 200) => get<AuditLogEntry[]>(`/api/v1/admin/audit-log?limit=${limit}`),
+  verifyAuditLog: () => post<AuditChainVerification>('/api/v1/admin/audit-log/verify', {}),
   integrations: () => get<IntegrationStatus[]>('/api/v1/admin/integrations'),
 }
 

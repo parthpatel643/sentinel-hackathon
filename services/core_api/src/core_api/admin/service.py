@@ -1,11 +1,10 @@
-"""Retention policy preview — docs/03-UX-DESIGN.md section 6: "per-data-class
-retention sliders with a plain-language consequence preview (\"Event clips
-will be deleted after 30 days. About 1.2 TB affected.\")".
-
-This computes the preview against real counts (and, for sealed clips, real
-file sizes already on disk) — nothing here is invented. Actually enforcing a
-retention window (a scheduled deletion job) is a documented next step, not
-built yet: this endpoint only ever reads.
+"""Retention policy preview + execution — docs/03-UX-DESIGN.md section 6:
+"per-data-class retention sliders with a plain-language consequence preview
+(\"Event clips will be deleted after 30 days. About 1.2 TB affected.\")",
+and docs/05-DELIVERY-PLAN.md's M12 "retention policy engine." Preview only
+ever reads; `execute_retention` is the real deletion this preview was
+always in service of, gated by an admin-only endpoint and recorded in the
+hash-chained audit log (every deletion is itself an audited action).
 """
 
 from __future__ import annotations
@@ -16,11 +15,12 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core_api.admin.schemas import IntegrationStatusOut
-from core_api.db.models import Detection, EvidenceClip
+from core_api.audit.service import record_audit_event
+from core_api.db.models import AuditLogEntry, Detection, EvidenceClip
 from sentinel_core.gov_registry import (
     AfisProvider,
     EGujCopProvider,
@@ -30,7 +30,14 @@ from sentinel_core.gov_registry import (
     VahanProvider,
 )
 
-__all__ = ["RetentionPreview", "check_integration_statuses", "preview_retention"]
+__all__ = [
+    "RetentionExecutionResult",
+    "RetentionPreview",
+    "check_integration_statuses",
+    "execute_retention",
+    "list_audit_log",
+    "preview_retention",
+]
 
 
 class RetentionPreview:
@@ -40,6 +47,13 @@ class RetentionPreview:
         self.clips_bytes_affected = clips_bytes_affected
 
 
+class RetentionExecutionResult:
+    def __init__(self, *, detections_deleted: int, clips_deleted: int, clips_bytes_deleted: int):
+        self.detections_deleted = detections_deleted
+        self.clips_deleted = clips_deleted
+        self.clips_bytes_deleted = clips_bytes_deleted
+
+
 def _sum_existing_file_sizes(paths: list[str]) -> int:
     total = 0
     for raw_path in paths:
@@ -47,6 +61,13 @@ def _sum_existing_file_sizes(paths: list[str]) -> int:
         if path.is_file():
             total += path.stat().st_size
     return total
+
+
+def _delete_existing_files(paths: list[str]) -> None:
+    for raw_path in paths:
+        path = Path(raw_path)
+        if path.is_file():
+            path.unlink()
 
 
 async def preview_retention(
@@ -75,6 +96,67 @@ async def preview_retention(
         detections_affected=detections_affected,
         clips_affected=len(clip_paths),
         clips_bytes_affected=clips_bytes_affected,
+    )
+
+
+async def execute_retention(
+    session: AsyncSession,
+    *,
+    detections_older_than_days: int,
+    clips_older_than_days: int,
+    actor_email: str,
+) -> RetentionExecutionResult:
+    """The real deletion `preview_retention` was always previewing. Deletes
+    sealed clips' files from disk *and* their rows, and detection rows
+    older than the configured cutoffs — then records exactly what it did
+    in the hash-chained audit log (docs/05-DELIVERY-PLAN.md's M12
+    "retention policy engine" + "every human action is logged" from
+    docs/01-ARCHITECTURE.md's design principles). Callers must still
+    `session.commit()`."""
+    detections_cutoff = datetime.now(UTC) - timedelta(days=detections_older_than_days)
+    clips_cutoff = datetime.now(UTC) - timedelta(days=clips_older_than_days)
+
+    clips_result = await session.execute(
+        select(EvidenceClip.id, EvidenceClip.file_path).where(
+            EvidenceClip.created_at < clips_cutoff, EvidenceClip.status == "sealed"
+        )
+    )
+    clip_rows = clips_result.all()
+    clip_paths = [path for _clip_id, path in clip_rows if path]
+    clips_bytes_deleted = await asyncio.to_thread(_sum_existing_file_sizes, clip_paths)
+    await asyncio.to_thread(_delete_existing_files, clip_paths)
+
+    clip_ids = [clip_id for clip_id, _path in clip_rows]
+    if clip_ids:
+        await session.execute(delete(EvidenceClip).where(EvidenceClip.id.in_(clip_ids)))
+
+    detections_result = await session.execute(
+        delete(Detection).where(Detection.observed_at < detections_cutoff)
+    )
+    # AsyncSession.execute()'s stub return type is the generic Result[Any],
+    # but for a Core DELETE statement the runtime object is genuinely a
+    # CursorResult, which does have .rowcount — a real stub gap, not a
+    # runtime risk.
+    detections_deleted = detections_result.rowcount  # type: ignore[attr-defined]
+
+    await record_audit_event(
+        session,
+        actor_email=actor_email,
+        action="retention_executed",
+        resource_type="retention_policy",
+        detail={
+            "detections_older_than_days": detections_older_than_days,
+            "clips_older_than_days": clips_older_than_days,
+            "detections_deleted": detections_deleted,
+            "clips_deleted": len(clip_ids),
+            "clips_bytes_deleted": clips_bytes_deleted,
+        },
+    )
+
+    return RetentionExecutionResult(
+        detections_deleted=detections_deleted,
+        clips_deleted=len(clip_ids),
+        clips_bytes_deleted=clips_bytes_deleted,
     )
 
 
@@ -152,3 +234,14 @@ async def check_integration_statuses() -> list[IntegrationStatusOut]:
             )
         )
     return statuses
+
+
+async def list_audit_log(session: AsyncSession, *, limit: int = 200) -> list[AuditLogEntry]:
+    """Newest first — the Admin Portal's Audit log screen (docs/03-UX-
+    DESIGN.md §6). `verify_chain` (core_api/audit/service.py) walks in the
+    opposite (insertion) order since it must recompute forward from the
+    genesis hash; this is purely a display query."""
+    result = await session.execute(
+        select(AuditLogEntry).order_by(AuditLogEntry.seq.desc()).limit(limit)
+    )
+    return list(result.scalars().all())

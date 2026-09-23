@@ -12,6 +12,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core_api.audit.service import record_audit_event
+from core_api.auth.dependencies import current_user
+from core_api.auth.service import TokenPayload
 from core_api.db.base import get_session, get_sessionmaker
 from core_api.db.models import Alert, EvidenceClip
 from core_api.evidence.schemas import EvidenceClipOut
@@ -40,9 +43,19 @@ router = APIRouter(prefix="/api/v1", tags=["watchlist"])
 
 @router.post("/watchlist", response_model=WatchlistEntryOut, status_code=201)
 async def create_watchlist_entry_endpoint(
-    payload: WatchlistEntryCreate, session: AsyncSession = Depends(get_session)
+    payload: WatchlistEntryCreate,
+    session: AsyncSession = Depends(get_session),
+    user: TokenPayload = Depends(current_user),
 ) -> WatchlistEntryOut:
     entry = await create_watchlist_entry(session, payload)
+    await record_audit_event(
+        session,
+        actor_email=user.email,
+        action="watchlist_entry_created",
+        resource_type="watchlist_entry",
+        resource_id=str(entry.id),
+        detail={"plate_normalised": entry.plate_normalised, "entry_type": entry.entry_type},
+    )
     await session.commit()
     return WatchlistEntryOut.model_validate(entry)
 
@@ -57,13 +70,24 @@ async def list_watchlist_endpoint(
 
 @router.patch("/watchlist/{entry_id}", response_model=WatchlistEntryOut)
 async def update_watchlist_entry_endpoint(
-    entry_id: UUID, payload: WatchlistEntryUpdate, session: AsyncSession = Depends(get_session)
+    entry_id: UUID,
+    payload: WatchlistEntryUpdate,
+    session: AsyncSession = Depends(get_session),
+    user: TokenPayload = Depends(current_user),
 ) -> WatchlistEntryOut:
     """Admin Portal list management (docs/03-UX-DESIGN.md §6) — deactivate
     an entry by hand rather than only ever waiting out valid_until."""
     entry = await update_watchlist_entry(session, entry_id, active=payload.active)
     if entry is None:
         raise HTTPException(status_code=404, detail=f"no watchlist entry with id {entry_id}")
+    await record_audit_event(
+        session,
+        actor_email=user.email,
+        action="watchlist_entry_updated",
+        resource_type="watchlist_entry",
+        resource_id=str(entry_id),
+        detail={"active": payload.active},
+    )
     await session.commit()
     return WatchlistEntryOut.model_validate(entry)
 

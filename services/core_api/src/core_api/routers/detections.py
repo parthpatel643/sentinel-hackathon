@@ -129,11 +129,13 @@ async def reveal_face_endpoint(
     M12) — admin-only (no separate "supervisor" role exists yet, a
     documented scoping choice, not an oversight), and a reason is
     mandatory, not optional. Returns the unblurred original directly;
-    every call is logged with the actor, the reason and a timestamp (see
-    core_api/evidence/reveal.py's docstring for where this audit trail
-    permanently lives once the hash-chained audit log milestone exists)."""
+    every call is persisted to the hash-chained audit log with the actor,
+    the reason and a timestamp (core_api/audit/service.py)."""
     path = await resolve_original_path(session, event_id, get_settings())
     if path is None:
         raise HTTPException(status_code=404, detail="No snapshot on file for this detection.")
-    record_reveal_audit(event_id=event_id, actor_email=admin.email, reason=payload.reason)
+    await record_reveal_audit(
+        session, event_id=event_id, actor_email=admin.email, reason=payload.reason
+    )
+    await session.commit()
     return FileResponse(path, media_type="image/jpeg", filename=f"{event_id}-unblurred.jpg")

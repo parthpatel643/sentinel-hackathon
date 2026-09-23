@@ -10,25 +10,16 @@ docs/08-SECURITY-HARDENING.md).
 from __future__ import annotations
 
 import asyncio
-import logging
-from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core_api.db.models import Detection
+from core_api.audit.service import record_audit_event
+from core_api.db.models import AuditLogEntry, Detection
 from sentinel_core.config import Settings
 
-__all__ = [
-    "RevealAuditEvent",
-    "record_reveal_audit",
-    "resolve_original_path",
-    "resolve_snapshot_path",
-]
-
-logger = logging.getLogger(__name__)
+__all__ = ["record_reveal_audit", "resolve_original_path", "resolve_snapshot_path"]
 
 
 async def _detection_has_snapshot(session: AsyncSession, event_id: str) -> bool:
@@ -61,32 +52,19 @@ async def resolve_original_path(
     return path if await asyncio.to_thread(path.is_file) else None
 
 
-@dataclass(frozen=True, slots=True)
-class RevealAuditEvent:
-    event_id: str
-    actor_email: str
-    reason: str
-    revealed_at: datetime
-
-
-def record_reveal_audit(*, event_id: str, actor_email: str, reason: str) -> RevealAuditEvent:
-    """Logs the reveal for audit purposes — a structured log line today
-    (genuinely reaching stdout since the M12 mTLS work's logging fix; see
-    docs/08-SECURITY-HARDENING.md), a durable hash-chained row once the
-    audit-log milestone gives every sensitive action a permanent home. The
-    *reason* is exactly what docs/05-DELIVERY-PLAN.md's "reveal-on-
-    authorisation with reason capture" calls for — captured here, not
-    merely accepted and discarded."""
-    event = RevealAuditEvent(
-        event_id=event_id, actor_email=actor_email, reason=reason, revealed_at=datetime.now(UTC)
+async def record_reveal_audit(
+    session: AsyncSession, *, event_id: str, actor_email: str, reason: str
+) -> AuditLogEntry:
+    """Persists the reveal to the hash-chained audit log — the *reason* is
+    exactly what docs/05-DELIVERY-PLAN.md's "reveal-on-authorisation with
+    reason capture" calls for, captured here, not merely accepted and
+    discarded. Callers must still `session.commit()` — this only flushes,
+    matching every other service function in this codebase."""
+    return await record_audit_event(
+        session,
+        actor_email=actor_email,
+        action="face_reveal",
+        resource_type="detection",
+        resource_id=event_id,
+        detail={"reason": reason},
     )
-    logger.info(
-        "face_reveal_audit",
-        extra={
-            "event_id": event.event_id,
-            "actor_email": event.actor_email,
-            "reason": event.reason,
-            "revealed_at": event.revealed_at.isoformat(),
-        },
-    )
-    return event
