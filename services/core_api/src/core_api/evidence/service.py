@@ -13,9 +13,14 @@ design this milestone does not implement; the alert's own detection
 snapshot remains the only "before" artefact until that's built.
 
 Only cameras relayed through our own local dev/* MediaMTX instance can be
-sealed today, for the same reason `registry.service.resolve_camera_stream`
-can only preview those cameras: proxying a real gov-catalogue camera's
-credentialed feed through our relay is a real feature, not implemented yet.
+*sealed* today: `_patch_dev_relay_recording` toggles `record` on the single
+dev/* path pattern configured in mediamtx.yml, and nothing else. This is
+narrower than live *preview*, which `registry.service.resolve_camera_stream`
+now also solves for external (gov-catalogue) cameras by proxying them
+through an on-demand `ext/*` relay path — but recording that same on-demand
+path is a separate, still-unimplemented feature: it would need per-path
+(not path-pattern) record toggling, since external cameras don't share one
+static path the way the whole synthetic grid does.
 """
 
 from __future__ import annotations

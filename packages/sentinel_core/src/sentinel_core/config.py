@@ -79,6 +79,15 @@ class Settings(BaseSettings):
     relay_rtsp_url: str = "rtsp://localhost:8554"
     relay_hls_url: str = "http://localhost:8888"
     relay_webrtc_url: str = "http://localhost:8889"
+    relay_external_path_prefix: str = Field(
+        default="ext",
+        description="MediaMTX path namespace under which registry.service."
+        "resolve_camera_stream proxies external (e.g. gov-catalogue) cameras as "
+        "on-demand PULL sources — MediaMTX itself acts as the RTSP client, so this "
+        "never violates 'consume only, never publish to the gateway'. Kept structurally "
+        "separate from dev/* (our own synthetic grid's PUSH namespace, see "
+        "infra/compose/mediamtx.yml).",
+    )
 
     # --- Evidence / event-clip recording (M7) -------------------------------
     # Model 4 is event-driven, not a statewide archive: recording is off by

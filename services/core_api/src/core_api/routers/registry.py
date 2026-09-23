@@ -119,7 +119,7 @@ async def camera_stream_endpoint(
     camera = await get_camera(session, camera_id)
     if camera is None:
         raise HTTPException(status_code=404, detail=f"no camera with id {camera_id!r}")
-    return resolve_camera_stream(camera, get_settings())
+    return await resolve_camera_stream(camera, get_settings())
 
 
 @router.post("/cameras/bulk-import", response_model=BulkImportResult)
