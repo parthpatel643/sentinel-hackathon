@@ -88,9 +88,7 @@ def detect_faces(
     return boxes
 
 
-def blur_regions(
-    image: np.ndarray, boxes: list[tuple[int, int, int, int]]
-) -> np.ndarray:
+def blur_regions(image: np.ndarray, boxes: list[tuple[int, int, int, int]]) -> np.ndarray:
     """The pure, model-free half of face blurring: given (x, y, w, h)
     boxes (wherever they came from), returns a **copy** with those regions
     heavily Gaussian-blurred. Split out from `blur_faces` specifically so

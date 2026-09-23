@@ -33,6 +33,8 @@ __all__ = [
     "StreamProfile",
     "User",
     "WatchlistEntry",
+    "Zone",
+    "ZoneEvent",
 ]
 
 
@@ -103,6 +105,10 @@ class Camera(Base):
     declared_fps: Mapped[float | None]
     reconnects: Mapped[int] = mapped_column(default=0)
     discontinuities: Mapped[int] = mapped_column(default=0)
+    tamper_status: Mapped[str | None] = mapped_column(
+        comment="M13 secondary analytics — 'ok' | 'covered' | 'blurred' | 'moved' | null "
+        "(never reported yet). See edge_agent.analytics.tamper."
+    )
 
     source: Mapped[str] = mapped_column(
         default="manual", comment="gov_catalogue | manual | bulk_csv | api"
@@ -170,6 +176,10 @@ class Detection(Base):
     frames_voted: Mapped[int] = mapped_column(default=1)
 
     vehicle_class: Mapped[str | None]
+    vehicle_colour: Mapped[str | None] = mapped_column(
+        comment="M13 secondary analytics — a coarse HSV-heuristic classification, not a "
+        "trained model. See edge_agent.analytics.colour."
+    )
     vehicle_track_id: Mapped[str | None]
 
     bbox_x: Mapped[int | None]
@@ -371,3 +381,44 @@ class AuditLogEntry(Base):
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
     prev_hash: Mapped[str]
     row_hash: Mapped[str] = mapped_column(unique=True, index=True)
+
+
+class Zone(Base):
+    """One configured secondary-analytics rule for one camera (M13) — see
+    edge_agent.analytics.zone_rules.Zone, which this mirrors. `polygon` is
+    stored as plain JSON (a list of [x, y] pairs in normalised [0, 1] frame
+    coordinates), not PostGIS geometry: this is a per-camera *frame-pixel*
+    shape, not a real-world geospatial one (unlike `Camera.fov`)."""
+
+    __tablename__ = "zones"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    camera_id: Mapped[str] = mapped_column(ForeignKey("cameras.camera_id", ondelete="CASCADE"))
+    name: Mapped[str]
+    rule_type: Mapped[str] = mapped_column(
+        comment="intrusion | loitering | wrong_way | stopped_vehicle"
+    )
+    polygon: Mapped[list[list[float]]] = mapped_column(JSON)
+    dwell_threshold_s: Mapped[float] = mapped_column(default=10.0)
+    expected_direction_deg: Mapped[float] = mapped_column(default=0.0)
+    direction_tolerance_deg: Mapped[float] = mapped_column(default=60.0)
+    stopped_speed_threshold: Mapped[float] = mapped_column(default=0.01)
+    active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ZoneEvent(Base):
+    """One fired zone-rule violation (M13) — see
+    edge_agent.analytics.zone_rules.ZoneEvent, which this persists."""
+
+    __tablename__ = "zone_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    zone_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("zones.id", ondelete="CASCADE"))
+    camera_id: Mapped[str] = mapped_column(ForeignKey("cameras.camera_id", ondelete="CASCADE"))
+    rule_type: Mapped[str]
+    track_id: Mapped[str]
+    dwell_time_s: Mapped[float | None]
+    heading_deg: Mapped[float | None]
+    observed_at: Mapped[datetime]
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())

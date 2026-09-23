@@ -260,3 +260,33 @@ def test_a_snapshot_writer_returning_empty_string_leaves_no_snapshot_uri() -> No
     events = pipeline.process_frame(_frame(40.0))
 
     assert events[0].evidence.snapshot_uri is None
+
+
+def test_vehicle_colour_is_classified_from_the_vehicles_own_bounding_box() -> None:
+    """M13: a real red patch at the car's bounding box location must
+    genuinely classify as red — this is testing the pipeline's wiring
+    (crops the right region, calls the real classifier), not re-testing
+    the classifier's own logic (see test_colour.py for that)."""
+    timing = FrameTiming(
+        camera_id="cam-test",
+        pts_ms=40.0,
+        seq=0,
+        stream_epoch=ANCHOR,
+        observed_at=ANCHOR,
+        delta_ms=40.0,
+        is_gap=False,
+        is_discontinuity=False,
+    )
+    image = np.zeros((480, 640, 3), dtype=np.uint8)
+    car = _car(x=100.0, y=100.0)
+    x1, y1, x2, y2 = car.bbox_xyxy
+    image[int(y1) : int(y2), int(x1) : int(x2)] = (0, 0, 255)  # solid red (BGR), car's own bbox
+    frame = Frame(timing=timing, image=image, width=640, height=480)
+
+    detector = FakeVehicleDetector([[car]])
+    reader = FakePlateReader([[_plate("GJ01AB1234")]])
+    pipeline = AnprPipeline(detector, reader, node_id="n", model_versions={})
+
+    events = pipeline.process_frame(frame)
+
+    assert events[0].payload.vehicle.colour == "red"  # type: ignore[union-attr]

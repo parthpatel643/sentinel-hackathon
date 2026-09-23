@@ -32,6 +32,7 @@ class DetectionIn(BaseModel):
     format_valid: bool = False
     frames_voted: int = 1
     vehicle_class: str | None = None
+    vehicle_colour: str | None = None
     vehicle_track_id: str | None = None
     bbox: BoundingBoxIn | None = None
     pts_ms: float
@@ -52,6 +53,7 @@ class DetectionOut(BaseModel):
     format_valid: bool
     frames_voted: int
     vehicle_class: str | None
+    vehicle_colour: str | None
     vehicle_track_id: str | None
     observed_at: datetime
     snapshot_uri: str | None

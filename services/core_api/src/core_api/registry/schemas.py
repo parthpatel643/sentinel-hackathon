@@ -106,6 +106,7 @@ class CameraOut(BaseModel):
     declared_fps: float | None = None
     reconnects: int = 0
     discontinuities: int = 0
+    tamper_status: str | None = None
     source: str
     attributes: dict[str, str]
     profiles: list[StreamProfileOut]
@@ -123,6 +124,9 @@ class CameraHealthUpdate(BaseModel):
     declared_fps: float | None = None
     reconnects: int | None = None
     discontinuities: int | None = None
+    tamper_status: str | None = Field(
+        default=None, description="M13 — 'ok' | 'covered' | 'blurred' | 'moved'"
+    )
 
 
 class GapCell(BaseModel):

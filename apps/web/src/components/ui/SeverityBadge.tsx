@@ -58,3 +58,17 @@ const PRIORITY_TO_SEVERITY: Record<string, Severity> = {
 export function priorityToSeverity(priority: string): Severity {
   return PRIORITY_TO_SEVERITY[priority] ?? 'medium'
 }
+
+const TAMPER_TO_SEVERITY: Record<string, Severity> = {
+  ok: 'ok',
+  covered: 'critical',
+  blurred: 'high',
+  moved: 'high',
+}
+
+/** M13: `tamper_status` is `null` for any camera whose driver hasn't
+ * wired tamper detection at all (not every driver reports it yet) —
+ * distinguished from "ok" (detection is running and found nothing). */
+export function tamperToSeverity(tamperStatus: string): Severity {
+  return TAMPER_TO_SEVERITY[tamperStatus] ?? 'medium'
+}

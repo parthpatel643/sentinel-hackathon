@@ -32,6 +32,7 @@ async def ingest_detection(session: AsyncSession, payload: DetectionIn) -> Detec
         format_valid=payload.format_valid,
         frames_voted=payload.frames_voted,
         vehicle_class=payload.vehicle_class,
+        vehicle_colour=payload.vehicle_colour,
         vehicle_track_id=payload.vehicle_track_id,
         bbox_x=payload.bbox.x if payload.bbox else None,
         bbox_y=payload.bbox.y if payload.bbox else None,

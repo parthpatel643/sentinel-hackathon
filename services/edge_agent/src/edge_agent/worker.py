@@ -38,13 +38,17 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import numpy as np
 
 from edge_agent.analytics.pipeline import AnprPipeline
 from edge_agent.analytics.plate_reader import FastAlprPlateReader
 from edge_agent.analytics.snapshot_writer import SnapshotWriter
+from edge_agent.analytics.tamper import TamperDetector
 from edge_agent.analytics.vehicle_detector import VehicleDetector
+from edge_agent.analytics.zone_rules import Zone, ZoneRuleEngine
 from edge_agent.pipeline.capture import CaptureConfig
 from edge_agent.pipeline.supervisor import CameraSupervisor
+from sentinel_core.clock import Frame
 from sentinel_core.config import get_settings
 from sentinel_core.gov_catalogue import GovCatalogueClient
 from sentinel_core.schemas import AnprPayload, CameraDescriptor, Event, StreamProtocol
@@ -115,7 +119,10 @@ async def _register_camera(client: httpx.AsyncClient, descriptor: CameraDescript
 
 
 async def _report_health(
-    client: httpx.AsyncClient, camera_id: str, supervisor: CameraSupervisor
+    client: httpx.AsyncClient,
+    camera_id: str,
+    supervisor: CameraSupervisor,
+    tamper_detector: TamperDetector | None = None,
 ) -> None:
     while True:
         await asyncio.sleep(HEALTH_REPORT_INTERVAL_S)
@@ -125,6 +132,7 @@ async def _report_health(
             "declared_fps": supervisor.declared_fps,
             "reconnects": supervisor.reconnects,
             "discontinuities": supervisor.discontinuities,
+            "tamper_status": tamper_detector.current_status if tamper_detector else None,
         }
         try:
             response = await client.patch(f"/api/v1/cameras/{camera_id}/health", json=payload)
@@ -149,6 +157,7 @@ def _event_to_detection_payload(event: Event) -> dict[str, Any]:
         "format_valid": payload.format_valid,
         "frames_voted": payload.frames_voted,
         "vehicle_class": payload.vehicle.vehicle_class if payload.vehicle else None,
+        "vehicle_colour": payload.vehicle.colour if payload.vehicle else None,
         "vehicle_track_id": payload.vehicle.track_id if payload.vehicle else None,
         "bbox": (
             {
@@ -182,6 +191,7 @@ async def _run_camera(
 
     supervisor = CameraSupervisor(config=CaptureConfig(camera_id=camera_id, url=url))
     settings = get_settings()
+    tamper_detector = TamperDetector()
     pipeline = AnprPipeline(
         vehicle_detector,
         plate_reader,
@@ -192,10 +202,17 @@ async def _run_camera(
             originals_dir=Path(settings.snapshot_originals_dir),
         ),
     )
+    zone_engine = await _load_zone_engine(client, camera_id)
 
-    health_task = asyncio.create_task(_report_health(client, camera_id, supervisor))
+    health_task = asyncio.create_task(
+        _report_health(client, camera_id, supervisor, tamper_detector)
+    )
     try:
         async for frame in supervisor.frames():
+            # M13: cheap enough to run on every frame (grayscale + Laplacian
+            # + a mean) — no second inference engine, unlike the ANPR
+            # pipeline's own per-frame cost.
+            await asyncio.to_thread(tamper_detector.update, frame.image)
             events = await asyncio.to_thread(pipeline.process_frame, frame)
             for event in events:
                 payload = event.payload
@@ -213,8 +230,82 @@ async def _run_camera(
                     )
                 except httpx.HTTPError as exc:
                     logger.warning("detection post failed for %s: %s", camera_id, exc)
+
+            if zone_engine is not None:
+                await _evaluate_zones(client, camera_id, zone_engine, pipeline, frame)
     finally:
         health_task.cancel()
+
+
+async def _load_zone_engine(client: httpx.AsyncClient, camera_id: str) -> ZoneRuleEngine | None:
+    """M13: fetches this camera's configured zones once at startup — an
+    empty/missing config is the normal, expected state for a camera
+    nobody has configured zone rules for yet, not an error."""
+    try:
+        response = await client.get(f"/api/v1/cameras/{camera_id}/zones")
+        response.raise_for_status()
+        zone_dicts = response.json()
+    except httpx.HTTPError as exc:
+        logger.warning("could not fetch zones for %s: %s", camera_id, exc)
+        return None
+    if not zone_dicts:
+        return None
+    zones = [
+        Zone(
+            zone_id=z["id"],
+            name=z["name"],
+            rule_type=z["rule_type"],
+            polygon=tuple((p[0], p[1]) for p in z["polygon"]),
+            dwell_threshold_s=z["dwell_threshold_s"],
+            expected_direction_deg=z["expected_direction_deg"],
+            direction_tolerance_deg=z["direction_tolerance_deg"],
+            stopped_speed_threshold=z["stopped_speed_threshold"],
+        )
+        for z in zone_dicts
+    ]
+    logger.info("loaded %d zone rule(s) for %s", len(zones), camera_id)
+    return ZoneRuleEngine(zones)
+
+
+async def _evaluate_zones(
+    client: httpx.AsyncClient,
+    camera_id: str,
+    zone_engine: ZoneRuleEngine,
+    pipeline: AnprPipeline,
+    frame: Frame[np.ndarray],
+) -> None:
+    height, width = frame.image.shape[:2]
+    positions = {
+        tracked.track_id: (
+            (tracked.detection.bbox_xyxy[0] + tracked.detection.bbox_xyxy[2]) / 2 / width,
+            (tracked.detection.bbox_xyxy[1] + tracked.detection.bbox_xyxy[3]) / 2 / height,
+        )
+        for tracked in pipeline.last_tracked_vehicles
+    }
+    zone_events = zone_engine.update(positions, now_s=frame.timing.pts_ms / 1000.0)
+    for zone_event in zone_events:
+        try:
+            response = await client.post(
+                "/api/v1/zone-events",
+                json={
+                    "zone_id": zone_event.zone_id,
+                    "camera_id": camera_id,
+                    "rule_type": zone_event.rule_type,
+                    "track_id": str(zone_event.track_id),
+                    "dwell_time_s": zone_event.dwell_time_s,
+                    "heading_deg": zone_event.heading_deg,
+                    "observed_at": frame.observed_at.isoformat(),
+                },
+            )
+            response.raise_for_status()
+            logger.info(
+                "%s: zone rule '%s' fired (%s)",
+                camera_id,
+                zone_event.rule_type,
+                zone_event.zone_name,
+            )
+        except httpx.HTTPError as exc:
+            logger.warning("zone event post failed for %s: %s", camera_id, exc)
 
 
 def _parse_args() -> argparse.Namespace:

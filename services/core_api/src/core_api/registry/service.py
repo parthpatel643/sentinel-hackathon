@@ -317,6 +317,7 @@ def camera_to_out(camera: Camera) -> CameraOut:
         declared_fps=camera.declared_fps,
         reconnects=camera.reconnects,
         discontinuities=camera.discontinuities,
+        tamper_status=camera.tamper_status,
         source=camera.source,
         attributes=camera.attributes,
         profiles=[StreamProfileOut.model_validate(p) for p in camera.profiles],
@@ -346,6 +347,8 @@ async def update_camera_health(
         camera.reconnects = update.reconnects
     if update.discontinuities is not None:
         camera.discontinuities = update.discontinuities
+    if update.tamper_status is not None:
+        camera.tamper_status = update.tamper_status
 
     await session.flush()
     # `updated_at` is server-generated (onupdate=func.now()) so the flush

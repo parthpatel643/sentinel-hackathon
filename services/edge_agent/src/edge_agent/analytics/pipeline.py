@@ -9,10 +9,12 @@ factory throughout this codebase.
 
 from __future__ import annotations
 
+import logging
 from typing import Protocol
 
 import numpy as np
 
+from edge_agent.analytics.colour import classify_vehicle_colour
 from edge_agent.analytics.plate_reader import PlateCandidate
 from edge_agent.analytics.tracker import SimpleTracker, TrackedVehicle
 from edge_agent.analytics.vehicle_detector import VehicleDetection
@@ -27,6 +29,8 @@ from sentinel_core.schemas import (
     PipelineProvenance,
     VehicleAttributes,
 )
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["AnprPipeline", "PlateReaderPort", "SnapshotWriterPort", "VehicleDetectorPort"]
 
@@ -76,6 +80,11 @@ class AnprPipeline:
         self._snapshot_writer = snapshot_writer
         self._voters: dict[int, PlateVoter] = {}
         self._last_emitted: dict[int, str] = {}
+        # M13: the most recent frame's tracked vehicles, exposed for a
+        # caller (edge_agent.worker) to feed into a ZoneRuleEngine —
+        # zone rules need every tracked vehicle's position, not just the
+        # ones that happen to have a resolved plate this frame.
+        self.last_tracked_vehicles: list[TrackedVehicle] = []
 
     def process_frame(self, frame: Frame[np.ndarray]) -> list[Event]:
         if frame.timing.is_discontinuity:
@@ -88,6 +97,7 @@ class AnprPipeline:
 
         vehicle_detections = self._vehicle_detector.detect(frame.image)
         tracked_vehicles = self._tracker.update(vehicle_detections)
+        self.last_tracked_vehicles = tracked_vehicles
 
         events = [
             event
@@ -152,6 +162,7 @@ class AnprPipeline:
                 bbox=BoundingBox(x=int(x1), y=int(y1), width=int(x2 - x1), height=int(y2 - y1)),
                 vehicle=VehicleAttributes(
                     vehicle_class=tracked.detection.vehicle_class,
+                    colour=self._classify_colour(frame.image, tracked.detection.bbox_xyxy),
                     track_id=str(tracked.track_id),
                 ),
             ),
@@ -168,6 +179,23 @@ class AnprPipeline:
                     update={"evidence": EvidenceRef(snapshot_uri=snapshot_uri)}
                 )
         return event
+
+    def _classify_colour(
+        self, image: np.ndarray, bbox_xyxy: tuple[float, float, float, float]
+    ) -> str | None:
+        """M13: the vehicle's own bounding box (not the margin-expanded
+        plate ROI `_crop_roi` produces) — colour is a body-paint signal,
+        not a plate-region one."""
+        height, width = image.shape[:2]
+        x1, y1, x2, y2 = bbox_xyxy
+        crop = image[max(0, int(y1)) : min(height, int(y2)), max(0, int(x1)) : min(width, int(x2))]
+        try:
+            return classify_vehicle_colour(crop)
+        except Exception:
+            # A colour-classification failure is cosmetic (one optional
+            # attribute), never worth losing the plate-read event over.
+            logger.exception("vehicle colour classification failed")
+            return None
 
     def _prune_stale_voters(self) -> None:
         """Drop vote history for tracks the tracker has aged out — otherwise

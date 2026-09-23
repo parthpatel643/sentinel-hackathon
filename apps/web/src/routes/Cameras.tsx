@@ -5,7 +5,7 @@ import { camerasApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
 import { TopBar } from '../components/layout/TopBar'
 import { Card } from '../components/ui/Card'
-import { SeverityBadge, statusToSeverity } from '../components/ui/SeverityBadge'
+import { SeverityBadge, statusToSeverity, tamperToSeverity } from '../components/ui/SeverityBadge'
 import { MapView, type MapMarker } from '../components/MapView'
 import { Button } from '../components/ui/Button'
 import { CameraDetailModal } from '../components/CameraDetailModal'
@@ -100,6 +100,7 @@ export function Cameras() {
                     <th className="px-4 py-2.5 font-medium">Status</th>
                     <th className="px-4 py-2.5 font-medium">FPS</th>
                     <th className="px-4 py-2.5 font-medium">Reconnects</th>
+                    <th className="px-4 py-2.5 font-medium">Tamper</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -120,6 +121,16 @@ export function Cameras() {
                       </td>
                       <td className="px-4 py-2.5 plate-mono text-text-secondary">{fpsLabel(camera)}</td>
                       <td className="px-4 py-2.5 text-text-secondary">{camera.reconnects}</td>
+                      <td className="px-4 py-2.5">
+                        {camera.tamper_status ? (
+                          <SeverityBadge
+                            severity={tamperToSeverity(camera.tamper_status)}
+                            label={camera.tamper_status}
+                          />
+                        ) : (
+                          <span className="text-xs text-text-tertiary">Not monitored</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

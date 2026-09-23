@@ -60,6 +60,42 @@ export interface AuditChainVerification {
   detail: string | null
 }
 
+export interface Zone {
+  id: string
+  camera_id: string
+  name: string
+  rule_type: string
+  polygon: number[][]
+  dwell_threshold_s: number
+  expected_direction_deg: number
+  direction_tolerance_deg: number
+  stopped_speed_threshold: number
+  active: boolean
+  created_at: string
+}
+
+export interface ZoneCreate {
+  name: string
+  rule_type: string
+  polygon: number[][]
+  dwell_threshold_s?: number
+  expected_direction_deg?: number
+  direction_tolerance_deg?: number
+  stopped_speed_threshold?: number
+}
+
+export interface ZoneEvent {
+  id: string
+  zone_id: string
+  zone_name: string | null
+  camera_id: string
+  rule_type: string
+  track_id: string
+  dwell_time_s: number | null
+  heading_deg: number | null
+  observed_at: string
+}
+
 export interface IntegrationStatus {
   provider_id: string
   name: string
@@ -99,6 +135,7 @@ export interface Camera {
   declared_fps: number | null
   reconnects: number
   discontinuities: number
+  tamper_status: string | null
   source: string
   attributes: Record<string, string>
   profiles: StreamProfile[]

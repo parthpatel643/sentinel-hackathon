@@ -24,6 +24,7 @@ from core_api.routers.evidence import router as evidence_router
 from core_api.routers.field import router as field_router
 from core_api.routers.registry import router as registry_router
 from core_api.routers.watchlist import router as watchlist_router
+from core_api.routers.zones import router as zones_router
 from core_api.security.tenancy import TenancyMiddleware
 from sentinel_core import configure_logging, get_settings
 from sentinel_core.schemas import SCHEMA_VERSION
@@ -62,6 +63,7 @@ def create_app() -> FastAPI:
     app.include_router(registry_router)
     app.include_router(detections_router)
     app.include_router(field_router)
+    app.include_router(zones_router)
     # evidence_router (clip video streaming) is intentionally NOT under the
     # blanket current_user dependency below — it has its own per-route auth
     # that also accepts a signed URL (M12), which a blanket JWT requirement

@@ -8,13 +8,14 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core_api.registry.schemas import GeoPointOut, StreamProfileOut
+from core_api.registry.schemas import CameraHealthUpdate, GeoPointOut, StreamProfileOut
 from core_api.registry.service import (
     camera_to_out,
     codecs_in_use,
     get_camera,
     list_cameras,
     list_departments,
+    update_camera_health,
     upsert_camera,
 )
 
@@ -286,3 +287,62 @@ async def test_codecs_in_use_only_counts_live_cameras(db_session: AsyncSession) 
     codecs = await codecs_in_use(db_session)
 
     assert codecs == ["h264", "h265"]
+
+
+async def test_update_camera_health_persists_tamper_status(db_session: AsyncSession) -> None:
+    await upsert_camera(
+        db_session,
+        camera_id="tamper-cam-01",
+        name="Tamper Test Camera",
+        driver_id="rtsp",
+        department_name=None,
+        site_name=None,
+        location=None,
+        tier="a_continuous",
+        status="unknown",
+        source="manual",
+        attributes={},
+        profiles=[],
+    )
+
+    updated = await update_camera_health(
+        db_session,
+        "tamper-cam-01",
+        CameraHealthUpdate(status="live", tamper_status="covered"),
+    )
+
+    assert updated is not None
+    assert updated.tamper_status == "covered"
+    assert camera_to_out(updated).tamper_status == "covered"
+
+
+async def test_update_camera_health_without_tamper_status_leaves_it_unchanged(
+    db_session: AsyncSession,
+) -> None:
+    """A heartbeat that omits tamper_status (e.g. a driver that hasn't
+    wired tamper detection at all) must not stomp the last known value —
+    same "only touch what's reported" contract as measured_fps/reconnects."""
+    await upsert_camera(
+        db_session,
+        camera_id="tamper-cam-02",
+        name="Tamper Test Camera 2",
+        driver_id="rtsp",
+        department_name=None,
+        site_name=None,
+        location=None,
+        tier="a_continuous",
+        status="unknown",
+        source="manual",
+        attributes={},
+        profiles=[],
+    )
+    await update_camera_health(
+        db_session, "tamper-cam-02", CameraHealthUpdate(status="live", tamper_status="blurred")
+    )
+
+    updated = await update_camera_health(
+        db_session, "tamper-cam-02", CameraHealthUpdate(status="live")
+    )
+
+    assert updated is not None
+    assert updated.tamper_status == "blurred"

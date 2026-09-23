@@ -28,6 +28,9 @@ import type {
   UserCreate,
   VehicleRoute,
   WatchlistEntry,
+  Zone,
+  ZoneCreate,
+  ZoneEvent,
 } from './types'
 
 export const authApi = {
@@ -54,6 +57,14 @@ export const adminApi = {
   auditLog: (limit = 200) => get<AuditLogEntry[]>(`/api/v1/admin/audit-log?limit=${limit}`),
   verifyAuditLog: () => post<AuditChainVerification>('/api/v1/admin/audit-log/verify', {}),
   integrations: () => get<IntegrationStatus[]>('/api/v1/admin/integrations'),
+}
+
+export const zonesApi = {
+  list: (cameraId: string) => get<Zone[]>(`/api/v1/cameras/${encodeURIComponent(cameraId)}/zones`),
+  create: (cameraId: string, payload: ZoneCreate) =>
+    post<Zone>(`/api/v1/cameras/${encodeURIComponent(cameraId)}/zones`, payload),
+  events: (cameraId: string, limit = 50) =>
+    get<ZoneEvent[]>(`/api/v1/zone-events?camera_id=${encodeURIComponent(cameraId)}&limit=${limit}`),
 }
 
 export const camerasApi = {
