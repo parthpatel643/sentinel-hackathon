@@ -93,6 +93,12 @@ class Settings(BaseSettings):
         "only path entry that exists in mediamtx.yml's config today.",
     )
 
+    # --- Field PWA (M10) -----------------------------------------------------
+    field_reports_dir: str = Field(
+        default="./data/field_reports",
+        description="Where officer-submitted sighting-report photos are saved.",
+    )
+
     # --- Auth (M6 — a real login gate; full OIDC/RBAC/ABAC is M12) ---------
     jwt_secret: SecretStr = Field(
         default=SecretStr("dev-only-insecure-secret-change-me"),

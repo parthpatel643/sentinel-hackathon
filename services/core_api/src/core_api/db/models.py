@@ -27,6 +27,7 @@ __all__ = [
     "Department",
     "Detection",
     "EvidenceClip",
+    "FieldSightingReport",
     "Site",
     "StreamProfile",
     "User",
@@ -305,3 +306,26 @@ class EvidenceClip(Base):
 
     alert: Mapped[Alert] = relationship()
     camera: Mapped[Camera] = relationship()
+
+
+class FieldSightingReport(Base):
+    """A plate an officer reported by hand from the Field PWA (docs/03-UX-
+    DESIGN.md §5.3) — distinct from a `Detection`, which is always a
+    machine ANPR read off a fixed camera. `client_report_id` is generated
+    on the device the moment the officer taps submit, before the report
+    ever reaches the network: the PWA's offline outbox retries the same
+    submission until it succeeds, and a flaky connection must not turn one
+    tap into two reports server-side."""
+
+    __tablename__ = "field_sighting_reports"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    client_report_id: Mapped[str] = mapped_column(unique=True, index=True)
+    reported_by: Mapped[str]
+    plate_text: Mapped[str]
+    lat: Mapped[float | None]
+    lon: Mapped[float | None]
+    notes: Mapped[str | None]
+    photo_path: Mapped[str | None]
+
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())

@@ -16,7 +16,9 @@ import type {
   Department,
   Detection,
   EvidenceClip,
+  FieldSighting,
   IntegratorCompliance,
+  PlateLookup,
   RetentionPreview,
   TokenResponse,
   UserCreate,
@@ -105,4 +107,25 @@ export const alertsApi = {
   // which a plain <video src> can't attach — fetched as a Blob instead, same
   // pattern as detectionsApi.movementReport.
   clipVideoBlob: (clipId: string) => getBlob(`/api/v1/evidence/clips/${clipId}/video`),
+}
+
+export const fieldApi = {
+  lookup: (plate: string) => get<PlateLookup>(`/api/v1/field/lookup/${encodeURIComponent(plate)}`),
+  submitSighting: (payload: {
+    clientReportId: string
+    plateText: string
+    lat: number | null
+    lon: number | null
+    notes: string | null
+    photo: Blob | null
+  }) => {
+    const form = new FormData()
+    form.append('client_report_id', payload.clientReportId)
+    form.append('plate_text', payload.plateText)
+    if (payload.lat != null) form.append('lat', String(payload.lat))
+    if (payload.lon != null) form.append('lon', String(payload.lon))
+    if (payload.notes) form.append('notes', payload.notes)
+    if (payload.photo) form.append('photo', payload.photo, 'sighting.jpg')
+    return postForm<FieldSighting>('/api/v1/field/sightings', form)
+  },
 }

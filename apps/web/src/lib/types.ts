@@ -243,3 +243,30 @@ export interface IntegratorCompliance {
     max_s: number
   }
 }
+
+export interface PlateLookupMatch {
+  entry_type: string
+  priority: string
+  match_rung: string
+  case_reference: string | null
+}
+
+export interface PlateLookup {
+  plate_normalised: string
+  status: string
+  matches: PlateLookupMatch[]
+  last_seen_at: string | null
+  last_seen_camera_name: string | null
+}
+
+export interface FieldSighting {
+  id: string
+  client_report_id: string
+  reported_by: string
+  plate_text: string
+  lat: number | null
+  lon: number | null
+  notes: string | null
+  has_photo: boolean
+  created_at: string
+}

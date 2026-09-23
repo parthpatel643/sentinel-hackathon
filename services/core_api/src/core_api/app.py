@@ -20,6 +20,7 @@ from core_api.registry.service import codecs_in_use
 from core_api.routers.admin import router as admin_router
 from core_api.routers.auth import router as auth_router
 from core_api.routers.detections import router as detections_router
+from core_api.routers.field import router as field_router
 from core_api.routers.registry import router as registry_router
 from core_api.routers.watchlist import router as watchlist_router
 from sentinel_core import configure_logging, get_settings
@@ -55,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_router)
     app.include_router(registry_router)
     app.include_router(detections_router)
+    app.include_router(field_router)
     # watchlist_router has no machine-called endpoints (unlike registry/
     # detections, which mix in the edge worker's health/ingest calls) — every
     # route here is a human operator action, so it is gated once, here,

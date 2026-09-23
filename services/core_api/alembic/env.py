@@ -21,6 +21,7 @@ from core_api.db.models import (  # noqa: F401
     Department,
     Detection,
     EvidenceClip,
+    FieldSightingReport,
     Site,
     StreamProfile,
     User,

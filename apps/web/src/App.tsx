@@ -10,6 +10,7 @@ import { AdminPortal } from './routes/AdminPortal'
 import { Login } from './routes/Login'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import { CommandPalette } from './components/CommandPalette'
+import { FieldApp } from './field/FieldApp'
 import type { ReactNode } from 'react'
 
 function AuthGate({ children }: { children: ReactNode }) {
@@ -29,22 +30,34 @@ function AuthGate({ children }: { children: ReactNode }) {
   )
 }
 
+function OperatorConsole() {
+  return (
+    <Shell>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/live-wall" element={<LiveWall />} />
+        <Route path="/cameras" element={<Cameras />} />
+        <Route path="/find-a-vehicle" element={<FindVehicle />} />
+        <Route path="/alerts" element={<Alerts />} />
+        <Route path="/health" element={<Health />} />
+        <Route path="/admin" element={<AdminPortal />} />
+      </Routes>
+    </Shell>
+  )
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <AuthGate>
-          <Shell>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/live-wall" element={<LiveWall />} />
-              <Route path="/cameras" element={<Cameras />} />
-              <Route path="/find-a-vehicle" element={<FindVehicle />} />
-              <Route path="/alerts" element={<Alerts />} />
-              <Route path="/health" element={<Health />} />
-              <Route path="/admin" element={<AdminPortal />} />
-            </Routes>
-          </Shell>
+          <Routes>
+            {/* The Field PWA is a completely separate information
+             * architecture (docs/03-UX-DESIGN.md §3) — it gets its own
+             * route branch with its own layout, not the console's Shell. */}
+            <Route path="/field/*" element={<FieldApp />} />
+            <Route path="/*" element={<OperatorConsole />} />
+          </Routes>
         </AuthGate>
       </BrowserRouter>
     </AuthProvider>
