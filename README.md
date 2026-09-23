@@ -183,6 +183,10 @@ Background research: [sentinel-hackathon-research.md](sentinel-hackathon-researc
   starts from the government catalogue endpoint.
 - **Video stays local, meaning travels.** A detection event is ~1 KB; a stream is
   2 Mbps.
+- **One upstream connection per camera, whatever is watching.** The edge worker and
+  every browser tile read the same local relay path, so a camera that is both
+  analysed and previewed still costs the gateway exactly one stream — measured, in
+  [the evidence-run findings](evidence/M14-EVIDENCE-RUN-FINDINGS.md).
 - **Credentials are assembled at call time**, never stored as one literal string
   — see `Settings.gov_stream_url`. A combined `scheme://user:pass@host` literal
   is exactly the shape credential scanners rewrite, which silently broke an
