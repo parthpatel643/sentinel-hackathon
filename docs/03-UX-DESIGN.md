@@ -7,15 +7,29 @@
 
 ## Implemented workspace
 
-The current UI uses a **balanced operations workspace**: monitoring and vehicle investigation have equal prominence. Desktop navigation is a readable 236px sidebar, with a persistent plate-search and preferences toolbar. Below 768px, navigation becomes a keyboard-accessible drawer and the toolbar wraps into two rows. The overview combines the camera map, network status, attention queue and investigation entry point.
+The current UI uses a **balanced operations workspace**: monitoring and vehicle investigation have equal prominence. A 94px navy navigation rail keeps every destination labelled while giving operational content most of the viewport. Operators can expand it to 224px; that preference persists on the device. Cobalt identifies active navigation and primary actions. The compact toolbar provides current-route context, local date/time, persistent plate search, a visible command-palette launcher, and preferences. Below 768px, navigation becomes a keyboard-accessible drawer and the toolbar wraps into two rows.
 
-Vehicle investigation has a labelled registration-plate form, a short workflow guide, and a responsive map/timeline results view. Camera inventory supports name/ID and status filters in both table and map views. Administration uses section navigation that wraps on phones. The field experience retains its separate mobile navigation and offline reporting workflow.
+The overview leads with four linked summaries derived from API responses: registered cameras, live cameras, down/degraded cameras, and new alerts returned by the queue endpoint. The queue count is not an all-time or fleet-wide alert total. Unknown and connecting cameras are not counted as live. Errors replace summary values with "Not available"; an empty successful response shows zero.
 
-Light and dark themes, and English, Hindi and Gujarati, are device-persistent preferences. API refresh failures show a retry action and warn that retained data may be stale; missing data is not presented as a healthy zero. The toolbar searches **registration plates**, not arbitrary camera names or places; camera filtering and the command palette are separate controls.
+A plate-entry form launches investigation directly. The network workbench switches between a map and searchable camera list; camera-health buttons filter both views. The activity panel switches between watchlist matches and the latest 12 recorded detections. Clicking a match opens that alert in triage; clicking a detection opens its plate investigation. Records without coordinates remain available in the list and are explicitly excluded from the located-camera count. Camera and detection data refresh every 8 seconds, alerts every 6 seconds; manual refresh retries all three. View tabs support arrow keys, Home and End.
+
+Vehicle investigation keeps a persistent registration-plate query bar above its results. The workbench separates movement map, selectable sighting timeline and evidence inspector, with first/last sightings, mapped-sighting counts, replay and export together. Missing coordinates and missing snapshots are explained rather than silently omitted. Empty searches retain the BOLO action.
+
+Alerts use a master-detail triage workbench: lifecycle filters, plate/camera search, severity filtering and sorting act on the loaded queue. The selected alert exposes matching facts, evidence and lifecycle actions. Refresh and action failures retain context and support retry.
+
+The surveillance workbench has a camera selector, filtering, selectable grid density and single-camera focus. Camera inventory combines health filters, searchable records, and a map with a persistent camera list. Bulk CSV import and catalogue discovery are direct onboarding entry points; the detail workspace retains preview, health and zone creation.
+
+Administration is a section hub with a searchable access register, contextual user creation, watchlists, integration checks, audit verification, and retention impact preview. Changing retention periods invalidates a previous deletion confirmation. Health groups integrator checks and can filter checks needing attention; these checks describe configuration, not camera availability.
+
+The field experience uses a task-first mobile shell with lookup, alerts, reporting and nearby cameras. Lookup results hand off to reporting; reports group vehicle details and optional evidence and still enter the existing offline outbox. Alert cards expose actions on demand; nearby cameras can be searched in map/list views, with distances only when location is available.
+
+Light and dark themes, and English, Hindi and Gujarati, are device-persistent preferences. New sessions start in light mode; an existing dark preference is preserved. The sign-in surface pairs a navy product introduction with a focused credential form, stacking on phones; a labelled password-visibility toggle preserves the entered value. No demo credentials or fabricated readiness claims are displayed. API refresh failures show a retry action and warn that retained data may be stale; missing data is not presented as a healthy zero. The toolbar searches **registration plates**, not arbitrary camera names or places; camera filtering and the command palette are separate controls.
 
 The sections below also describe longer-term product aspirations. Features such as reversible destructive actions, alert sounds, saved wall layouts and cases are not implied to be implemented by this redesign.
 
 Validation: from `apps/web`, run `npm run test:ui` for mocked-browser acceptance tests (first install Chromium with `npx playwright install chromium`). The runner starts an isolated Vite server on port 5188. Run `npm run build` and `npm run lint` for production and static checks.
+
+The full redesign is covered by 62 browser tests across the original workspace suite and new command, investigation, monitoring, management and translation suites. A 61-test integrated run passed, followed by all 12 investigation tests after the final deep-link regression was added. On shared or resource-constrained machines, use `npm run test:ui -- --workers=1`: concurrent WebGL/browser contexts can contend with live inference. These tests validate UI/API contracts using fixtures, not live OCR accuracy or successful government-stream playback.
 
 ## 1. Design philosophy
 
@@ -24,7 +38,7 @@ Apple's three HIG pillars — **Clarity, Deference, Depth** — translated into 
 | Pillar | In a control room | Concretely |
 |---|---|---|
 | **Clarity** | One glance, one truth | Plates in mono type at 28 px. Severity never encoded in colour alone. No screen shows two competing "most important things". |
-| **Deference** | The interface supports the video and the map | Slate surfaces and restrained teal actions; semantic colours belong to status. No decorative gradients or logo watermarks over video. |
+| **Deference** | The interface supports the video and the map | Navy navigation, pale working surfaces and cobalt actions; semantic colours belong to status. No decorative gradients or logo watermarks over video. |
 | **Depth** | Layers communicate hierarchy, not decoration | Bordered working surfaces; shadows reserved for dialogs. Dialogs are dismissible and scroll within the viewport. |
 
 Four additional principles specific to this product:
@@ -40,40 +54,41 @@ Four additional principles specific to this product:
 
 ### 2.1 Colour
 
-Dark is the default (control rooms are dim, video is the content). Light theme is a first-class peer for daytime office/admin use.
+Light is the default for new sessions. Dark remains a first-class peer for control rooms, and saved preferences always win. Navigation stays navy in both themes.
 
 | Token | Dark | Light |
 |---|---|---|
-| Base | `#101a23` | `#eef2f4` |
-| Raised | `#17232e` | `#ffffff` |
-| Overlay | `#233440` | `#e3ebef` |
-| Inset | `#111c26` | `#f6f8fa` |
-| Primary text | `#edf3f7` | `#1b2d38` |
-| Secondary text | `#becdd7` | `#415b6b` |
-| Tertiary text | `#a3b5c3` | `#506a7b` |
-| Accent | `#66d9c1` | `#087665` |
-| On accent | `#092b26` | `#ffffff` |
+| Base | `#101725` | `#f3f5fa` |
+| Raised | `#182235` | `#ffffff` |
+| Overlay | `#25334b` | `#e9edf6` |
+| Inset | `#131c2c` | `#f7f8fc` |
+| Primary text | `#edf3f7` | `#17243b` |
+| Secondary text | `#c4cfe0` | `#465772` |
+| Tertiary text | `#b2bed2` | `#556580` |
+| Accent | `#a4bfff` | `#2456d6` |
+| On accent | `#10224c` | `#ffffff` |
 
-The complete semantic palette is defined in [index.css](../apps/web/src/index.css). Text and primary-action contrast are covered by browser tests. Severity is conveyed by icon, label and colour, never colour alone. Teal is reserved for actions, selection and focus.
+The complete semantic palette is defined in [index.css](../apps/web/src/index.css). Text and primary-action contrast are covered by browser tests. Severity is conveyed by icon, label and colour, never colour alone. Blue is reserved for actions, selection and focus; success, warning and failure keep their semantic colours.
 
 ### 2.2 Typography
 
 ```
---font-ui:    "Inter Variable", system-ui          /* UI, body */
---font-data:  "Geist Mono", ui-monospace           /* plates, timestamps, IDs, coordinates */
+--font-ui:    "Public Sans", system-ui            /* UI, body */
+--font-data:  ui-monospace, "SF Mono", monospace  /* plates, timestamps, IDs, coordinates */
 
 --text-xs: 11/16   --text-sm: 13/18   --text-base: 15/22
 --text-lg: 17/24   --text-xl: 20/28   --text-2xl: 24/32   --text-3xl: 32/40
 ```
 
 - All numerals use `font-variant-numeric: tabular-nums` so timestamps and counters never shift width.
+- Public Sans regular, semibold and bold are self-hosted under `apps/web/public/fonts`, with their SIL Open Font License. Fonts are included in the PWA precache; no runtime font-service request is required. Hindi and Gujarati use the device's script-capable fallback.
 - **Plates are rendered in mono, letter-spaced, with a slashed zero** — a deliberate cue that this is machine-read data, and it kills the 0/O ambiguity visually. Uncertain characters render at reduced opacity with a subtle underline, so an operator instantly sees *which* character the model was unsure about.
 
 ### 2.3 Space, shape, elevation, motion
 
 ```
 --space: 4px base · 4 8 12 16 20 24 32 40 48 64
---radius-sm: 4px · --radius-md: 6px · --radius-lg: 12px · --radius-xl: 16px · --radius-full
+--radius-sm: 4px · --radius-md: 8px · --radius-lg: 12px · --radius-xl: 16px · --radius-full
 --shadow-1: 0 1px 2px rgb(0 0 0 / .32)
 --shadow-2: 0 4px 12px rgb(0 0 0 / .36)
 --shadow-3: 0 12px 32px rgb(0 0 0 / .44)
@@ -118,7 +133,7 @@ The implemented destinations are Overview, Live Wall, Find a Vehicle, Alerts, Ca
 
 ### 4.2 Home — balanced monitoring and investigation
 
-The current overview places the camera map and attention queue side by side on wide screens, stacking them on smaller screens, with an explicit investigation entry point. The map-first wireframe below is the earlier concept, retained as background rather than a specification of the current layout.
+The implemented overview is an interactive network/activity workbench, not a passive map dashboard: view switching, camera search, health filters, plate-entry and linked detection/alert records are described above. The map-first wireframe and decisions below are the earlier concept, retained as background rather than a specification of the current layout.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -150,6 +165,10 @@ Decisions that carry the whole product:
 - **The bottom strip is ambient, not interactive** — a calm heartbeat that tells an operator the system is alive.
 
 ### 4.3 Live Wall
+
+**Implemented workbench:** select the cameras to view, filter the selection list, change grid density, or focus one selected camera. Camera details are reachable with labelled buttons as well as the existing double-click interaction. Only visible mounted tiles resolve their streams; empty selection and unavailable streams have explicit states. On phones, the entire wall remains vertically scrollable. Camera registration, zone editing, CSV preview-before-commit and catalogue discovery remain real API actions.
+
+The following capabilities remain the earlier target design; saved layouts, drag reordering, transport switching and playback scrubbers are not implied by the workbench redesign.
 
 - Adaptive grid: 1 / 2×2 / 3×3 / 4×4 / custom, drag to rearrange, layouts saved per user and shareable to a colleague as a link.
 - **WebRTC (WHEP) by default; automatic HLS fallback** with a small, honest badge showing the transport and the current latency. A firewall problem should be visible, not mysterious.

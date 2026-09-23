@@ -20,6 +20,60 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
+test('overview summarises actual fleet states without treating unknown cameras as live', async ({ page }) => {
+  await page.route('**/api/v1/cameras', (route) => route.fulfill({ json: [
+    { camera_id: 'cam-1', name: 'Riverfront', status: 'live', location: null },
+    { camera_id: 'cam-2', name: 'East Gate', status: 'down', location: null },
+    { camera_id: 'cam-3', name: 'Station', status: 'unknown', location: null },
+    { camera_id: 'cam-4', name: 'Junction', status: 'degraded', location: null },
+    { camera_id: 'cam-5', name: 'Bridge', status: 'connecting', location: null },
+  ] }))
+  await page.goto('/')
+  const summary = page.getByRole('region', { name: 'Operations summary' })
+  await expect(summary.getByRole('link', { name: 'Registered cameras' })).toContainText('5')
+  await expect(summary.getByRole('link', { name: 'Live cameras' })).toContainText('1')
+  await expect(summary.getByRole('link', { name: 'Down or degraded' })).toContainText('2')
+  await expect(summary.getByRole('link', { name: 'Alerts in queue' })).toContainText('0')
+  const health = page.getByRole('region', { name: 'Camera health' })
+  await expect(health).toContainText('Unknown')
+  await expect(health).toContainText('Connecting')
+})
+
+test('overview replaces failed summary values with unavailable and supports recovery', async ({ page }) => {
+  await page.route('**/api/v1/cameras', (route) => route.fulfill({ status: 503, json: { detail: 'Unavailable' } }))
+  await page.goto('/')
+  const registered = page.getByRole('region', { name: 'Operations summary' }).getByRole('link', { name: 'Registered cameras' })
+  await expect(registered).toContainText('Not available')
+  await page.route('**/api/v1/cameras', (route) => route.fulfill({ json: [] }))
+  await page.getByRole('button', { name: 'Refresh overview' }).click()
+  await expect(registered).toContainText('0')
+  await expect(page.getByText('Your camera network starts here.')).toBeVisible()
+})
+
+test('command launcher opens the existing keyboard-accessible palette', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open command palette' }).click()
+  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.keyboard.press('Control+k')
+  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
+})
+
+test('new sessions use the light workspace and retain an explicit dark preference', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('theme-test-started')) {
+      localStorage.removeItem('sentinel-theme')
+      sessionStorage.setItem('theme-test-started', 'true')
+    }
+  })
+  await page.goto('/')
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  await page.getByRole('button', { name: 'Switch to Dark mode' }).click()
+  await page.reload()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+})
+
 test('investigation keeps workspace preferences and labelled navigation available', async ({ page }) => {
   await page.goto('/find-a-vehicle')
   await expect(page.getByRole('navigation', { name: 'Workspace' })).toBeVisible()
@@ -78,7 +132,7 @@ for (const language of ['en', 'hi', 'gu']) {
       await expect(page.locator('html')).toHaveAttribute('lang', language)
       await expect(page.locator('main')).toBeVisible()
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), path).toBe(true)
-      expect(await page.locator('body').innerText()).not.toContain('workspace.')
+      expect(await page.locator('body').innerText()).not.toMatch(/\bworkspace\.[a-zA-Z]/)
     }
   })
 }
@@ -197,7 +251,7 @@ test('map controls follow language changes without a reload', async ({ page }) =
     await page.goto('/find-a-vehicle')
     await page.locator('#investigation-plate').fill('GJ01AB1234')
     await page.locator('main').getByRole('button', { name: 'Search', exact: true }).click()
-    await expect(page.getByText('Riverfront', { exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Riverfront', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Export report' })).toBeVisible()
     await page.getByRole('button', { name: 'Replay route' }).click()
     await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible()

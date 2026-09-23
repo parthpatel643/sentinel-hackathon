@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ArrowLeft, CheckCircle2, Search, ShieldAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { fieldApi } from '../lib/api'
 import { ApiError } from '../lib/http'
 import type { PlateLookup } from '../lib/types'
@@ -40,9 +41,9 @@ export function FieldLookup() {
   if (result) {
     const isClear = result.status === 'clear'
     return (
-      <section className="flex min-h-full flex-col p-5 sm:p-8" aria-labelledby="lookup-result-heading">
+      <section className="field-page field-verdict" aria-labelledby="lookup-result-heading">
         <h1 id="lookup-result-heading" className="text-xl font-semibold">{t('field.nav.lookup')}</h1>
-        <div role="status" className="my-auto py-8">
+        <div role="status" className="field-verdict-result">
           <div className={`flex flex-col items-center gap-4 rounded-lg p-6 text-center ${isClear ? 'bg-ok/10' : 'bg-sev-critical/10'}`}>
             {isClear ? (
               <CheckCircle2 size={56} className="text-ok" aria-hidden="true" />
@@ -54,6 +55,7 @@ export function FieldLookup() {
             </p>
             <p className="plate-mono break-all text-3xl font-bold text-text-primary">{result.plate_normalised}</p>
           </div>
+          <Link className="field-primary-link" to={`/field/report?plate=${encodeURIComponent(result.plate_normalised)}`}>{t('management:reportVehicle')}</Link>
           <p className="mt-5 text-center text-sm leading-relaxed text-text-secondary">
             {result.last_seen_at
               ? result.last_seen_camera_name
@@ -80,10 +82,17 @@ export function FieldLookup() {
   }
 
   return (
-    <section className="p-5 sm:p-8" aria-labelledby="lookup-heading">
+    <section className="field-page field-lookup" aria-labelledby="lookup-heading">
+      <header className="field-page-heading">
       <h1 id="lookup-heading" className="text-2xl font-semibold tracking-tight">{t('field.nav.lookup')}</h1>
       <p className="mt-2 text-sm leading-relaxed text-text-secondary">{t('field.lookup.prompt')}</p>
-      <form onSubmit={(event) => { event.preventDefault(); if (!loading) void search() }} aria-busy={loading} className="mt-8">
+      </header>
+      <div className="field-task-grid">
+      <section className="field-plate-task" aria-label={t('management:plateCheck')}>
+      <Search size={28} className="text-accent" aria-hidden="true" />
+      <h2>{t('management:plateCheck')}</h2>
+      <p>{t('management:plateHelp')}</p>
+      <form onSubmit={(event) => { event.preventDefault(); if (!loading) void search() }} aria-busy={loading} className="mt-6">
         <label htmlFor="field-lookup-plate" className="mb-2 block text-sm font-medium">{t('field.report.plate')}</label>
         <input
           id="field-lookup-plate"
@@ -93,7 +102,7 @@ export function FieldLookup() {
           spellCheck={false}
           value={input}
           onChange={(e) => setInput(e.target.value.toUpperCase())}
-          aria-describedby={error ? 'lookup-error' : undefined}
+          aria-describedby={error ? 'lookup-error lookup-connection' : 'lookup-connection'}
           placeholder={t('field.lookup.platePlaceholder')}
           className="plate-mono min-h-16 w-full rounded-md border border-border-strong bg-bg-raised px-4 py-4 text-2xl text-text-primary placeholder:text-text-tertiary focus-visible:outline-2 focus-visible:outline-accent"
         />
@@ -116,6 +125,14 @@ export function FieldLookup() {
           </button>
         </div>
       </form>
+      </section>
+      <aside className="field-task-context">
+        <ShieldAlert size={22} aria-hidden="true" />
+        <p>{t('management:lookupAside')}</p>
+        <p id="lookup-connection">{t('management:connectionHelp')}</p>
+        <Link to="/field/report">{t('field.report.submit')}<ArrowLeft size={16} className="rotate-180" aria-hidden="true" /></Link>
+      </aside>
+      </div>
     </section>
   )
 }

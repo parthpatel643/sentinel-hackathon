@@ -27,3 +27,4 @@ dev-dist
 # Local env overrides — see .env.example for the committed template
 .env
 .env.local
+.vercel

@@ -8,6 +8,8 @@ import { camerasApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
 import { SeverityBadge, statusToSeverity } from './ui/SeverityBadge'
 
+export const OPEN_COMMAND_PALETTE = 'sentinel:open-command-palette'
+
 const NAV_ITEMS = [
   { to: '/', labelKey: 'nav.home', icon: LayoutGrid, keywords: ['situational awareness', 'map'] },
   { to: '/live-wall', labelKey: 'nav.liveWall', icon: Grid3x3, keywords: ['grid', 'streams', 'wall'] },
@@ -45,8 +47,13 @@ export function CommandPalette() {
         setOpen((prev) => !prev)
       }
     }
+    function openPalette() { setOpen(true) }
     document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
+    document.addEventListener(OPEN_COMMAND_PALETTE, openPalette)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener(OPEN_COMMAND_PALETTE, openPalette)
+    }
   }, [])
 
   function go(path: string) {

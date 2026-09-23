@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { ThemeToggle } from '../components/ui/ThemeToggle'
 import { LanguageSwitcher } from '../components/ui/LanguageSwitcher'
-import { ArrowRight, Bell, Search, ShieldCheck, Video } from 'lucide-react'
+import { ArrowRight, Bell, Eye, EyeOff, Search, ShieldCheck, Video } from 'lucide-react'
 
 export function Login() {
   const { login } = useAuth()
@@ -15,6 +15,7 @@ export function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -30,10 +31,10 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-bg-base text-text-primary">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle px-5 py-4 sm:px-8">
+    <div className="login-page">
+      <header className="login-header">
         <div className="flex items-center gap-2.5 text-sm font-semibold">
-          <ShieldCheck size={22} className="text-accent" aria-hidden="true" />
+          <span className="brand-symbol"><ShieldCheck size={22} aria-hidden="true" /></span>
           {t('login.title')}
         </div>
         <div className="flex items-center gap-2">
@@ -41,28 +42,30 @@ export function Login() {
           <ThemeToggle />
         </div>
       </header>
-      <main className="mx-auto grid w-full max-w-5xl flex-1 items-center gap-10 px-5 py-10 sm:px-8 lg:grid-cols-2 lg:gap-20 lg:py-20">
-        <section className="hidden border-r border-border-subtle py-10 pr-16 lg:block" aria-labelledby="login-platform">
-          <ShieldCheck size={42} className="mb-8 text-accent" strokeWidth={1.5} aria-hidden="true" />
-          <h1 id="login-platform" className="text-4xl font-semibold leading-tight tracking-tight">{t('login.title')}</h1>
-          <p className="mt-4 text-base leading-relaxed text-text-secondary">{t('login.subtitle')}</p>
-          <ul className="mt-12 space-y-5 text-sm text-text-secondary">
+      <main className="login-layout">
+        <section className="login-story" aria-labelledby="login-platform">
+          <div className="login-emblem"><ShieldCheck size={48} strokeWidth={1.3} aria-hidden="true" /></div>
+          <h1 id="login-platform">{t('workspace.loginHeadline')}</h1>
+          <p>{t('workspace.loginDescription')}</p>
+          <ul className="login-capabilities">
             {[
-              { icon: Video, label: 'nav.liveWall' },
-              { icon: Search, label: 'nav.findVehicle' },
-              { icon: Bell, label: 'nav.alerts' },
-            ].map(({ icon: Icon, label }) => (
-              <li key={label} className="flex items-center gap-3">
-                <Icon size={18} className="text-accent" aria-hidden="true" />
-                {t(label)}
+              { icon: Video, label: 'nav.liveWall', detail: 'workspace.loginMonitor' },
+              { icon: Search, label: 'nav.findVehicle', detail: 'workspace.loginInvestigate' },
+              { icon: Bell, label: 'nav.alerts', detail: 'workspace.loginReview' },
+            ].map(({ icon: Icon, label, detail }) => (
+              <li key={label}>
+                <Icon size={20} aria-hidden="true" />
+                <div><strong>{t(label)}</strong><span>{t(detail)}</span></div>
               </li>
             ))}
           </ul>
+          <div className="login-story-footer">{t('workspace.console')}<span>Sentinel</span></div>
         </section>
-        <form onSubmit={handleSubmit} aria-labelledby="login-heading" aria-busy={busy} className="mx-auto w-full max-w-sm">
+        <section className="login-form-panel">
+        <form onSubmit={handleSubmit} aria-labelledby="login-heading" aria-busy={busy}>
           <div className="mb-8">
-            <h2 id="login-heading" className="text-2xl font-semibold tracking-tight">{t('login.signIn')}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-text-secondary">{t('login.subtitle')}</p>
+            <h2 id="login-heading" className="text-2xl font-semibold tracking-tight">{t('command:signInTitle')}</h2>
+            <p className="mt-2 text-sm leading-relaxed text-text-secondary">{t('command:signInDescription')}</p>
           </div>
           <div className="space-y-5">
             <div>
@@ -83,18 +86,23 @@ export function Login() {
             </div>
             <div>
               <label htmlFor="login-password" className="mb-2 block text-sm font-medium">{t('login.passwordPlaceholder')}</label>
+              <div className="relative">
               <Input
                 id="login-password"
                 name="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 required
                 aria-describedby={error ? 'login-error' : undefined}
                 aria-invalid={!!error}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full"
+                className="w-full pr-12"
               />
+              <button type="button" className="absolute inset-y-0 right-1 flex w-11 items-center justify-center rounded-md text-text-secondary hover:text-accent" aria-label={t(showPassword ? 'command:hidePassword' : 'command:showPassword')} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+              </div>
             </div>
           </div>
           {error && <p id="login-error" role="alert" className="mt-5 rounded-md bg-sev-critical/10 p-3 text-sm text-sev-critical">{error}</p>}
@@ -102,7 +110,9 @@ export function Login() {
             {busy ? t('login.signingIn') : t('login.signIn')}
             <ArrowRight size={18} aria-hidden="true" />
           </Button>
+          <p className="login-help"><ShieldCheck size={16} aria-hidden="true" />{t('workspace.authorisedAccess')}</p>
         </form>
+        </section>
       </main>
     </div>
   )

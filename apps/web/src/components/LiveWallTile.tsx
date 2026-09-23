@@ -1,4 +1,4 @@
-import { PauseCircle } from 'lucide-react'
+import { ArrowUpRight, PauseCircle, VideoOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { camerasApi } from '../lib/api'
@@ -70,18 +70,15 @@ export function LiveWallTile({ camera, latestDetection, onOpen }: LiveWallTilePr
     <div
       ref={ref}
       onDoubleClick={() => onOpen(camera)}
-      className="group relative flex cursor-pointer flex-col overflow-hidden rounded-lg border border-border-subtle bg-bg-raised"
+      className="monitoring-feed group relative flex flex-col overflow-hidden"
       title={t('liveWall.doubleClickDetails')}
     >
-      <div className="flex items-center gap-2 border-b border-border-subtle bg-bg-inset px-2.5 py-1.5 text-xs">
+      <div className="monitoring-feed-heading">
         <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${STATUS_DOT[camera.status] ?? STATUS_DOT.unknown}`} />
-        <span className="truncate font-medium text-text-primary">{camera.name}</span>
-        {camera.department_name && (
-          <span className="ml-auto flex-shrink-0 truncate text-text-tertiary">{camera.department_name}</span>
-        )}
+        <button className="monitoring-feed-open" onClick={() => onOpen(camera)} aria-label={t('monitoring:openDetails', { name: camera.name })}><span>{camera.name}</span><ArrowUpRight size={15} /></button>
       </div>
 
-      <div className="relative aspect-video w-full bg-black">
+      <div className="monitoring-video relative aspect-video w-full">
         {!inView && (
           <div className="flex h-full flex-col items-center justify-center gap-1.5 text-text-tertiary">
             <PauseCircle size={20} />
@@ -101,9 +98,11 @@ export function LiveWallTile({ camera, latestDetection, onOpen }: LiveWallTilePr
             onStateChange={setPlayback}
           />
         )}
-        {inView && stream && !stream.available && (
+        {inView && stream && (!stream.available || !stream.hls_url) && (
           <div className="flex h-full flex-col items-center justify-center gap-1 p-3 text-center">
-            <p className="text-xs text-text-tertiary">{stream.reason ?? t('liveWall.previewUnavailable')}</p>
+            <VideoOff size={24} strokeWidth={1.5} className="mb-2" />
+            <strong className="text-xs">{t('monitoring:unavailable')}</strong>
+            <p className="text-xs">{stream.reason ?? t('liveWall.previewUnavailable')}</p>
           </div>
         )}
 
@@ -120,9 +119,10 @@ export function LiveWallTile({ camera, latestDetection, onOpen }: LiveWallTilePr
         )}
       </div>
 
-      <div className="flex items-center gap-2 px-2.5 py-1 text-[11px] text-text-tertiary">
+      <div className="monitoring-feed-footer">
         <SeverityBadge severity={statusToSeverity(camera.status)} label={t(`cameraStatus.${camera.status}`)} />
         <span className="plate-mono">{fpsLabel(camera)}</span>
+        <span className="ml-auto truncate">{camera.department_name ?? camera.camera_id}</span>
       </div>
     </div>
   )

@@ -1,12 +1,13 @@
-import { CheckCircle2, Layers, ShieldCheck, XCircle } from 'lucide-react'
+import { useState } from 'react'
+import { CheckCircle2, RefreshCw, ShieldCheck, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { TopBar } from '../components/layout/TopBar'
-import { Card } from '../components/ui/Card'
 import { complianceApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
 import type { IntegratorCompliance } from '../lib/types'
 import { RequestError } from '../components/ui/RequestError'
+import './management-workspace.css'
 
 interface ChecklistItem {
   key: string
@@ -60,8 +61,9 @@ function checklist(c: IntegratorCompliance, t: TFunction): ChecklistItem[] {
 }
 
 function ChecklistRow({ item }: { item: ChecklistItem }) {
+  const { t } = useTranslation()
   return (
-    <div className="flex items-start gap-3 border-b border-border-subtle/60 px-5 py-4 last:border-0">
+    <div className="compliance-check" data-check-result={item.pass ? 'pass' : 'fail'}>
       {item.pass ? (
         <CheckCircle2 size={20} className="mt-0.5 flex-shrink-0 text-ok" />
       ) : (
@@ -71,6 +73,7 @@ function ChecklistRow({ item }: { item: ChecklistItem }) {
         <p className="text-sm font-medium text-text-primary">{item.label}</p>
         <p className="text-xs text-text-tertiary">{item.detail}</p>
       </div>
+      <span className={item.pass ? 'compliance-result is-pass' : 'compliance-result is-fail'}>{t(item.pass ? 'management:passed' : 'management:needsAttention')}</span>
     </div>
   )
 }
@@ -78,36 +81,55 @@ function ChecklistRow({ item }: { item: ChecklistItem }) {
 export function Health() {
   const { t } = useTranslation()
   const { data: compliance, loading, error, refetch } = usePolling(() => complianceApi.integrator(), 15000)
-  const items = compliance ? checklist(compliance, t) : []
+  const [filter, setFilter] = useState<'all' | 'failed'>('all')
+  const items = compliance && !error ? checklist(compliance, t) : []
   const passCount = items.filter((i) => i.pass).length
+  const groups = [
+    { title: 'transport', keys: ['rtspTcp', 'ptsTiming', 'backoff'] },
+    { title: 'discovery', keys: ['catalogue', 'codecs'] },
+    { title: 'publishing', keys: ['publishing'] },
+  ]
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="management-workspace flex min-h-0 flex-1 flex-col">
       <TopBar title={t('nav.health')} subtitle={t('health.subtitle')} />
-      <div className="page-body">
+      <div className="page-body management-body">
+        <div className="management-heading">
+          <div><h2>{t('management:healthTitle')}</h2><p>{t('management:healthIntro')}</p></div>
+          <button className="management-action" onClick={refetch} disabled={loading}><RefreshCw size={17} aria-hidden="true" />{t('management:refreshChecks')}</button>
+        </div>
         {Boolean(error) && <RequestError onRetry={refetch} />}
-        <Card className="max-w-4xl overflow-hidden">
-          <div className="flex items-center gap-3 border-b border-border-subtle px-5 py-4">
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent">
-              <ShieldCheck size={18} strokeWidth={2.25} />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-text-primary">{t('health.integratorCompliance')}</h2>
-              <p className="text-xs text-text-tertiary">{t('health.liveStatus')}</p>
-            </div>
-            {compliance && (
-              <span className="ml-auto flex items-center gap-1.5 text-sm font-medium text-text-secondary">
-                <Layers size={15} className="text-text-tertiary" />
-                {passCount}/{items.length}
-              </span>
-            )}
+        <section className="compliance-summary" aria-label={t('management:healthSummary')}>
+          <ShieldCheck size={30} aria-hidden="true" />
+          <div>
+            <h3>{t('health.integratorCompliance')}</h3>
+            <p>{error ? t('management:unavailable') : !compliance ? t('health.loading') : t('management:passing', { count: passCount, total: items.length })}</p>
           </div>
-
-          {loading && !compliance && <p className="px-5 py-6 text-sm text-text-tertiary">{t('health.loading')}</p>}
-          {items.map((item) => (
-            <ChecklistRow key={item.key} item={item} />
-          ))}
-        </Card>
+          {!!items.length && <span className={passCount === items.length ? 'text-ok' : 'text-sev-critical'}>{t('management:failed', { count: items.length - passCount })}</span>}
+        </section>
+        <div className="compliance-workbench">
+          <section className="compliance-results" aria-label={t('management:allChecks')}>
+            <div className="compliance-filters">
+              <button aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>{t('management:allChecks')}</button>
+              <button aria-pressed={filter === 'failed'} onClick={() => setFilter('failed')}>{t('management:needsAttention')}</button>
+            </div>
+            {!!error && <p className="management-empty">{t('management:healthUnavailable')}</p>}
+            {loading && !compliance && <p role="status" className="management-empty">{t('health.loading')}</p>}
+            {!error && compliance && filter === 'failed' && passCount === items.length && <p className="management-empty">{t('management:healthEmpty')}</p>}
+            {groups.map((group) => {
+              const checks = items.filter((item) => group.keys.includes(item.key) && (filter === 'all' || !item.pass))
+              return checks.length > 0 && <section key={group.title} className="compliance-group" aria-labelledby={`compliance-${group.title}`}>
+                <h3 id={`compliance-${group.title}`}>{t(`management:${group.title}`)}</h3>
+                {checks.map((item) => <ChecklistRow key={item.key} item={item} />)}
+              </section>
+            })}
+          </section>
+          <aside className="compliance-context">
+            <h3>{t('management:healthScope')}</h3>
+            <p>{t('management:healthScopeHelp')}</p>
+            <p>{t('management:polling')}</p>
+          </aside>
+        </div>
       </div>
     </div>
   )

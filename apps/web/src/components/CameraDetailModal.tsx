@@ -7,6 +7,8 @@ import { Button } from './ui/Button'
 import { Modal } from './ui/Modal'
 import { SeverityBadge, statusToSeverity } from './ui/SeverityBadge'
 import { useAuth } from '../lib/AuthContext'
+import { VideoOff } from 'lucide-react'
+import '../routes/monitoring-workspace.css'
 
 const PRESET_REGIONS: { key: string; polygon: number[][] }[] = [
   { key: 'fullFrame', polygon: [[0, 0], [1, 0], [1, 1], [0, 1]] },
@@ -47,8 +49,8 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
   const [error, setError] = useState<string | null>(null)
 
   function load() {
-    zonesApi.list(camera.camera_id).then(setZones)
-    zonesApi.events(camera.camera_id).then(setEvents)
+    zonesApi.list(camera.camera_id).then(setZones).catch(() => setError(t('monitoring:zoneLoadError')))
+    zonesApi.events(camera.camera_id).then(setEvents).catch(() => setError(t('monitoring:zoneLoadError')))
   }
 
   useEffect(load, [camera.camera_id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -71,9 +73,9 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 border-t border-border-subtle pt-4">
+    <section className="camera-zone-section flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-text-primary">{t('cameraDetail.zoneRules.title')}</p>
+        <h2 className="text-sm font-medium text-text-primary">{t('cameraDetail.zoneRules.title')}</h2>
         {user?.role === 'admin' && (
           <Button size="sm" variant="secondary" onClick={() => setAdding((v) => !v)}>
             {adding ? t('cameraDetail.zoneRules.cancel') : t('cameraDetail.zoneRules.addZone')}
@@ -84,6 +86,7 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
       {adding && (
         <div className="flex flex-col gap-2 rounded-md bg-bg-inset p-3">
           <input
+            aria-label={t('monitoring:zoneName')}
             className="rounded-md border border-border-subtle bg-bg-base px-2.5 py-1.5 text-sm text-text-primary"
             placeholder={t('cameraDetail.zoneRules.namePlaceholder')}
             value={name}
@@ -91,6 +94,7 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
           />
           <div className="flex gap-2">
             <select
+              aria-label={t('monitoring:zoneType')}
               className="flex-1 rounded-md border border-border-subtle bg-bg-base px-2.5 py-1.5 text-sm text-text-primary"
               value={ruleType}
               onChange={(e) => setRuleType(e.target.value as (typeof RULE_TYPES)[number])}
@@ -102,6 +106,7 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
               ))}
             </select>
             <select
+              aria-label={t('monitoring:zoneRegion')}
               className="flex-1 rounded-md border border-border-subtle bg-bg-base px-2.5 py-1.5 text-sm text-text-primary"
               value={presetIndex}
               onChange={(e) => setPresetIndex(Number(e.target.value))}
@@ -116,9 +121,9 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
           <Button size="sm" onClick={createZone}>
             {t('cameraDetail.zoneRules.create')}
           </Button>
-          {error && <p className="text-xs text-sev-critical">{error}</p>}
         </div>
       )}
+      {error && <p role="alert" className="text-xs text-sev-critical">{error}</p>}
 
       {zones && zones.length > 0 && (
         <ul className="flex flex-col gap-1 text-sm">
@@ -150,7 +155,7 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
           </ul>
         </div>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -172,25 +177,30 @@ export function CameraDetailModal({ camera, onClose }: CameraDetailModalProps) {
     }
     setLoading(true)
     setStream(null)
+    let cancelled = false
     camerasApi
       .stream(camera.camera_id)
-      .then(setStream)
-      .catch(() => setStream({ available: false, hls_url: null, reason: t('cameraDetail.couldNotReachApi') }))
-      .finally(() => setLoading(false))
+      .then((value) => { if (!cancelled) setStream(value) })
+      .catch(() => { if (!cancelled) setStream({ available: false, hls_url: null, reason: t('cameraDetail.couldNotReachApi') }) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [camera, t])
 
   return (
     <Modal open={camera !== null} onOpenChange={(open) => !open && onClose()} title={camera?.name ?? ''}>
       {camera && (
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-3 text-sm">
+        <div className="camera-detail-workspace">
+          <div className="camera-detail-status flex flex-wrap items-center gap-3 text-sm">
             <SeverityBadge severity={statusToSeverity(camera.status)} label={t(`cameraStatus.${camera.status}`)} />
             <span className="text-text-tertiary">{camera.camera_id}</span>
             {camera.department_name && <span className="text-text-secondary">{camera.department_name}</span>}
             <span className="plate-mono text-text-secondary">{fpsLabel(camera)}</span>
           </div>
 
-          <div className="aspect-video w-full overflow-hidden rounded-md bg-bg-inset">
+          <div className="camera-detail-main">
+          <section className="camera-detail-preview">
+          <h2>{t('monitoring:connection')}</h2>
+          <div className="monitoring-video aspect-video w-full overflow-hidden rounded-md">
             {loading && (
               <div className="flex h-full items-center justify-center text-sm text-text-tertiary">
                 {t('cameraDetail.checkingStream')}
@@ -199,14 +209,21 @@ export function CameraDetailModal({ camera, onClose }: CameraDetailModalProps) {
             {!loading && stream?.available && stream.hls_url && (
               <HlsVideoPlayer src={stream.hls_url} className="h-full w-full" />
             )}
-            {!loading && stream && !stream.available && (
+            {!loading && stream && (!stream.available || !stream.hls_url) && (
               <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
-                <p className="text-sm text-text-secondary">{stream.reason ?? t('cameraDetail.liveUnavailable')}</p>
+                <VideoOff size={30} strokeWidth={1.5} />
+                <strong>{t('monitoring:unavailable')}</strong>
+                <p className="text-sm">{stream.reason ?? t('cameraDetail.liveUnavailable')}</p>
               </div>
             )}
           </div>
-
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+          <p className="monitoring-help">{t('monitoring:streamHelp')}</p>
+          </section>
+          <section className="camera-detail-information">
+          <h2>{t('monitoring:information')}</h2>
+          <dl>
+            <div><dt>{t('monitoring:department')}</dt><dd>{camera.department_name ?? t('common.unknown')}</dd></div>
+            <div><dt>{t('monitoring:site')}</dt><dd>{camera.site_name ?? t('common.unknown')}</dd></div>
             <div>
               <dt className="text-text-tertiary">{t('cameraDetail.tier')}</dt>
               <dd className="text-text-primary">{camera.tier}</dd>
@@ -217,7 +234,7 @@ export function CameraDetailModal({ camera, onClose }: CameraDetailModalProps) {
             </div>
             <div>
               <dt className="text-text-tertiary">{t('cameraDetail.source')}</dt>
-              <dd className="text-text-primary">{camera.source}</dd>
+              <dd className="text-text-primary">{camera.source ?? t('common.unknown')}</dd>
             </div>
             <div>
               <dt className="text-text-tertiary">{t('cameraDetail.lastSeen')}</dt>
@@ -226,8 +243,9 @@ export function CameraDetailModal({ camera, onClose }: CameraDetailModalProps) {
               </dd>
             </div>
           </dl>
-
-          <ZoneRulesSection camera={camera} />
+          </section>
+          </div>
+          <ZoneRulesSection key={camera.camera_id} camera={camera} />
         </div>
       )}
     </Modal>

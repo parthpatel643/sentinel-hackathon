@@ -124,6 +124,10 @@ export type CameraTier = 'a_continuous' | 'b_sampled' | 'c_event' | string
 export interface Camera {
   camera_id: string
   name: string
+  /** Readable label derived from `name`; `name` stays the catalogue's own value. */
+  display_name?: string
+  /** Place or administrative area lifted out of `name`, if any. */
+  locality?: string
   driver_id: string
   department_name: string | null
   site_name: string | null

@@ -1,4 +1,4 @@
-import { CheckCircle2, Compass, FileUp, Link2, Radar, Server } from 'lucide-react'
+import { CheckCircle2, Compass, FileUp, Link2, Server } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { camerasApi, departmentsApi } from '../lib/api'
@@ -10,6 +10,7 @@ import { Button } from './ui/Button'
 import { Card } from './ui/Card'
 import { Input } from './ui/Input'
 import { Modal } from './ui/Modal'
+import '../routes/monitoring-workspace.css'
 
 type Step = 'location' | 'connect' | 'bulk-import' | 'discover' | 'analytics' | 'success'
 
@@ -24,6 +25,7 @@ interface OnboardingWizardProps {
   open: boolean
   onClose: () => void
   onOnboarded: () => void
+  initialStep?: 'location' | 'bulk-import' | 'discover'
 }
 
 /** The Cameras screen's "Add camera" action — a three-step, plain-language
@@ -32,9 +34,9 @@ interface OnboardingWizardProps {
  * branches into whichever onboarding path the operator actually has
  * (a direct link, a CSV, or the department catalogue) rather than assuming
  * everyone is typing an RTSP URL by hand. */
-export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizardProps) {
+export function OnboardingWizard({ open, onClose, onOnboarded, initialStep = 'location' }: OnboardingWizardProps) {
   const { t } = useTranslation()
-  const [step, setStep] = useState<Step>('location')
+  const [step, setStep] = useState<Step>(initialStep)
   const [departments, setDepartments] = useState<Department[]>([])
 
   // Step 1 — Where is it?
@@ -70,7 +72,7 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
   }, [open])
 
   function reset() {
-    setStep('location')
+    setStep(initialStep)
     setName('')
     setDepartmentName('')
     setSiteName('')
@@ -179,35 +181,32 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
 
   return (
     <Modal open={open} onOpenChange={(next) => !next && handleClose()} title={titleByStep[step]}>
-      <div className="flex flex-col gap-4">
+      <div className="camera-onboarding">
+        <aside className="onboarding-guide">
+          <h2>{t('cameras.addCamera')}</h2>
+          <p>{t('monitoring:onboardingHelp')}</p>
         {step !== 'success' && step !== 'bulk-import' && step !== 'discover' && (
-          <div className="flex items-center gap-2 text-xs text-text-tertiary">
+          <ol className="onboarding-steps">
             {(['location', 'connect', 'analytics'] as const).map((s, i) => (
-              <span key={s} className="flex items-center gap-2">
-                <span
-                  className={
-                    s === step
-                      ? 'flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-white'
-                      : 'flex h-5 w-5 items-center justify-center rounded-full bg-bg-inset text-[11px]'
-                  }
-                >
-                  {i + 1}
-                </span>
-                {i < 2 && <span className="h-px w-6 bg-border-subtle" />}
-              </span>
+              <li key={s} aria-current={s === step ? 'step' : undefined}><span>{i + 1}</span><strong>{t(`monitoring:${s}Step`)}</strong></li>
             ))}
-          </div>
+          </ol>
         )}
-
+        {(step === 'bulk-import' || step === 'discover') && <div className="onboarding-path-icon">{step === 'bulk-import' ? <FileUp size={32} /> : <Server size={32} />}<strong>{t(step === 'bulk-import' ? 'monitoring:importCameras' : 'monitoring:discoverCameras')}</strong></div>}
+        </aside>
+        <div className="onboarding-form">
         {step === 'location' && (
           <div className="flex flex-col gap-3">
+            <label className="monitoring-field-label" htmlFor="onboarding-name">{t('monitoring:name')}</label>
             <Input
+              id="onboarding-name"
               autoFocus
               placeholder={t('onboarding.namePlaceholder')}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="onboarding-field-pair">
+              <label className="monitoring-field-label">{t('monitoring:department')}
               <select
                 value={departmentName}
                 onChange={(e) => setDepartmentName(e.target.value)}
@@ -220,11 +219,14 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
                   </option>
                 ))}
               </select>
+              </label>
+              <label className="monitoring-field-label">{t('monitoring:site')}
               <Input
                 placeholder={t('onboarding.sitePlaceholder')}
                 value={siteName}
                 onChange={(e) => setSiteName(e.target.value)}
               />
+              </label>
             </div>
             <p className="text-xs text-text-tertiary">{t('onboarding.clickMapToPin')}</p>
             <div className="relative h-64 overflow-hidden rounded-md border border-border-subtle">
@@ -263,43 +265,34 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
 
         {step === 'connect' && (
           <div className="flex flex-col gap-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Card
-                className="flex cursor-pointer flex-col items-center gap-2 border-accent/40 bg-accent/10 p-4 text-center"
-                onClick={() => {}}
-              >
+            <div className="onboarding-connection-options">
+              <div className="onboarding-connection-choice" data-active="true">
                 <Link2 size={20} className="text-accent" />
                 <p className="text-sm font-medium text-text-primary">{t('onboarding.connectOptions.haveLink')}</p>
                 <p className="text-xs text-text-tertiary">{t('onboarding.connectOptions.haveLinkDetail')}</p>
-              </Card>
-              <Card
-                className="flex cursor-pointer flex-col items-center gap-2 p-4 text-center hover:border-accent/40"
+              </div>
+              <button type="button"
+                className="onboarding-connection-choice"
                 onClick={() => setStep('bulk-import')}
               >
                 <FileUp size={20} className="text-text-tertiary" />
                 <p className="text-sm font-medium text-text-primary">{t('onboarding.connectOptions.importFile')}</p>
                 <p className="text-xs text-text-tertiary">{t('onboarding.connectOptions.importFileDetail')}</p>
-              </Card>
-              <Card
-                className="flex cursor-pointer flex-col items-center gap-2 p-4 text-center hover:border-accent/40"
+              </button>
+              <button type="button"
+                className="onboarding-connection-choice"
                 onClick={() => setStep('discover')}
               >
                 <Server size={20} className="text-text-tertiary" />
                 <p className="text-sm font-medium text-text-primary">{t('onboarding.connectOptions.connectDept')}</p>
                 <p className="text-xs text-text-tertiary">{t('onboarding.connectOptions.connectDeptDetail')}</p>
-              </Card>
-              <Card className="flex flex-col items-center gap-2 p-4 text-center opacity-50">
-                <Radar size={20} className="text-text-tertiary" />
-                <p className="text-sm font-medium text-text-primary">
-                  {t('onboarding.connectOptions.discoverNetwork')}
-                </p>
-                <p className="text-xs text-text-tertiary">{t('onboarding.connectOptions.discoverNetworkDetail')}</p>
-              </Card>
+              </button>
             </div>
             <div className="flex flex-col gap-2 rounded-md border border-border-subtle p-3">
-              <p className="text-xs font-medium text-text-secondary">{t('onboarding.streamLink')}</p>
+              <label htmlFor="onboarding-stream" className="text-xs font-medium text-text-secondary">{t('onboarding.streamLink')}</label>
               <div className="flex gap-2">
                 <select
+                  aria-label={t('monitoring:protocol')}
                   value={protocol}
                   onChange={(e) => setProtocol(e.target.value)}
                   className="h-10 w-28 rounded-md border border-border-subtle bg-bg-inset px-2 text-sm text-text-primary"
@@ -309,6 +302,7 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
                   <option value="whep">WHEP</option>
                 </select>
                 <Input
+                  id="onboarding-stream"
                   className="flex-1 plate-mono"
                   placeholder={t('onboarding.urlPlaceholder')}
                   value={url}
@@ -365,6 +359,7 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
           <div className="flex flex-col gap-3">
             <p className="text-sm text-text-secondary">{t('onboarding.bulkImportHelp')}</p>
             <input
+              aria-label={t('monitoring:csvFile')}
               type="file"
               accept=".csv"
               onChange={(e) => {
@@ -464,6 +459,7 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
             <Button onClick={handleClose}>{t('onboarding.done')}</Button>
           </div>
         )}
+        </div>
       </div>
     </Modal>
   )

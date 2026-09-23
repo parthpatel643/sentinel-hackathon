@@ -1,12 +1,14 @@
-import { Activity, Bell, Camera, LayoutGrid, LogOut, Search, ShieldCheck, Grid3x3, Settings, Menu, X, ArrowUpRight } from 'lucide-react'
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { Activity, Bell, Camera, LayoutGrid, LogOut, Search, ShieldCheck, Grid3x3, Settings, Menu, X, ArrowUpRight, Command, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn'
 import { useAuth } from '../../lib/AuthContext'
 import { ThemeToggle } from '../ui/ThemeToggle'
 import { LanguageSwitcher } from '../ui/LanguageSwitcher'
+import { OPEN_COMMAND_PALETTE } from '../CommandPalette'
+import './command-shell.css'
 
 const NAV_ITEMS = [
   { to: '/', labelKey: 'workspace.overview', icon: LayoutGrid, end: true },
@@ -17,7 +19,7 @@ const NAV_ITEMS = [
   { to: '/health', labelKey: 'nav.health', icon: Activity, end: false },
 ] as const
 
-function WorkspaceNav({ onNavigate }: { onNavigate?: () => void }) {
+function WorkspaceNav({ onNavigate, expanded, onToggle }: { onNavigate?: () => void; expanded?: boolean; onToggle?: () => void }) {
   const { user, logout } = useAuth()
   const { t } = useTranslation()
   const linkClass = ({ isActive }: { isActive: boolean }) => cn('workspace-nav-link', isActive && 'is-active')
@@ -25,18 +27,23 @@ function WorkspaceNav({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <>
       <Link to="/" onClick={onNavigate} className="workspace-brand">
-        <ShieldCheck size={30} strokeWidth={1.7} className="text-accent" />
-        <span>Sentinel<span className="block text-xs font-normal tracking-normal text-text-tertiary">{t('workspace.console')}</span></span>
+        <span className="brand-symbol"><ShieldCheck size={25} strokeWidth={1.7} aria-hidden="true" /></span>
+        <span>Sentinel<span className="brand-caption">{t('workspace.console')}</span></span>
       </Link>
+      {onToggle && <button type="button" className="rail-toggle" aria-label={t(expanded ? 'command:collapseNavigation' : 'command:expandNavigation')} aria-expanded={expanded} onClick={onToggle}>
+        {expanded ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} />}
+        <span>{t(expanded ? 'command:collapseNavigation' : 'command:expandNavigation')}</span>
+      </button>}
+      <p className="nav-group-label">{t('workspace.navigation')}</p>
       <nav aria-label={t('workspace.navigation')} className="flex flex-col gap-1 px-3">
         {NAV_ITEMS.map(({ to, labelKey, icon: Icon, end }) => (
-          <NavLink key={to} to={to} end={end} onClick={onNavigate} className={linkClass}>
+          <NavLink key={to} to={to} end={end} title={t(labelKey)} onClick={onNavigate} className={linkClass}>
             <Icon size={19} strokeWidth={1.8} />
             <span>{t(labelKey)}</span>
           </NavLink>
         ))}
         {user?.role === 'admin' && (
-          <NavLink to="/admin" onClick={onNavigate} className={linkClass}>
+          <NavLink to="/admin" title={t('nav.admin')} onClick={onNavigate} className={linkClass}>
             <Settings size={19} strokeWidth={1.8} /><span>{t('nav.admin')}</span>
           </NavLink>
         )}
@@ -45,23 +52,41 @@ function WorkspaceNav({ onNavigate }: { onNavigate?: () => void }) {
         <Link to="/field" className="workspace-nav-link" onClick={onNavigate}>
           <ArrowUpRight size={19} /><span>{t('nav.fieldPwa')}</span>
         </Link>
-        <div className="mt-4 border-t border-border-subtle px-3 pt-4">
-          <p className="truncate text-sm font-medium">{user?.full_name}</p>
-          <p className="mt-1 truncate text-xs text-text-tertiary" title={user?.email}>{user?.email}</p>
-          <button type="button" onClick={logout} className="mt-3 flex min-h-10 items-center gap-2 text-sm text-text-secondary hover:text-text-primary">
-            <LogOut size={16} />{t('common.signOut')}
-          </button>
+        <div className="workspace-account" title={`${user?.full_name ?? ''} · ${user?.email ?? ''}`}>
+          <span className="operator-avatar" aria-hidden="true">{user?.full_name?.trim().slice(0, 1).toUpperCase()}</span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{user?.full_name}</p>
+            <p className="account-email" title={user?.email}>{user?.email}</p>
+          </div>
         </div>
+        <button type="button" onClick={logout} className="workspace-signout" aria-label={t('common.signOut')}>
+          <LogOut size={16} /><span>{t('common.signOut')}</span>
+        </button>
       </div>
     </>
   )
 }
 
 export function Shell({ children }: { children: ReactNode }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const currentLabel = NAV_ITEMS.find((item) => item.to === pathname)?.labelKey ?? 'nav.admin'
   const [query, setQuery] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [expanded, setExpanded] = useState(() => localStorage.getItem('sentinel-navigation-expanded') === 'true')
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000)
+    return () => clearInterval(timer)
+  }, [])
+
+  function toggleNavigation() {
+    const next = !expanded
+    setExpanded(next)
+    localStorage.setItem('sentinel-navigation-expanded', String(next))
+  }
 
   function search(event: FormEvent) {
     event.preventDefault()
@@ -74,7 +99,7 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="workspace-shell">
       <a href="#workspace-content" className="skip-link">{t('workspace.skip')}</a>
-      <aside className="workspace-sidebar"><WorkspaceNav /></aside>
+      <aside className={cn('workspace-sidebar', expanded ? 'is-expanded' : 'is-compact')}><WorkspaceNav expanded={expanded} onToggle={toggleNavigation} /></aside>
       <div className="workspace-main">
         <header className="workspace-toolbar">
           <Dialog.Root open={menuOpen} onOpenChange={setMenuOpen}>
@@ -92,11 +117,24 @@ export function Shell({ children }: { children: ReactNode }) {
               </Dialog.Content>
             </Dialog.Portal>
           </Dialog.Root>
+          <div className="workspace-location">
+            <ShieldCheck size={17} aria-hidden="true" />
+            <span>Sentinel</span>
+            <ChevronRight size={14} aria-hidden="true" />
+            <strong>{t(currentLabel)}</strong>
+          </div>
+          <time className="workspace-clock" dateTime={now.toISOString()} aria-label={t('command:localTime')}>
+            {now.toLocaleDateString(i18n.language, { day: '2-digit', month: 'short' })}
+            <span>{now.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
+          </time>
           <form role="search" aria-label={t('workspace.vehicleSearch')} onSubmit={search} className="workspace-search">
             <Search size={17} className="shrink-0 text-text-tertiary" />
             <input aria-label={t('workspace.plate')} placeholder={t('workspace.searchPlaceholder')} value={query} onChange={(e) => setQuery(e.target.value)} />
             <button type="submit" aria-label={t('common.search')} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm hover:bg-bg-overlay"><ArrowUpRight size={17} /></button>
           </form>
+          <button type="button" className="command-trigger" aria-label={t('workspace.openCommands')} title={t('workspace.openCommands')} onClick={() => document.dispatchEvent(new Event(OPEN_COMMAND_PALETTE))}>
+            <Command size={17} aria-hidden="true" /><kbd>K</kbd>
+          </button>
           <div className="workspace-preferences"><LanguageSwitcher /><ThemeToggle /></div>
         </header>
         <main id="workspace-content" tabIndex={-1} className="workspace-content">{children}</main>

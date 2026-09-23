@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Activity, FileText, Shield, Sliders, Users } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Activity, ArrowRight, FileText, Plus, Search, Shield, Sliders, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { TopBar } from '../components/layout/TopBar'
 import { Card } from '../components/ui/Card'
@@ -15,6 +15,7 @@ import type {
   RetentionPreview,
   WatchlistEntry,
 } from '../lib/types'
+import './management-workspace.css'
 
 type Section = 'users' | 'watchlist' | 'retention' | 'integrations' | 'audit'
 
@@ -44,8 +45,12 @@ function UsersSection() {
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState('operator')
+  const [showCreate, setShowCreate] = useState(false)
+  const [filter, setFilter] = useState('')
+  const [busyUser, setBusyUser] = useState<string | null>(null)
 
   function load() {
+    setError(null)
     usersApi
       .list()
       .then(setUsers)
@@ -63,6 +68,7 @@ function UsersSection() {
       setFullName('')
       setPassword('')
       setRole('operator')
+      setShowCreate(false)
       load()
     } catch (err) {
       setError(err instanceof ApiError ? String(err.detail) : t('admin.users.createError'))
@@ -72,32 +78,70 @@ function UsersSection() {
   }
 
   async function toggleRole(user: AuthUser) {
-    await usersApi.update(user.id, { role: user.role === 'admin' ? 'operator' : 'admin' })
-    load()
+    setBusyUser(user.id)
+    setError(null)
+    try {
+      await usersApi.update(user.id, { role: user.role === 'admin' ? 'operator' : 'admin' })
+      load()
+    } catch (err) {
+      setError(err instanceof ApiError ? String(err.detail) : t('management:actionError'))
+    } finally {
+      setBusyUser(null)
+    }
   }
 
   async function toggleActive(user: AuthUser) {
-    await usersApi.update(user.id, { active: !user.active })
-    load()
+    setBusyUser(user.id)
+    setError(null)
+    try {
+      await usersApi.update(user.id, { active: !user.active })
+      load()
+    } catch (err) {
+      setError(err instanceof ApiError ? String(err.detail) : t('management:actionError'))
+    } finally {
+      setBusyUser(null)
+    }
   }
 
+  const visibleUsers = users?.filter((user) => `${user.full_name} ${user.email} ${user.role}`.toLowerCase().includes(filter.toLowerCase()))
+
   return (
-    <div className="flex flex-col gap-4">
-      <Card className="p-4">
+    <div className="management-register">
+      <div className="management-register-toolbar">
+        <div>
+          <h3>{t('management:accessRegister')}</h3>
+          <p>{users ? `${t('management:userCount', { count: users.length })} · ${t('management:activeCount', { count: users.filter((u) => u.active).length })}` : t(error ? 'management:unavailable' : 'common.loading')}</p>
+        </div>
+        <Button onClick={() => setShowCreate((value) => !value)} aria-expanded={showCreate} aria-controls="create-user-form">
+          <Plus size={16} aria-hidden="true" />{showCreate ? t('management:cancel') : t('management:addUser')}
+        </Button>
+      </div>
+      {error && <div role="alert" className="management-error">{error}<Button variant="ghost" onClick={load}>{t('common.retry')}</Button></div>}
+      {showCreate && <Card className="management-create p-5">
         <h3 className="mb-3 text-sm font-semibold text-text-primary">{t('admin.users.addUser')}</h3>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <form id="create-user-form" onSubmit={(event) => { event.preventDefault(); void createUser() }}>
+        <div className="management-form-grid">
+          <label>{t('management:fullName')}
           <Input
+            required
             placeholder={t('admin.users.fullNamePlaceholder')}
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
           />
-          <Input placeholder={t('admin.users.emailPlaceholder')} value={email} onChange={(e) => setEmail(e.target.value)} />
+          </label>
+          <label>{t('management:email')}
+          <Input required type="email" placeholder={t('admin.users.emailPlaceholder')} value={email} onChange={(e) => setEmail(e.target.value)} />
+          </label>
+          <label>{t('management:password')}
           <Input
+            required
             type="password"
             placeholder={t('admin.users.passwordPlaceholder')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+          </label>
+          <label>{t('management:role')}
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
@@ -106,18 +150,23 @@ function UsersSection() {
             <option value="operator">{t('admin.users.roleOperator')}</option>
             <option value="admin">{t('admin.users.roleAdmin')}</option>
           </select>
+          </label>
         </div>
         <Button
           className="mt-3"
           disabled={creating || !email || !password || !fullName}
-          onClick={createUser}
+          type="submit"
         >
           {creating ? t('admin.users.adding') : t('admin.users.add')}
         </Button>
-        {error && <p className="mt-2 text-xs text-sev-critical">{error}</p>}
-      </Card>
+        </form>
+      </Card>}
 
-      <Card className="overflow-x-auto">
+      <label className="management-search">
+        <Search size={17} aria-hidden="true" />
+        <input type="search" aria-label={t('management:filterUsers')} placeholder={t('management:filterUsers')} value={filter} onChange={(event) => setFilter(event.target.value)} />
+      </label>
+      <Card className="management-table overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border-subtle text-xs uppercase tracking-wide text-text-tertiary">
             <tr>
@@ -130,7 +179,7 @@ function UsersSection() {
             </tr>
           </thead>
           <tbody>
-            {users?.map((u) => (
+            {visibleUsers?.map((u) => (
               <tr key={u.id} className="border-b border-border-subtle/60 last:border-0">
                 <td className="px-4 py-2.5 text-text-primary">{u.full_name}</td>
                 <td className="px-4 py-2.5 text-text-secondary">{u.email}</td>
@@ -144,15 +193,16 @@ function UsersSection() {
                   </span>
                 </td>
                 <td className="px-4 py-2.5 text-right">
-                  <Button size="sm" variant="ghost" onClick={() => toggleRole(u)}>
+                  <Button size="sm" variant="ghost" disabled={busyUser === u.id} onClick={() => toggleRole(u)}>
                     {u.role === 'admin' ? t('admin.users.makeOperator') : t('admin.users.makeAdmin')}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => toggleActive(u)}>
+                  <Button size="sm" variant="ghost" disabled={busyUser === u.id} onClick={() => toggleActive(u)}>
                     {u.active ? t('admin.users.deactivate') : t('admin.users.reactivate')}
                   </Button>
                 </td>
               </tr>
             ))}
+            {visibleUsers?.length === 0 && <tr><td colSpan={6} className="management-empty">{t('management:noUsers')}</td></tr>}
           </tbody>
         </table>
       </Card>
@@ -163,19 +213,36 @@ function UsersSection() {
 function WatchlistSection() {
   const { t } = useTranslation()
   const [entries, setEntries] = useState<WatchlistEntry[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
 
   function load() {
-    watchlistApi.list(false).then(setEntries)
+    setError(null)
+    watchlistApi.list(false).then(setEntries).catch((err) => setError(err instanceof ApiError ? String(err.detail) : t('workspace.refreshError')))
   }
   useEffect(load, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function toggle(entry: WatchlistEntry) {
-    await watchlistApi.update(entry.id, !entry.active)
-    load()
+    setBusy(entry.id)
+    setError(null)
+    try {
+      await watchlistApi.update(entry.id, !entry.active)
+      load()
+    } catch (err) {
+      setError(err instanceof ApiError ? String(err.detail) : t('management:actionError'))
+    } finally {
+      setBusy(null)
+    }
   }
 
   return (
-    <Card className="overflow-x-auto">
+    <div className="management-register">
+    <div className="management-register-toolbar">
+      <p>{entries ? `${t('management:records', { count: entries.length })} · ${t('management:activeCount', { count: entries.filter((entry) => entry.active).length })}` : t(error ? 'management:unavailable' : 'common.loading')}</p>
+      <Button variant="secondary" onClick={load}>{t('admin.integrations.recheck')}</Button>
+    </div>
+    {error && <p role="alert" className="management-error">{error}</p>}
+    <Card className="management-table overflow-x-auto">
       <table className="w-full text-left text-sm">
         <thead className="border-b border-border-subtle text-xs uppercase tracking-wide text-text-tertiary">
           <tr>
@@ -200,7 +267,7 @@ function WatchlistSection() {
                 {e.active ? t('common.active') : t('common.deactivated')}
               </td>
               <td className="px-4 py-2.5 text-right">
-                <Button size="sm" variant="ghost" onClick={() => toggle(e)}>
+                <Button size="sm" variant="ghost" disabled={busy === e.id} onClick={() => toggle(e)}>
                   {e.active ? t('admin.watchlist.deactivate') : t('admin.watchlist.reactivate')}
                 </Button>
               </td>
@@ -216,6 +283,7 @@ function WatchlistSection() {
         </tbody>
       </table>
     </Card>
+    </div>
   )
 }
 
@@ -228,14 +296,29 @@ function RetentionSection() {
   const [executing, setExecuting] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const previewVersion = useRef(0)
 
   function loadPreview() {
-    adminApi.retentionPreview(detectionsDays, clipsDays).then(setPreview)
+    const version = ++previewVersion.current
+    setPreview(null)
+    setError(null)
+    adminApi.retentionPreview(detectionsDays, clipsDays)
+      .then((next) => { if (version === previewVersion.current) setPreview(next) })
+      .catch((err) => { if (version === previewVersion.current) setError(err instanceof ApiError ? String(err.detail) : t('workspace.refreshError')) })
+  }
+
+  function changePeriod(kind: 'detections' | 'clips', days: number) {
+    previewVersion.current += 1
+    setPreview(null)
+    setConfirming(false)
+    setResult(null)
+    if (kind === 'detections') setDetectionsDays(days)
+    else setClipsDays(days)
   }
 
   useEffect(() => {
     const id = setTimeout(loadPreview, 200)
-    return () => clearTimeout(id)
+    return () => { clearTimeout(id); previewVersion.current += 1 }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detectionsDays, clipsDays])
 
@@ -260,6 +343,7 @@ function RetentionSection() {
   }
 
   return (
+    <div className="management-retention">
     <Card className="flex flex-col gap-5 p-5">
       <div>
         <div className="mb-1 flex items-center justify-between text-sm">
@@ -267,11 +351,13 @@ function RetentionSection() {
           <span className="plate-mono text-text-secondary">{t('admin.retention.days', { count: detectionsDays })}</span>
         </div>
         <input
+          aria-label={t('admin.retention.detectionReads')}
           type="range"
           min={1}
           max={365}
           value={detectionsDays}
-          onChange={(e) => setDetectionsDays(Number(e.target.value))}
+          disabled={executing}
+          onChange={(e) => changePeriod('detections', Number(e.target.value))}
           className="w-full"
         />
         <p className="mt-1.5 text-xs text-text-tertiary">
@@ -285,11 +371,13 @@ function RetentionSection() {
           <span className="plate-mono text-text-secondary">{t('admin.retention.days', { count: clipsDays })}</span>
         </div>
         <input
+          aria-label={t('admin.retention.sealedClips')}
           type="range"
           min={1}
           max={365}
           value={clipsDays}
-          onChange={(e) => setClipsDays(Number(e.target.value))}
+          disabled={executing}
+          onChange={(e) => changePeriod('clips', Number(e.target.value))}
           className="w-full"
         />
         <p className="mt-1.5 text-xs text-text-tertiary">
@@ -302,14 +390,14 @@ function RetentionSection() {
         </p>
       </div>
       {!confirming ? (
-        <Button variant="danger" onClick={() => setConfirming(true)}>
+        <Button variant="danger" disabled={!preview || Boolean(error)} onClick={() => setConfirming(true)}>
           {t('admin.retention.deleteNow')}
         </Button>
       ) : (
         <div className="rounded-md border border-sev-critical/30 bg-sev-critical/5 p-3">
           <p className="text-sm text-text-primary">{t('admin.retention.confirmMessage')}</p>
           <div className="mt-3 flex gap-2">
-            <Button variant="danger" onClick={executeNow} disabled={executing}>
+            <Button variant="danger" onClick={executeNow} disabled={executing || !preview}>
               {executing ? t('admin.retention.deleting') : t('admin.retention.confirmDelete')}
             </Button>
             <Button variant="secondary" onClick={() => setConfirming(false)} disabled={executing}>
@@ -319,9 +407,19 @@ function RetentionSection() {
         </div>
       )}
       {result && <p className="text-sm text-ok">{result}</p>}
-      {error && <p className="text-sm text-sev-critical">{error}</p>}
+      {error && <div role="alert" className="text-sm text-sev-critical">{error}<Button variant="ghost" onClick={loadPreview}>{t('common.retry')}</Button></div>}
       <p className="rounded-md bg-bg-inset px-3 py-2 text-xs text-text-tertiary">{t('admin.retention.auditNotice')}</p>
     </Card>
+    <section className="management-preview" aria-label={t('management:preview')}>
+      <h3>{t('management:preview')}</h3>
+      <p>{t('management:previewHelp')}</p>
+      <dl>
+        <div><dt>{t('management:detections')}</dt><dd>{preview?.detections_affected.toLocaleString() ?? t('management:unavailable')}</dd></div>
+        <div><dt>{t('management:clips')}</dt><dd>{preview?.clips_affected.toLocaleString() ?? t('management:unavailable')}</dd></div>
+        <div><dt>{t('management:storage')}</dt><dd>{preview ? bytesLabel(preview.clips_bytes_affected) : t('management:unavailable')}</dd></div>
+      </dl>
+    </section>
+    </div>
   )
 }
 
@@ -362,9 +460,11 @@ function IntegrationsSection() {
           {loading ? t('admin.integrations.checking') : t('admin.integrations.recheck')}
         </Button>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      {loading && !statuses && <p role="status" className="management-empty">{t('common.loading')}</p>}
+      {!loading && statuses?.length === 0 && <p className="management-empty">{t('management:noIntegrations')}</p>}
+      <div className="management-integrations">
         {(statuses ?? []).map((s) => (
-          <Card key={s.provider_id} className="p-4">
+          <Card key={s.provider_id} className="p-5">
             <div className="flex items-center justify-between">
               <p className="font-medium text-text-primary">{s.name}</p>
               <span
@@ -431,7 +531,7 @@ function AuditSection() {
   }
 
   if (error) {
-    return <Card className="p-6 text-center text-sm text-text-tertiary">{error}</Card>
+    return <Card className="p-6 text-center text-sm text-text-tertiary"><p role="alert">{error}</p><Button variant="secondary" onClick={() => { setError(null); load() }}>{t('common.retry')}</Button></Card>
   }
 
   return (
@@ -449,7 +549,7 @@ function AuditSection() {
         </Button>
       </Card>
 
-      <Card className="overflow-x-auto">
+      <Card className="management-table overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border-subtle text-xs uppercase tracking-wide text-text-tertiary">
             <tr>
@@ -461,6 +561,7 @@ function AuditSection() {
             </tr>
           </thead>
           <tbody>
+            {entries?.length === 0 && <tr><td colSpan={5} className="management-empty">{t('management:noAudit')}</td></tr>}
             {entries?.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-6 text-center text-text-tertiary">
@@ -504,36 +605,43 @@ export function AdminPortal() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="management-workspace flex min-h-0 flex-1 flex-col">
       <TopBar title={t('nav.admin')} subtitle={t('admin.subtitle')} />
-      <div className="admin-layout page-body">
-        <nav aria-label={t('workspace.adminNavigation')} className="flex flex-wrap content-start gap-1 md:flex-col">
+      <div className="page-body management-body">
+        <div className="management-heading">
+          <div><h2>{t('management:adminTitle')}</h2><p>{t('management:adminIntro')}</p></div>
+          <Shield size={34} strokeWidth={1.5} aria-hidden="true" />
+        </div>
+        <nav aria-label={t('workspace.adminNavigation')} className="management-navigation">
           {SECTIONS.map((id) => {
             const Icon = SECTION_ICONS[id]
             return (
               <button
                 key={id}
+                aria-label={t(`admin.sections.${id}`)}
                 onClick={() => setSection(id)}
                 aria-current={section === id ? 'page' : undefined}
-                className={
-                  section === id
-                    ? 'flex min-h-11 items-center gap-2 rounded-md bg-accent/15 px-3 py-2 text-left text-sm font-medium text-accent'
-                    : 'flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-text-secondary hover:bg-bg-overlay'
-                }
+                className={section === id ? 'is-current' : ''}
               >
-                <Icon size={17} className="shrink-0" />
-                {t(`admin.sections.${id}`)}
+                <Icon size={20} aria-hidden="true" />
+                <span>{t(`admin.sections.${id}`)}</span>
+                <ArrowRight size={15} aria-hidden="true" />
               </button>
             )
           })}
         </nav>
-        <div className="min-w-0">
+        <section className="management-section" aria-labelledby="management-section-heading">
+          <header className="management-section-heading">
+            <h2 id="management-section-heading">{t(`admin.sections.${section}`)}</h2>
+            <p>{t(`management:${section}Help`)}</p>
+          </header>
           {section === 'users' && <UsersSection />}
           {section === 'watchlist' && <WatchlistSection />}
           {section === 'retention' && <RetentionSection />}
           {section === 'integrations' && <IntegrationsSection />}
           {section === 'audit' && <AuditSection />}
-        </div>
+        </section>
+        <p className="management-footnote"><Shield size={16} aria-hidden="true" />{t('management:adminNote')}</p>
       </div>
     </div>
   )

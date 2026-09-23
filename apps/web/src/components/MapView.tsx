@@ -204,12 +204,25 @@ export function MapView({
         markerRefs.current.set(marker.id, existing)
       }
       const el = existing.getElement()
-      el.style.width = '14px'
-      el.style.height = '14px'
+      const size = marker.number != null ? 20 : 17
+      el.style.width = `${size}px`
+      el.style.height = `${size}px`
       el.style.borderRadius = '50%'
       el.style.background = marker.color
-      el.style.border = '2px solid rgba(255,255,255,0.85)'
-      el.style.boxShadow = marker.pulse ? `0 0 0 6px ${marker.color}33` : '0 1px 3px rgba(0,0,0,0.5)'
+      // A marker sits on top of cartography, and the basemap follows the
+      // operator's theme — so a single light ring (the previous styling)
+      // separated the dot from a dark map and vanished against a light one.
+      // Two concentric rings fix it in both directions at once: whichever
+      // ring matches the basemap, the other one still reads. This is why map
+      // pins are conventionally outlined twice rather than just stroked.
+      el.style.border = 'none'
+      const halo = [
+        '0 0 0 2.5px rgba(255,255,255,0.95)',
+        '0 0 0 4px rgba(12,16,24,0.55)',
+        '0 2px 6px rgba(0,0,0,0.45)',
+      ]
+      if (marker.pulse) halo.push(`0 0 0 9px color-mix(in oklab, ${marker.color} 28%, transparent)`)
+      el.style.boxShadow = halo.join(', ')
       el.style.cursor = marker.onClick ? 'pointer' : 'default'
       el.title = marker.label ?? marker.id
       el.setAttribute('aria-label', marker.label ?? marker.id)
@@ -218,9 +231,11 @@ export function MapView({
       el.style.display = 'flex'
       el.style.alignItems = 'center'
       el.style.justifyContent = 'center'
-      el.style.fontSize = '9px'
+      el.style.fontSize = '10px'
       el.style.fontWeight = '700'
-      el.style.color = 'white'
+      // The numbered route markers carry text on top of the status colour,
+      // which is light by design — dark text is what stays readable on it.
+      el.style.color = 'oklch(0.22 0.02 250)'
       existing.setLngLat([marker.lon, marker.lat])
     }
 

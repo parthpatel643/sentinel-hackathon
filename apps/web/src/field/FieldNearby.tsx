@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { ChevronRight, List, Map, MapPin, Navigation2 } from 'lucide-react'
+import { ChevronRight, List, Map, MapPin, Navigation2, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { camerasApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
+import { navigateTabs } from '../lib/tabs'
 import { MapView, type MapMarker } from '../components/MapView'
 import { CameraDetailModal } from '../components/CameraDetailModal'
 import { SeverityBadge, statusToSeverity } from '../components/ui/SeverityBadge'
@@ -29,6 +30,7 @@ export function FieldNearby() {
   const [myPosition, setMyPosition] = useState<{ lat: number; lon: number } | null>(null)
   const [selected, setSelected] = useState<Camera | null>(null)
   const [view, setView] = useState<'map' | 'list'>('map')
+  const [query, setQuery] = useState('')
 
   useEffect(() => {
     if (!navigator.geolocation) return
@@ -41,33 +43,38 @@ export function FieldNearby() {
   }, [])
 
   const withDistance = (cameras ?? [])
-    .filter((c): c is Camera & { location: NonNullable<Camera['location']> } => c.location !== null)
+    .filter((c): c is Camera & { location: NonNullable<Camera['location']> } => c.location != null)
     .map((c) => ({
       camera: c,
       distanceKm: myPosition ? haversineKm(myPosition, c.location) : null,
     }))
     .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0))
+  const filtered = withDistance.filter(({ camera }) => `${camera.name} ${camera.camera_id}`.toLowerCase().includes(query.trim().toLowerCase()))
 
-  const markers: MapMarker[] = withDistance.map(({ camera }) => ({
+  const markers: MapMarker[] = filtered.map(({ camera }) => ({
     id: camera.camera_id,
     lat: camera.location.lat,
     lon: camera.location.lon,
-    color: '#087665',
+    color: camera.status === 'live' ? '#087665' : camera.status === 'down' ? '#b42336' : '#64748b',
     label: camera.name,
     onClick: () => setSelected(camera),
   }))
 
   return (
-    <section className="flex h-full min-h-80 flex-col" aria-labelledby="field-nearby-heading">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle px-5 py-4 sm:px-8">
+    <section className="field-nearby" aria-labelledby="field-nearby-heading">
+      <header className="field-nearby-heading">
+        <div>
         <h1 id="field-nearby-heading" className="text-2xl font-semibold tracking-tight">{t('field.nav.nearby')}</h1>
-        <div role="tablist" aria-label={t('field.nav.nearby')} className="flex rounded-md bg-bg-inset p-1">
+        <p>{t('management:nearbyIntro')}</p>
+        </div>
+        <div role="tablist" aria-label={t('field.nav.nearby')} onKeyDown={navigateTabs} className="flex rounded-md bg-bg-inset p-1">
           <button
             id="field-nearby-tab-map"
             type="button"
             role="tab"
             aria-selected={view === 'map'}
             aria-controls="field-nearby-map-panel"
+            tabIndex={view === 'map' ? 0 : -1}
             onClick={() => setView('map')}
             className={`flex min-h-10 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-accent ${view === 'map' ? 'bg-bg-raised text-accent' : 'text-text-secondary hover:bg-bg-hover'}`}
           >
@@ -80,6 +87,7 @@ export function FieldNearby() {
             role="tab"
             aria-selected={view === 'list'}
             aria-controls="field-nearby-list-panel"
+            tabIndex={view === 'list' ? 0 : -1}
             onClick={() => setView('list')}
             className={`flex min-h-10 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-accent ${view === 'list' ? 'bg-bg-raised text-accent' : 'text-text-secondary hover:bg-bg-hover'}`}
           >
@@ -87,7 +95,12 @@ export function FieldNearby() {
             {t('field.nearby.list')}
           </button>
         </div>
-      </div>
+      </header>
+        <div className="field-nearby-tools">
+          <label className="field-camera-search"><Search size={18} aria-hidden="true" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('management:cameraFilter')} aria-label={t('management:cameraFilter')} /></label>
+          <p>{!error && cameras ? t('management:locatedCameras', { count: withDistance.length }) : error ? t('management:unavailable') : t('common.loading')}</p>
+          {!myPosition && <p>{t('management:locationHelp')}</p>}
+        </div>
       {loading && <p role="status" className="px-5 py-3 text-sm text-text-secondary">{t('common.loading')}</p>}
       {!!error && (
         <div role="alert" className="flex flex-wrap items-center gap-x-3 bg-sev-critical/10 px-5 py-3 text-sm text-sev-critical">
@@ -101,13 +114,14 @@ export function FieldNearby() {
           <p className="text-sm leading-relaxed text-text-secondary">{t('field.nearby.noCameras')}</p>
         </div>
       )}
+      {!error && withDistance.length > 0 && filtered.length === 0 && <p className="field-no-match">{t('management:noCameraMatch')}</p>}
 
       {view === 'map' ? (
         <div
           id="field-nearby-map-panel"
           role="tabpanel"
           aria-labelledby="field-nearby-tab-map"
-          className="relative min-h-64 flex-1"
+          className="field-map-panel"
         >
           <MapView markers={markers} className="absolute inset-0" />
         </div>
@@ -116,10 +130,10 @@ export function FieldNearby() {
           id="field-nearby-list-panel"
           role="tabpanel"
           aria-labelledby="field-nearby-tab-list"
-          className="flex-1 overflow-y-auto px-5 sm:px-8"
+          className="field-camera-list"
         >
           <div className="divide-y divide-border-subtle">
-            {withDistance.map(({ camera, distanceKm }) => (
+            {filtered.map(({ camera, distanceKm }) => (
               <button
                 key={camera.camera_id}
                 type="button"
@@ -127,7 +141,8 @@ export function FieldNearby() {
                 onClick={() => setSelected(camera)}
                 className="flex min-h-20 w-full items-center justify-between gap-3 py-4 text-left hover:bg-bg-hover focus-visible:outline-2 focus-visible:outline-accent"
               >
-                <div className="min-w-0">
+                <MapPin size={22} className="field-camera-icon" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
                   <p className="break-words text-base font-medium text-text-primary">{camera.name}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <SeverityBadge severity={statusToSeverity(camera.status)} label={t(`cameraStatus.${camera.status}`)} />

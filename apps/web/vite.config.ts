@@ -33,7 +33,7 @@ export default defineConfig({
         // itself decides what to do when a fetch fails offline (its own
         // IndexedDB outbox, not a service-worker cache lie).
         navigateFallback: '/field',
-        globPatterns: ['**/*.{js,css,html,svg,png}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ttf}'],
         // The single app bundle now carries three languages' worth of
         // strings (i18next resources) plus maplibre/hls.js/radix — past
         // workbox's 2 MiB default precache ceiling. Raised, not split,

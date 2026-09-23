@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Bell, CheckCircle2, ChevronDown, Eye, Navigation } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { alertsApi, camerasApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
 import { useLowBandwidthMode } from './useLowBandwidthMode'
 import type { Alert, Camera } from '../lib/types'
+import { ApiError } from '../lib/http'
+import { SeverityBadge } from '../components/ui/SeverityBadge'
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -29,6 +32,8 @@ function AlertCard({ alert, camera, myPosition }: { alert: Alert; camera: Camera
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const [busy, setBusy] = useState<'ack' | 'seen' | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [completed, setCompleted] = useState<'ack' | 'seen' | null>(null)
   const { enabled: lowBandwidth } = useLowBandwidthMode()
 
   const distanceKm =
@@ -41,8 +46,12 @@ function AlertCard({ alert, camera, myPosition }: { alert: Alert; camera: Camera
 
   async function act(status: 'acknowledged' | 'resolved', kind: 'ack' | 'seen') {
     setBusy(kind)
+    setActionError(null)
     try {
       await alertsApi.update(alert.id, { status })
+      setCompleted(kind)
+    } catch (err) {
+      setActionError(err instanceof ApiError ? String(err.detail) : t('management:actionError'))
     } finally {
       setBusy(null)
     }
@@ -50,11 +59,11 @@ function AlertCard({ alert, camera, myPosition }: { alert: Alert; camera: Camera
 
   function navigate() {
     if (!camera?.location) return
-    window.open(`https://www.google.com/maps?q=${camera.location.lat},${camera.location.lon}`, '_blank')
+    window.open(`https://www.google.com/maps?q=${camera.location.lat},${camera.location.lon}`, '_blank', 'noopener,noreferrer')
   }
 
   return (
-    <article className="overflow-hidden rounded-lg border border-border-subtle bg-bg-raised">
+    <article className="field-alert-card">
       <button
         className="flex w-full items-start gap-3 p-4 text-left hover:bg-bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
         onClick={() => setExpanded((v) => !v)}
@@ -63,6 +72,9 @@ function AlertCard({ alert, camera, myPosition }: { alert: Alert; camera: Camera
       >
         {!lowBandwidth && <Bell size={20} className="mt-1 shrink-0 text-accent" aria-hidden="true" />}
         <div className="min-w-0 flex-1">
+          <div className="mb-3">
+            <SeverityBadge severity={alert.priority_score >= .75 ? 'critical' : alert.priority_score >= .5 ? 'high' : alert.priority_score >= .25 ? 'medium' : 'low'} />
+          </div>
           <p className="plate-mono break-all text-xl font-semibold text-text-primary">{alert.plate_text}</p>
           <p className="mt-1 break-words text-sm text-text-secondary">{camera?.name ?? alert.camera_id}</p>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-secondary">
@@ -86,7 +98,7 @@ function AlertCard({ alert, camera, myPosition }: { alert: Alert; camera: Camera
           </button>
           <button
             onClick={() => act('acknowledged', 'ack')}
-            disabled={busy !== null}
+            disabled={busy !== null || completed !== null}
             className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1.5 rounded-md bg-bg-inset px-1 py-3 text-xs font-medium text-text-secondary hover:bg-bg-hover focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-40"
           >
             <CheckCircle2 size={20} aria-hidden="true" />
@@ -94,7 +106,7 @@ function AlertCard({ alert, camera, myPosition }: { alert: Alert; camera: Camera
           </button>
           <button
             onClick={() => act('resolved', 'seen')}
-            disabled={busy !== null}
+            disabled={busy !== null || completed === 'seen'}
             className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1.5 rounded-md bg-accent/10 px-1 py-3 text-xs font-medium text-accent hover:bg-accent/20 focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-40"
           >
             <Eye size={20} aria-hidden="true" />
@@ -102,6 +114,8 @@ function AlertCard({ alert, camera, myPosition }: { alert: Alert; camera: Camera
           </button>
         </div>
       )}
+      {completed && <p role="status" className="field-alert-feedback text-ok">{t(completed === 'ack' ? 'management:alertAcknowledged' : 'management:alertResolved')}</p>}
+      {actionError && <p role="alert" className="field-alert-feedback text-sev-critical">{actionError}</p>}
     </article>
   )
 }
@@ -123,11 +137,15 @@ export function FieldAlerts() {
   const camerasById = new Map((cameras ?? []).map((c) => [c.camera_id, c]))
 
   return (
-    <section className="p-5 sm:p-8" aria-labelledby="field-alerts-heading">
-      <div className="mb-6 flex items-center justify-between gap-3">
+    <section className="field-page field-alerts" aria-labelledby="field-alerts-heading">
+      <header className="field-page-heading">
+      <div className="flex items-center justify-between gap-3">
         <h1 id="field-alerts-heading" className="text-2xl font-semibold tracking-tight">{t('field.nav.alerts')}</h1>
         {alerts && <span className="rounded-md bg-bg-inset px-3 py-1.5 text-sm font-medium tabular-nums text-text-secondary">{alerts.length}</span>}
       </div>
+      <p>{t('management:alertIntro')}</p>
+      </header>
+      <section aria-label={t('management:alertQueue')} className="field-alert-queue">
       {loading && <p role="status" className="py-8 text-sm text-text-secondary">{t('common.loading')}</p>}
       {!!error && (
         <div role="alert" className="mb-4 rounded-md bg-sev-critical/10 p-4 text-sm text-sev-critical">
@@ -141,11 +159,13 @@ export function FieldAlerts() {
           <p className="text-sm text-text-secondary">{t('field.alerts.noOpenAlerts')}</p>
         </div>
       )}
-      <div className="flex flex-col gap-3">
+      <div className="field-alert-list">
       {alerts?.map((alert) => (
         <AlertCard key={alert.id} alert={alert} camera={camerasById.get(alert.camera_id)} myPosition={myPosition} />
       ))}
       </div>
+      </section>
+      <Link to="/field/lookup" className="field-alert-lookup">{t('field.nav.lookup')}<ChevronDown size={18} className="-rotate-90" aria-hidden="true" /></Link>
     </section>
   )
 }
