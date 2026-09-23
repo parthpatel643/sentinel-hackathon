@@ -1,6 +1,15 @@
 # Sentinel Platform — Master Solution Plan
 ### Gujarat Police Innovation Challenge 2026 — Unified CCTV Integration & Video Analytics Platform
 
+> **Planning-figure correction (M15).** Figures of "~50 cameras" and references to a
+> `GET /api/ingest` catalogue endpoint in this document date from planning, before the
+> grid was accessible. The real grid assigned to us has **30 cameras**, and our host
+> serves its catalogue at **`GET /cameras.json`** behind a session-cookie login — the
+> integrator guide's `/api/ingest` path 404s there, because that guide is a shared
+> template with `<host>` placeholders. The planning text is left as written rather than
+> quietly rewritten, so the record of what was assumed stays visible; where this
+> document states a present-tense fact, trust the README and `evidence/`.
+
 | | |
 |---|---|
 | **Product name** | **Sentinel Platform**. ⚠️ *Note: this is also the organisers' programme name. In the PPT and HLD, always write "the Sentinel Platform" for the product and "the Challenge" / "the government test grid" for the organisers' assets, so a judge is never confused about what is yours.* |
@@ -21,7 +30,7 @@ This is not judged as a hackathon demo. It is judged as a **procurement shortlis
 
 | # | Scored area | What the jury is really asking | How Sentinel answers it |
 |---|---|---|---|
-| 1 | Successful Test Case | "Can you onboard our ~50 heterogeneous feeds and *actually* analyse them?" | Catalogue-driven auto-onboarding from `/api/ingest`; all ~50 cameras live in the registry in <60 s; continuous ANPR on the analytics-enabled subset with tiered scheduling |
+| 1 | Successful Test Case | "Can you onboard our heterogeneous feeds and *actually* analyse them?" | Catalogue-driven auto-onboarding from the grid's catalogue endpoint (`cameras.json` on our assigned host — the guide's generic `/api/ingest` 404s there); all 30 cameras live in the registry in one call; continuous ANPR on the analytics-enabled subset with tiered scheduling |
 | 2 | Solution Presentation | "Do you understand our problem, or did you bring a generic VMS?" | Model justification grounded in *their* four challenges + bandwidth/cost math that proves why full centralisation fails |
 | 3 | Solution Architecture | "Is this deployable in a government network without a rip-and-replace?" | Edge-first, vendor-neutral adapter framework, ONVIF-first, mTLS, department tenancy, zero changes to existing dept VMS |
 | 4 | Working Platform + Demo | "Is this real software or a Figma file?" | One-command `docker compose up`, real backend, real DB, real streams, no mocked UI states; source archive + guided code tour supplied to reviewers |
@@ -62,7 +71,7 @@ Everything else is table stakes. Rehearse these three:
 - **ADR-003** Adapter/plugin federation over per-vendor forks — *rejected:* one monolith per VMS vendor.
 - **ADR-004** Python everywhere for services, TypeScript for UI, off-the-shelf Go binaries (MediaMTX, NATS) we never fork — *rejected:* polyglot Go/Java services (solo dev, no second language budget).
 - **ADR-005** PTS-derived time as the single source of truth, never arrival time — mandated by the organisers' integrator guide and scored.
-- **ADR-006** PostgreSQL + PostGIS + TimescaleDB as one primary store; OpenSearch deferred to the scale plan — *rejected:* Elasticsearch on day one (solo ops cost, no accuracy benefit at 50 cameras).
+- **ADR-006** PostgreSQL + PostGIS + TimescaleDB as one primary store; OpenSearch deferred to the scale plan — *rejected:* Elasticsearch on day one (solo ops cost, no accuracy benefit at demo scale).
 - **ADR-007** Mobile as an installable PWA, not React Native — *rejected:* RN (build/signing overhead for a solo entrant; PWA is demo-safe and offline-capable).
 
 ---
@@ -153,7 +162,7 @@ Chosen for: open-source mandate · Apple Silicon demo · one-person maintainabil
 | Services | **Python 3.13 + FastAPI + asyncio/uvloop**, Pydantic v2 | MIT/BSD | Single language for a solo dev; the CV ecosystem is Python. Throughput risk is mitigated by process-per-camera-group workers and an off-the-shelf broker. |
 | Event bus | **NATS JetStream** (Kafka-compatible abstraction retained) | Apache-2.0 | Single 20 MB binary, runs on the M4, real persistence/replay. Kafka is the documented production swap; we keep a thin `EventBus` port so it is a config change. |
 | Primary DB | **PostgreSQL 17 + PostGIS + TimescaleDB** | PostgreSQL/Apache-2.0 | Registry geometry, time-series detections, and fuzzy plate search (`pg_trgm`) in one engine. |
-| Search | **Postgres FTS + pg_trgm** now; **OpenSearch** in the scale plan | — | At 50 cameras, Postgres wins on ops cost with identical UX. Honest, and documented. |
+| Search | **Postgres FTS + pg_trgm** now; **OpenSearch** in the scale plan | — | At demo scale, Postgres wins on ops cost with identical UX. Honest, and documented. |
 | Object store | **MinIO** (local) → S3 (prod) | AGPL-3.0 / — | S3 API parity means zero code change between demo and production. |
 | Cache/live state | **Valkey** (Redis fork) | BSD | Live camera state, alert dedupe windows, rate limits. |
 | Frontend | **React 19 + TypeScript + Vite + Tailwind v4 + shadcn/ui (Radix) + Motion** | MIT | Accessible primitives + full styling control = the only realistic path to Apple-level polish for a backend-heavy solo dev. |

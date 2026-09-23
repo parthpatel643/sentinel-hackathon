@@ -147,8 +147,8 @@ the presets.
 
 ## 4. Verification summary
 
-- Full backend suite: **353 tests passing** (up from 298 at the end of
-  M12), `mypy` and `ruff` clean across `packages`, `services`, `tests`.
+- Full backend suite at the time of this milestone: **353 tests passing**
+  (up from 298 at the end of M12; 359 after the M14/M15 work), `mypy` and `ruff` clean across `packages`, `services`, `tests`.
 - Frontend: `npm run build` (the authoritative `tsc -b` + Vite build)
   clean.
 - All three features additionally verified against the *live* dev stack

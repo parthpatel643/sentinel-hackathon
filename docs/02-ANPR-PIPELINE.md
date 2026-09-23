@@ -3,6 +3,15 @@
 
 > All latency figures marked **(measured)** were benchmarked on a **base M2 (4P+4E, 16 GB)** with `onnxruntime 1.30.0`. The demo machine is an **M4**, which should land roughly 1.5–2× higher — but that multiplier is an *inference, not a measurement*. **Re-run the benchmark scripts on the M4 and quote only measured numbers to the jury.**
 
+> **Planning-figure correction (M15).** Figures of "~50 cameras" and references to a
+> `GET /api/ingest` catalogue endpoint in this document date from planning, before the
+> grid was accessible. The real grid assigned to us has **30 cameras**, and our host
+> serves its catalogue at **`GET /cameras.json`** behind a session-cookie login — the
+> integrator guide's `/api/ingest` path 404s there, because that guide is a shared
+> template with `<host>` placeholders. The planning text is left as written rather than
+> quietly rewritten, so the record of what was assumed stays visible; where this
+> document states a present-tense fact, trust the README and `evidence/`.
+
 > **Implementation status (M2, this session):** the pipeline described below is built, tested and verified against real models — not just researched. See [`services/edge_agent/src/edge_agent/analytics/`](../services/edge_agent/src/edge_agent/analytics) (`vehicle_detector.py`, `tracker.py`, `plate_reader.py`, `voting.py`, `pipeline.py`), 35 unit tests covering pre/post-processing and voting with constructed data (no model weights needed for CI), plus three real-model verifications: a static-image smoke test (`scripts/smoke_test_anpr.py`), a 500-frame live-capture integration run against the synthetic grid with zero crashes, and a measured full-chain throughput of **~14.7 fps (67.9 ms/frame)** on this base M2 (one vehicle/frame; CoreML EP for both detectors, CPU EP for OCR, per the execution-provider policy in section 3). The one thing **not yet done**: a real accuracy number on Indian plates — `scripts/eval_anpr.py` is built and works, but needs a hand-labelled holdout from real footage to mean anything (section 7). Tracking is a SORT-style Kalman+IoU tracker (a documented simplification of full ByteTrack — see section 2.1); a keypoint-based rectification stage (section 2, step 4) was deferred as a "Should" enhancement since fast-alpr's built-in crop handling already reads cleanly on frontal test imagery.
 
 ---
@@ -174,7 +183,7 @@ M4      : ~350–440 inf/s ÷ 3 ≈ 120–145 frames/s   →  ~20–30 streams a
                                           Total  =  90 frames/s   ✓ within the ~120–145 M4 budget
 ```
 
-All ~50 cameras are onboarded, monitored, viewable and health-tracked; analytics intensity is allocated by operational value. That is not a compromise to apologise for — **it is the same tiering logic that makes the 80,000-camera plan work**, demonstrated honestly at demo scale. Say so explicitly: *"This is not a limitation of the demo machine, it is the architecture."*
+All 30 cameras are onboarded, monitored, viewable and health-tracked; analytics intensity is allocated by operational value. That is not a compromise to apologise for — **it is the same tiering logic that makes the 80,000-camera plan work**, demonstrated honestly at demo scale. Say so explicitly: *"This is not a limitation of the demo machine, it is the architecture."*
 
 **Decode is not the bottleneck** — the inference ceiling binds first. Budget one VideoToolbox session per camera at the sub-sampled analytic rate (5 fps), not at the full 25 fps. Note that go2rtc's own testing found M1 **CPU** transcoding beat M1 GPU; measure before assuming hardware paths always win.
 

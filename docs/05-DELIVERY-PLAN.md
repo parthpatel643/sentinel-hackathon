@@ -3,6 +3,15 @@
 
 > Assumption: ~6 hours/day, ~40 hours/week, single developer, deadline extended. Sequence is ordered by **risk retirement first**, then by scored value. Every milestone ends in something demo-able — if you stopped at any milestone, you would still have a coherent story.
 
+> **Planning-figure correction (M15).** Figures of "~50 cameras" and references to a
+> `GET /api/ingest` catalogue endpoint in this document date from planning, before the
+> grid was accessible. The real grid assigned to us has **30 cameras**, and our host
+> serves its catalogue at **`GET /cameras.json`** behind a session-cookie login — the
+> integrator guide's `/api/ingest` path 404s there, because that guide is a shared
+> template with `<host>` placeholders. The planning text is left as written rather than
+> quietly rewritten, so the record of what was assumed stays visible; where this
+> document states a present-tense fact, trust the README and `evidence/`.
+
 ---
 
 ## 1. Sequencing principle
