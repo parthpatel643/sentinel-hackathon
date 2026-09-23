@@ -7,6 +7,7 @@ import { Button } from './ui/Button'
 import { Modal } from './ui/Modal'
 import { SeverityBadge, statusToSeverity } from './ui/SeverityBadge'
 import { useAuth } from '../lib/AuthContext'
+import { hasCurrentFrameRate } from '../lib/cameraStatusColor'
 import { VideoOff } from 'lucide-react'
 import '../routes/monitoring-workspace.css'
 
@@ -27,9 +28,9 @@ interface CameraDetailModalProps {
 }
 
 function fpsLabel(camera: Camera): string {
-  if (camera.measured_fps == null) return '—'
+  if (!hasCurrentFrameRate(camera)) return '—'
   const declared = camera.declared_fps != null ? `/${camera.declared_fps.toFixed(0)}` : ''
-  return `${camera.measured_fps.toFixed(1)}${declared} fps`
+  return `${camera.measured_fps!.toFixed(1)}${declared} fps`
 }
 
 /** M13 secondary analytics: zone rules for this camera. A preset-region

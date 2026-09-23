@@ -40,6 +40,7 @@ from sentinel_core.relay import (
     relay_path_for,
 )
 from sentinel_core.schemas import CameraDescriptor
+from sentinel_core.schemas.camera import CameraStatus
 
 __all__ = [
     "UpsertSummary",
@@ -402,6 +403,23 @@ async def resolve_camera_stream(
     rtsp_profile = next((p for p in camera.profiles if p.protocol == "rtsp"), None)
     if rtsp_profile is None:
         return CameraStreamOut(available=False, reason="This camera has no RTSP profile on file.")
+
+    # A path existing in the relay is not the same as a path carrying video.
+    # `ensure_relay_path` only guarantees the former, so when the upstream
+    # gateway was unreachable we happily handed the browser an HLS URL that
+    # 404s, and the tile sat on "Connecting…" forever with no way for the
+    # operator to tell a slow feed from a dead one. `down` is the health the
+    # worker records when it cannot open the stream at all, so say so plainly.
+    # Note this deliberately does not fire for `unknown`: cameras nobody is
+    # analysing yet are served on demand and do connect on first view.
+    if camera.status == CameraStatus.DOWN.value:
+        return CameraStreamOut(
+            available=False,
+            reason=(
+                "This camera isn't sending video at the moment — the last "
+                "connection attempt failed."
+            ),
+        )
 
     if is_relay_hosted(rtsp_profile.url, settings):
         path = urlsplit(rtsp_profile.url).path.lstrip("/")

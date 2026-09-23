@@ -43,6 +43,20 @@ export function cameraLabel(camera: {
   return camera.display_name || camera.name || camera.camera_id
 }
 
+/**
+ * Whether `measured_fps` still describes what the camera is doing *now*.
+ *
+ * `measured_fps` is a last-known reading, not a live gauge: when a feed drops
+ * the worker stops updating it rather than zeroing it, so the last healthy
+ * rate stays on the record. Rendering that unconditionally produced tiles
+ * reading "Down · 19 fps" during a gateway outage — a dead camera claiming a
+ * healthy frame rate, which is exactly the kind of thing an operator should
+ * never have to second-guess. A stale number is worse than no number.
+ */
+export function hasCurrentFrameRate(camera: { status: string; measured_fps?: number | null }): boolean {
+  return camera.measured_fps != null && camera.status !== 'down'
+}
+
 /** `display_name`, with the locality appended when the name carries one. */
 export function cameraLabelWithLocality(camera: {
   camera_id: string

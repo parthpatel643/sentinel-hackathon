@@ -57,10 +57,15 @@ from sentinel_core.relay import (
     is_relay_hosted,
     relay_path_for,
     relay_rtsp_url,
+    release_relay_path,
 )
 from sentinel_core.schemas import AnprPayload, CameraDescriptor, Event, StreamProtocol
 
 logger = logging.getLogger("edge_agent.worker")
+
+# Relay paths this process pinned open (`sourceOnDemand: false`) and is
+# therefore responsible for handing back when it exits.
+_WARMED_RELAY_PATHS: set[str] = set()
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SYNTHETIC_CATALOGUE = REPO_ROOT / "var" / "synthetic-grid" / "catalogue.json"
@@ -136,7 +141,28 @@ async def _resolve_capture_url(
         )
         return url
     logger.info("%s: consuming via local relay path %s", descriptor.camera_id, path_name)
+    _WARMED_RELAY_PATHS.add(path_name)
     return relay_rtsp_url(path_name, settings)
+
+
+async def _release_warmed_paths(settings: Settings) -> None:
+    """Hand back every relay path this worker pinned open.
+
+    Without this, stopping the worker leaves MediaMTX dialling each camera
+    forever with nothing reading it. That is invisible locally — no CPU, no
+    log — but upstream it holds a live session against the gateway's viewing
+    quota, and it accumulates: a survey that walks thirty cameras in batches
+    leaves thirty pinned paths behind, which is enough to exhaust the quota
+    and take the *next* run down before it starts.
+    """
+    if not _WARMED_RELAY_PATHS:
+        return
+    paths = sorted(_WARMED_RELAY_PATHS)
+    logger.info("releasing %d relay path(s) back to on-demand: %s", len(paths), ", ".join(paths))
+    async with httpx.AsyncClient(timeout=10.0) as relay_client:
+        for path_name in paths:
+            await release_relay_path(path_name=path_name, settings=settings, client=relay_client)
+    _WARMED_RELAY_PATHS.clear()
 
 
 async def _register_camera(client: httpx.AsyncClient, descriptor: CameraDescriptor) -> None:
@@ -471,14 +497,17 @@ async def main() -> None:
             "local relay" if via_relay else "direct to camera",
             api_base_url,
         )
-        await asyncio.gather(
-            *(
-                _run_camera(
-                    client, descriptor, vehicle_detector, plate_reader, via_relay=via_relay
+        try:
+            await asyncio.gather(
+                *(
+                    _run_camera(
+                        client, descriptor, vehicle_detector, plate_reader, via_relay=via_relay
+                    )
+                    for descriptor in descriptors
                 )
-                for descriptor in descriptors
             )
-        )
+        finally:
+            await _release_warmed_paths(settings)
 
 
 if __name__ == "__main__":

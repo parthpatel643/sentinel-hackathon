@@ -13,14 +13,14 @@ import { Input } from '../components/ui/Input'
 import { RequestError } from '../components/ui/RequestError'
 import { CameraDetailModal } from '../components/CameraDetailModal'
 import { OnboardingWizard } from '../components/OnboardingWizard'
-import { cameraLabel, cameraLabelWithLocality, cameraStatusColor } from '../lib/cameraStatusColor'
+import { cameraLabel, cameraLabelWithLocality, cameraStatusColor, hasCurrentFrameRate } from '../lib/cameraStatusColor'
 import type { Camera } from '../lib/types'
 import './monitoring-workspace.css'
 
 function fpsLabel(camera: Camera): string {
-  if (camera.measured_fps == null) return '—'
+  if (!hasCurrentFrameRate(camera)) return '—'
   const declared = camera.declared_fps != null ? `/${camera.declared_fps.toFixed(0)}` : ''
-  return `${camera.measured_fps.toFixed(1)}${declared} fps`
+  return `${camera.measured_fps!.toFixed(1)}${declared} fps`
 }
 
 export function Cameras() {

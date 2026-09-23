@@ -4,8 +4,11 @@ once a test ends."""
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 
+import pytest_asyncio
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core_api.admin.service import (
@@ -14,12 +17,28 @@ from core_api.admin.service import (
     list_audit_log,
     preview_retention,
 )
+from core_api.db.models import Detection
 from core_api.detections.schemas import DetectionIn
 from core_api.detections.service import ingest_detection
 from core_api.registry.schemas import GeoPointOut
 from core_api.registry.service import upsert_camera
 
 NOW = datetime.now(UTC).replace(microsecond=0)
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _empty_detections(db_session: AsyncSession) -> AsyncIterator[None]:
+    """Retention is a whole-table operation: the preview counts every
+    detection older than the cutoff, and execute deletes them. These tests
+    therefore assert on absolute counts, which only holds if they own the
+    table.
+
+    Against a dev database that has been running the live pipeline, it holds
+    not at all — a few hundred real detections make "nothing to delete" delete
+    plenty. Rolled back by `db_session`, so a real capture survives.
+    """
+    await db_session.execute(delete(Detection))
+    yield
 
 
 async def _make_camera(session: AsyncSession, camera_id: str = "retention-cam-01") -> None:

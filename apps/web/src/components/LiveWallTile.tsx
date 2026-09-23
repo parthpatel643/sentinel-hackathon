@@ -6,6 +6,7 @@ import { useInView } from '../lib/useInView'
 import type { Camera, CameraStream, Detection } from '../lib/types'
 import { HlsVideoPlayer, type PlaybackState } from './HlsVideoPlayer'
 import { SeverityBadge, statusToSeverity } from './ui/SeverityBadge'
+import { hasCurrentFrameRate } from '../lib/cameraStatusColor'
 
 const STATUS_DOT: Record<string, string> = {
   live: 'bg-ok',
@@ -16,7 +17,8 @@ const STATUS_DOT: Record<string, string> = {
 }
 
 function fpsLabel(camera: Camera): string {
-  return camera.measured_fps != null ? `${camera.measured_fps.toFixed(0)} fps` : '—'
+  if (!hasCurrentFrameRate(camera)) return '—'
+  return `${camera.measured_fps!.toFixed(0)} fps`
 }
 
 const PLAYBACK_LABEL_KEY: Record<PlaybackState, string> = {

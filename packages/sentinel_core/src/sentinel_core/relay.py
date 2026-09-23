@@ -41,6 +41,7 @@ __all__ = [
     "relay_hls_url",
     "relay_path_for",
     "relay_rtsp_url",
+    "release_relay_path",
 ]
 
 logger = logging.getLogger(__name__)
@@ -118,6 +119,17 @@ async def ensure_relay_path(
     try:
         existing = await client.get(f"{base}/v3/config/paths/get/{path_name}")
         if existing.status_code == 200:
+            # The path exists, but not necessarily in the mode this caller
+            # needs. Returning early here used to make `sourceOnDemand` sticky
+            # to whoever created the path first: a path left always-on by a
+            # previous run stayed always-on for good, which is how a survey of
+            # all thirty cameras left two dozen of them permanently dialling
+            # the gateway with no reader attached. Reconcile it instead.
+            if existing.json().get("sourceOnDemand") is not on_demand:
+                await client.patch(
+                    f"{base}/v3/config/paths/patch/{path_name}",
+                    json={"sourceOnDemand": on_demand},
+                )
             return True
         response = await client.post(
             f"{base}/v3/config/paths/add/{path_name}",
@@ -140,4 +152,46 @@ async def ensure_relay_path(
         return False
     except httpx.HTTPError as exc:
         logger.warning("could not reach the local relay to add path %r: %s", path_name, exc)
+        return False
+
+
+async def release_relay_path(
+    *,
+    path_name: str,
+    settings: Settings,
+    client: httpx.AsyncClient,
+) -> bool:
+    """Stop holding `path_name` open, without removing it.
+
+    The counterpart to `ensure_relay_path(on_demand=False)`. A path registered
+    for continuous analysis keeps MediaMTX dialling the camera whether or not
+    anything is reading it — which is correct while a worker is attached, and
+    a slow leak of the gateway's viewing quota the moment that worker stops.
+    Nothing in MediaMTX notices the reader left, so the connection simply
+    stays up until someone tears it down by hand.
+
+    Flipping the path back to on-demand rather than deleting it is deliberate:
+    the path stays available for browser previews (which dial on first view),
+    and only the *upstream* connection is dropped, once the last reader goes.
+
+    Never raises — releasing is best-effort cleanup on a shutdown path, and a
+    relay that has already gone away has, in effect, released it anyway.
+    """
+    base = settings.relay_api_url.rstrip("/")
+    try:
+        response = await client.patch(
+            f"{base}/v3/config/paths/patch/{path_name}",
+            json={"sourceOnDemand": True},
+        )
+        if response.status_code == 200:
+            return True
+        logger.warning(
+            "MediaMTX refused to release relay path %r: %s %s",
+            path_name,
+            response.status_code,
+            response.text,
+        )
+        return False
+    except httpx.HTTPError as exc:
+        logger.warning("could not reach the local relay to release path %r: %s", path_name, exc)
         return False

@@ -352,13 +352,47 @@ async def test_update_camera_health_without_tamper_status_leaves_it_unchanged(
     assert updated.tamper_status == "blurred"
 
 
-def _camera_with_rtsp(camera_id: str, rtsp_url: str) -> Camera:
+def _camera_with_rtsp(camera_id: str, rtsp_url: str, status: str = "live") -> Camera:
     """A plain, unpersisted ORM instance — resolve_camera_stream only ever
-    reads `camera.camera_id`/`camera.profiles`, so no DB round-trip is
-    needed to exercise it."""
-    camera = Camera(camera_id=camera_id, name=camera_id, driver_id="rtsp")
+    reads `camera.camera_id`/`camera.profiles`/`camera.status`, so no DB
+    round-trip is needed to exercise it."""
+    camera = Camera(camera_id=camera_id, name=camera_id, driver_id="rtsp", status=status)
     camera.profiles = [StreamProfile(camera_id=camera_id, protocol="rtsp", url=rtsp_url)]
     return camera
+
+
+async def test_resolve_camera_stream_refuses_a_camera_that_is_down() -> None:
+    """A relay path can exist while carrying no video — that is exactly what
+    happens when the upstream gateway drops. Handing the browser an HLS URL
+    then leaves the tile on "Connecting…" forever, so a camera the worker has
+    marked `down` must be reported unavailable, with a reason, instead."""
+    settings = Settings(relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888")
+    camera = _camera_with_rtsp("cam06", "rtsp://gateway.example/cam06", status="down")
+
+    async def _unexpected_call(request: httpx.Request) -> httpx.Response:
+        raise AssertionError(f"should not touch the relay for a down camera: {request.url}")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(_unexpected_call))
+    result = await resolve_camera_stream(camera, settings, client=client)
+    await client.aclose()
+
+    assert result.available is False
+    assert result.hls_url is None
+    assert result.reason is not None and "isn't sending video" in result.reason
+
+
+async def test_resolve_camera_stream_still_serves_an_unknown_camera() -> None:
+    """`unknown` is "nobody has looked yet", not "broken". Those paths are
+    served on demand and connect on first view, so they must not be caught by
+    the `down` guard above."""
+    settings = Settings(relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888")
+    camera = _camera_with_rtsp("cam18", "rtsp://localhost:8554/dev/cam18", status="unknown")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(200)))
+    result = await resolve_camera_stream(camera, settings, client=client)
+    await client.aclose()
+
+    assert result.available is True
 
 
 async def test_resolve_camera_stream_resolves_our_own_relay_directly() -> None:
@@ -409,8 +443,9 @@ async def test_resolve_camera_stream_reuses_an_already_registered_relay_path() -
     camera = _camera_with_rtsp("cam02", "rtsp://user:pass@103.250.160.189:8554/stream/cam02")
 
     def _handler(request: httpx.Request) -> httpx.Response:
-        assert request.method == "GET", "an existing path must never be re-added"
-        return httpx.Response(200, json={"name": "ext/cam02"})
+        assert request.method != "POST", "an existing path must never be re-added"
+        assert request.method == "GET"
+        return httpx.Response(200, json={"name": "ext/cam02", "sourceOnDemand": True})
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(_handler))
     result = await resolve_camera_stream(camera, settings, client=client)

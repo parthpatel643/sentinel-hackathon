@@ -8,6 +8,8 @@ needless republish of a stream we already host.
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 
@@ -18,6 +20,7 @@ from sentinel_core.relay import (
     relay_hls_url,
     relay_path_for,
     relay_rtsp_url,
+    release_relay_path,
 )
 
 EXTERNAL = "rtsp://user:pass@103.250.160.189:8554/stream/cam01"
@@ -63,8 +66,11 @@ def test_urls_are_built_against_the_configured_relay(settings: Settings) -> None
 
 async def test_an_existing_path_is_reused_rather_than_re_added(settings: Settings) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.method == "GET", "an existing path must never be re-added"
-        return httpx.Response(200, json={"name": "ext/cam01"})
+        assert request.method != "POST", "an existing path must never be re-added"
+        assert request.method == "GET"
+        # MediaMTX always reports the mode, and it already matches what this
+        # caller wants, so there is nothing to reconcile either.
+        return httpx.Response(200, json={"name": "ext/cam01", "sourceOnDemand": True})
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         assert await ensure_relay_path(
@@ -154,4 +160,76 @@ async def test_an_unexpected_relay_error_reports_failure(settings: Settings) -> 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         assert not await ensure_relay_path(
             rtsp_url=EXTERNAL, path_name="ext/cam01", settings=settings, client=client
+        )
+
+
+async def test_an_existing_path_is_reconciled_to_the_mode_the_caller_asked_for(
+    settings: Settings,
+) -> None:
+    """Whoever created the path first used to decide its mode forever. That
+    made `sourceOnDemand` sticky, so a path left pinned open by an earlier run
+    stayed pinned — the leak that quietly drains the gateway's quota."""
+    patched: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(200, json={"name": "ext/cam01", "sourceOnDemand": True})
+        if request.method == "PATCH":
+            patched.update(json.loads(request.content))
+            return httpx.Response(200)
+        raise AssertionError(f"unexpected {request.method} {request.url}")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        assert await ensure_relay_path(
+            rtsp_url=EXTERNAL,
+            path_name="ext/cam01",
+            settings=settings,
+            client=client,
+            on_demand=False,
+        )
+
+    assert patched == {"sourceOnDemand": False}
+
+
+async def test_a_path_already_in_the_right_mode_is_left_alone(settings: Settings) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(200, json={"name": "ext/cam01", "sourceOnDemand": True})
+        raise AssertionError(f"should not have written: {request.method} {request.url}")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        assert await ensure_relay_path(
+            rtsp_url=EXTERNAL, path_name="ext/cam01", settings=settings, client=client
+        )
+
+
+async def test_releasing_a_path_puts_it_back_on_demand(settings: Settings) -> None:
+    """The upstream connection is what costs quota, and MediaMTX only drops it
+    once the path is on-demand and the last reader has gone."""
+    patched: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "PATCH"
+        assert "ext/cam01" in str(request.url)
+        patched.update(json.loads(request.content))
+        return httpx.Response(200)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        assert await release_relay_path(
+            path_name="ext/cam01", settings=settings, client=client
+        )
+
+    assert patched == {"sourceOnDemand": True}
+
+
+async def test_releasing_never_raises_when_the_relay_has_gone(settings: Settings) -> None:
+    """Release runs on a shutdown path; a relay that is already gone has, in
+    effect, released the path anyway."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused", request=request)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        assert not await release_relay_path(
+            path_name="ext/cam01", settings=settings, client=client
         )

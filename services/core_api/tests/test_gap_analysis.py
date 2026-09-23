@@ -3,11 +3,34 @@ not a mocked geometry calculation."""
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+
+import pytest_asyncio
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core_api.db.models import Camera, Detection
 from core_api.registry.gap_analysis import compute_coverage_gaps
 from core_api.registry.schemas import GeoPointOut
 from core_api.registry.service import upsert_camera
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _empty_camera_registry(db_session: AsyncSession) -> AsyncIterator[None]:
+    """Coverage is a property of the whole fleet, so these tests reason about
+    the entire `cameras` table — "no cameras", "one camera" — and therefore
+    need to own it.
+
+    They did, right up until the registry was pointed at a real catalogue and
+    the dev database gained thirty live cameras; "no cameras yields an empty
+    report" then failed on a grid of 1.5 million cells. Whether a test passes
+    should not depend on what a developer happens to have onboarded, so give
+    it the empty fleet it is describing. `db_session` rolls this back, so no
+    real registry is harmed.
+    """
+    await db_session.execute(delete(Detection))
+    await db_session.execute(delete(Camera))
+    yield
 
 
 async def test_no_cameras_yields_an_empty_report(db_session: AsyncSession) -> None:
