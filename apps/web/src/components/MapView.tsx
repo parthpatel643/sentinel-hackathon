@@ -8,6 +8,7 @@ import {
   type StyleSpecification,
 } from 'maplibre-gl'
 import { useEffect, useRef } from 'react'
+import i18n from '../lib/i18n'
 
 export interface MapMarker {
   id: string
@@ -131,6 +132,12 @@ export function MapView({
       center,
       zoom,
       attributionControl: false,
+      locale: {
+        'NavigationControl.ZoomIn': i18n.t('map.zoomIn'),
+        'NavigationControl.ZoomOut': i18n.t('map.zoomOut'),
+        'AttributionControl.ToggleAttribution': i18n.t('map.toggleAttribution'),
+        'Map.Title': i18n.t('map.title'),
+      },
     })
     // OSM's tile usage policy requires visible attribution — added
     // explicitly (compact) rather than via the `attributionControl` map
@@ -138,6 +145,22 @@ export function MapView({
     // of MapLibre's default light attribution chip.
     map.addControl(new AttributionControl({ compact: true }), 'bottom-left')
     map.addControl(new NavigationControl({ showCompass: false }), 'bottom-right')
+    // MapLibre has no public locale setter; relabel controls without losing
+    // the current map position or interrupting route replay.
+    function updateControlLabels() {
+      const labels = [
+        ['.maplibregl-ctrl-zoom-in', 'map.zoomIn'],
+        ['.maplibregl-ctrl-zoom-out', 'map.zoomOut'],
+        ['.maplibregl-ctrl-attrib-button', 'map.toggleAttribution'],
+        ['.maplibregl-canvas', 'map.title'],
+      ]
+      for (const [selector, key] of labels) {
+        const element = map.getContainer().querySelector(selector)
+        element?.setAttribute('aria-label', i18n.t(key))
+        element?.setAttribute('title', i18n.t(key))
+      }
+    }
+    i18n.on('languageChanged', updateControlLabels)
     map.on('click', (event) => onMapClickRef.current?.(event.lngLat.lat, event.lngLat.lng))
     mapRef.current = map
 
@@ -150,6 +173,7 @@ export function MapView({
     observer.observe(containerRef.current)
 
     return () => {
+      i18n.off('languageChanged', updateControlLabels)
       observer.disconnect()
       map.remove()
       mapRef.current = null
@@ -166,7 +190,8 @@ export function MapView({
       seen.add(marker.id)
       let existing = markerRefs.current.get(marker.id)
       if (!existing) {
-        const el = document.createElement('div')
+        const el = document.createElement(marker.onClick ? 'button' : 'div')
+        if (el instanceof HTMLButtonElement) el.type = 'button'
         el.className = 'map-marker'
         existing = new Marker({ element: el }).setLngLat([marker.lon, marker.lat]).addTo(map)
         markerRefs.current.set(marker.id, existing)
@@ -180,6 +205,7 @@ export function MapView({
       el.style.boxShadow = marker.pulse ? `0 0 0 6px ${marker.color}33` : '0 1px 3px rgba(0,0,0,0.5)'
       el.style.cursor = marker.onClick ? 'pointer' : 'default'
       el.title = marker.label ?? marker.id
+      el.setAttribute('aria-label', marker.label ?? marker.id)
       el.onclick = marker.onClick ?? null
       el.textContent = marker.number != null ? String(marker.number) : ''
       el.style.display = 'flex'

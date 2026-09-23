@@ -34,6 +34,13 @@ export default defineConfig({
         // IndexedDB outbox, not a service-worker cache lie).
         navigateFallback: '/field',
         globPatterns: ['**/*.{js,css,html,svg,png}'],
+        // The single app bundle now carries three languages' worth of
+        // strings (i18next resources) plus maplibre/hls.js/radix — past
+        // workbox's 2 MiB default precache ceiling. Raised, not split,
+        // because the Field PWA's whole point is a working offline app
+        // shell: a chunk left out of the precache list is a chunk the
+        // officer's phone won't have when it matters.
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
       devOptions: {
         // Lets the Field PWA be tested (install prompt, offline shell)

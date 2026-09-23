@@ -5,6 +5,18 @@
 
 ---
 
+## Implemented workspace
+
+The current UI uses a **balanced operations workspace**: monitoring and vehicle investigation have equal prominence. Desktop navigation is a readable 236px sidebar, with a persistent plate-search and preferences toolbar. Below 768px, navigation becomes a keyboard-accessible drawer and the toolbar wraps into two rows. The overview combines the camera map, network status, attention queue and investigation entry point.
+
+Vehicle investigation has a labelled registration-plate form, a short workflow guide, and a responsive map/timeline results view. Camera inventory supports name/ID and status filters in both table and map views. Administration uses section navigation that wraps on phones. The field experience retains its separate mobile navigation and offline reporting workflow.
+
+Light and dark themes, and English, Hindi and Gujarati, are device-persistent preferences. API refresh failures show a retry action and warn that retained data may be stale; missing data is not presented as a healthy zero. The toolbar searches **registration plates**, not arbitrary camera names or places; camera filtering and the command palette are separate controls.
+
+The sections below also describe longer-term product aspirations. Features such as reversible destructive actions, alert sounds, saved wall layouts and cases are not implied to be implemented by this redesign.
+
+Validation: from `apps/web`, run `npm run test:ui` for mocked-browser acceptance tests (first install Chromium with `npx playwright install chromium`). The runner starts an isolated Vite server on port 5188. Run `npm run build` and `npm run lint` for production and static checks.
+
 ## 1. Design philosophy
 
 Apple's three HIG pillars — **Clarity, Deference, Depth** — translated into a command-and-control context:
@@ -12,8 +24,8 @@ Apple's three HIG pillars — **Clarity, Deference, Depth** — translated into 
 | Pillar | In a control room | Concretely |
 |---|---|---|
 | **Clarity** | One glance, one truth | Plates in mono type at 28 px. Severity never encoded in colour alone. No screen shows two competing "most important things". |
-| **Deference** | The interface disappears behind the video and the map | Chrome is near-black and matte; the only saturated colour on screen belongs to live alerts. No decorative gradients, no logo watermarks over video. |
-| **Depth** | Layers communicate hierarchy, not decoration | Map is the ground plane; panels float above it with real material blur; modals are rare and always dismissible. Depth tells you what is temporary. |
+| **Deference** | The interface supports the video and the map | Slate surfaces and restrained teal actions; semantic colours belong to status. No decorative gradients or logo watermarks over video. |
+| **Depth** | Layers communicate hierarchy, not decoration | Bordered working surfaces; shadows reserved for dialogs. Dialogs are dismissible and scroll within the viewport. |
 
 Four additional principles specific to this product:
 
@@ -26,37 +38,23 @@ Four additional principles specific to this product:
 
 ## 2. Design tokens
 
-### 2.1 Colour (OKLCH for perceptually even ramps)
+### 2.1 Colour
 
 Dark is the default (control rooms are dim, video is the content). Light theme is a first-class peer for daytime office/admin use.
 
-```
-/* Surfaces — dark */
---bg-base:      oklch(0.16 0.006 250)   /* app background, near-black blue */
---bg-raised:    oklch(0.20 0.008 250)   /* cards, panels */
---bg-overlay:   oklch(0.24 0.010 250)   /* popovers, menus (with blur) */
---bg-inset:     oklch(0.13 0.006 250)   /* wells, video letterbox */
---border-subtle: oklch(0.28 0.008 250)
---border-strong: oklch(0.38 0.010 250)
+| Token | Dark | Light |
+|---|---|---|
+| Base | `#101a23` | `#eef2f4` |
+| Raised | `#17232e` | `#ffffff` |
+| Overlay | `#233440` | `#e3ebef` |
+| Inset | `#111c26` | `#f6f8fa` |
+| Primary text | `#edf3f7` | `#1b2d38` |
+| Secondary text | `#becdd7` | `#415b6b` |
+| Tertiary text | `#a3b5c3` | `#506a7b` |
+| Accent | `#66d9c1` | `#087665` |
+| On accent | `#092b26` | `#ffffff` |
 
-/* Content */
---text-primary:   oklch(0.97 0.004 250)
---text-secondary: oklch(0.76 0.008 250)
---text-tertiary:  oklch(0.58 0.008 250)
-
-/* Brand accent — a single restrained accent, used for focus + primary action only */
---accent:        oklch(0.68 0.16 245)   /* signal blue */
---accent-hover:  oklch(0.74 0.16 245)
-
-/* Semantic severity — each ALWAYS paired with an icon + text label */
---sev-critical: oklch(0.62 0.21 25)    /* red   · watchlist hit, stolen vehicle */
---sev-high:     oklch(0.75 0.17 65)    /* amber · probable match, tamper */
---sev-medium:   oklch(0.72 0.13 230)   /* blue  · informational match */
---sev-low:      oklch(0.66 0.02 250)   /* grey  · routine */
---ok:           oklch(0.72 0.16 155)   /* green · healthy, resolved */
-```
-
-Rules: contrast ≥ 4.5:1 for body, ≥ 3:1 for large text and UI borders. Severity is conveyed by **icon + label + colour**, never colour alone — this is both accessibility and colour-blind safety. Accent is reserved: if everything is blue, nothing is.
+The complete semantic palette is defined in [index.css](../apps/web/src/index.css). Text and primary-action contrast are covered by browser tests. Severity is conveyed by icon, label and colour, never colour alone. Teal is reserved for actions, selection and focus.
 
 ### 2.2 Typography
 
@@ -75,7 +73,7 @@ Rules: contrast ≥ 4.5:1 for body, ≥ 3:1 for large text and UI borders. Sever
 
 ```
 --space: 4px base · 4 8 12 16 20 24 32 40 48 64
---radius-sm: 8px · --radius-md: 12px · --radius-lg: 16px · --radius-xl: 24px · --radius-full
+--radius-sm: 4px · --radius-md: 6px · --radius-lg: 12px · --radius-xl: 16px · --radius-full
 --shadow-1: 0 1px 2px rgb(0 0 0 / .32)
 --shadow-2: 0 4px 12px rgb(0 0 0 / .36)
 --shadow-3: 0 12px 32px rgb(0 0 0 / .44)
@@ -116,9 +114,11 @@ One React codebase, one design system, three shells. The Field PWA is not a "res
 Home (Situational Awareness)  ·  Live Wall  ·  Find a Vehicle  ·  Alerts  ·  Cameras  ·  Cases  ·  Health
 ```
 
-Seven destinations, flat. No nested menus. A persistent left rail (icon + label, collapsible to icons) plus a global ⌘K command palette for power users. **Every destination is reachable in one click.**
+The implemented destinations are Overview, Live Wall, Find a Vehicle, Alerts, Cameras and Health, with role-gated Admin and a link to the Field PWA. Cases remains planned. A readable sidebar becomes a navigation drawer on phones; the global ⌘K command palette remains available.
 
-### 4.2 Home — map-first situational awareness
+### 4.2 Home — balanced monitoring and investigation
+
+The current overview places the camera map and attention queue side by side on wide screens, stacking them on smaller screens, with an explicit investigation entry point. The map-first wireframe below is the earlier concept, retained as background rather than a specification of the current layout.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐

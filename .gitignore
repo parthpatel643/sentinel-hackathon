@@ -42,6 +42,13 @@ sbom/
 # Node
 node_modules/
 apps/*/dist/
+apps/web/test-results/
+apps/web/playwright-report/
+
+# Locally installed AI coding-agent skills — not part of the product
+.agents/
+.claude/
+skills-lock.json
 
 # OS
 .DS_Store

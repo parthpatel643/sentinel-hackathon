@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Activity, FileText, Shield, Sliders, Users } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { TopBar } from '../components/layout/TopBar'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -17,13 +18,15 @@ import type {
 
 type Section = 'users' | 'watchlist' | 'retention' | 'integrations' | 'audit'
 
-const SECTIONS: { id: Section; label: string; icon: typeof Users }[] = [
-  { id: 'users', label: 'Users & roles', icon: Users },
-  { id: 'watchlist', label: 'Watchlists', icon: Shield },
-  { id: 'retention', label: 'Retention & privacy', icon: Sliders },
-  { id: 'integrations', label: 'Integrations', icon: Activity },
-  { id: 'audit', label: 'Audit log', icon: FileText },
-]
+const SECTION_ICONS: Record<Section, typeof Users> = {
+  users: Users,
+  watchlist: Shield,
+  retention: Sliders,
+  integrations: Activity,
+  audit: FileText,
+}
+
+const SECTIONS: Section[] = ['users', 'watchlist', 'retention', 'integrations', 'audit']
 
 function bytesLabel(bytes: number): string {
   if (bytes === 0) return '0 bytes'
@@ -33,6 +36,7 @@ function bytesLabel(bytes: number): string {
 }
 
 function UsersSection() {
+  const { t } = useTranslation()
   const [users, setUsers] = useState<AuthUser[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -45,10 +49,10 @@ function UsersSection() {
     usersApi
       .list()
       .then(setUsers)
-      .catch((err) => setError(err instanceof ApiError ? String(err.detail) : 'Could not load users.'))
+      .catch((err) => setError(err instanceof ApiError ? String(err.detail) : t('admin.users.loadError')))
   }
 
-  useEffect(load, [])
+  useEffect(load, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function createUser() {
     setCreating(true)
@@ -61,7 +65,7 @@ function UsersSection() {
       setRole('operator')
       load()
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.detail) : 'Could not create this user.')
+      setError(err instanceof ApiError ? String(err.detail) : t('admin.users.createError'))
     } finally {
       setCreating(false)
     }
@@ -80,13 +84,17 @@ function UsersSection() {
   return (
     <div className="flex flex-col gap-4">
       <Card className="p-4">
-        <h3 className="mb-3 text-sm font-semibold text-text-primary">Add a user</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <Input placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-          <Input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <h3 className="mb-3 text-sm font-semibold text-text-primary">{t('admin.users.addUser')}</h3>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Input
+            placeholder={t('admin.users.fullNamePlaceholder')}
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
+          <Input placeholder={t('admin.users.emailPlaceholder')} value={email} onChange={(e) => setEmail(e.target.value)} />
           <Input
             type="password"
-            placeholder="Temporary password"
+            placeholder={t('admin.users.passwordPlaceholder')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -95,8 +103,8 @@ function UsersSection() {
             onChange={(e) => setRole(e.target.value)}
             className="h-10 rounded-md border border-border-subtle bg-bg-inset px-3 text-sm text-text-primary"
           >
-            <option value="operator">Operator — standard console access</option>
-            <option value="admin">Admin — console + this portal</option>
+            <option value="operator">{t('admin.users.roleOperator')}</option>
+            <option value="admin">{t('admin.users.roleAdmin')}</option>
           </select>
         </div>
         <Button
@@ -104,7 +112,7 @@ function UsersSection() {
           disabled={creating || !email || !password || !fullName}
           onClick={createUser}
         >
-          {creating ? 'Adding…' : 'Add user'}
+          {creating ? t('admin.users.adding') : t('admin.users.add')}
         </Button>
         {error && <p className="mt-2 text-xs text-sev-critical">{error}</p>}
       </Card>
@@ -113,11 +121,11 @@ function UsersSection() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border-subtle text-xs uppercase tracking-wide text-text-tertiary">
             <tr>
-              <th className="px-4 py-2.5 font-medium">Name</th>
-              <th className="px-4 py-2.5 font-medium">Email</th>
-              <th className="px-4 py-2.5 font-medium">Role</th>
-              <th className="px-4 py-2.5 font-medium">Sees</th>
-              <th className="px-4 py-2.5 font-medium">Status</th>
+              <th className="px-4 py-2.5 font-medium">{t('admin.users.columns.name')}</th>
+              <th className="px-4 py-2.5 font-medium">{t('admin.users.columns.email')}</th>
+              <th className="px-4 py-2.5 font-medium">{t('admin.users.columns.role')}</th>
+              <th className="px-4 py-2.5 font-medium">{t('admin.users.columns.sees')}</th>
+              <th className="px-4 py-2.5 font-medium">{t('admin.users.columns.status')}</th>
               <th className="px-4 py-2.5 font-medium" />
             </tr>
           </thead>
@@ -128,21 +136,19 @@ function UsersSection() {
                 <td className="px-4 py-2.5 text-text-secondary">{u.email}</td>
                 <td className="px-4 py-2.5 capitalize text-text-secondary">{u.role}</td>
                 <td className="px-4 py-2.5 text-xs text-text-tertiary">
-                  {u.role === 'admin'
-                    ? 'Operator Console + Admin Portal'
-                    : 'Operator Console only (Home, Live Wall, Find a Vehicle, Alerts, Cameras, Health)'}
+                  {u.role === 'admin' ? t('admin.users.seesAdmin') : t('admin.users.seesOperator')}
                 </td>
                 <td className="px-4 py-2.5">
                   <span className={u.active ? 'text-ok' : 'text-text-tertiary'}>
-                    {u.active ? 'Active' : 'Deactivated'}
+                    {u.active ? t('common.active') : t('common.deactivated')}
                   </span>
                 </td>
                 <td className="px-4 py-2.5 text-right">
                   <Button size="sm" variant="ghost" onClick={() => toggleRole(u)}>
-                    Make {u.role === 'admin' ? 'operator' : 'admin'}
+                    {u.role === 'admin' ? t('admin.users.makeOperator') : t('admin.users.makeAdmin')}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => toggleActive(u)}>
-                    {u.active ? 'Deactivate' : 'Reactivate'}
+                    {u.active ? t('admin.users.deactivate') : t('admin.users.reactivate')}
                   </Button>
                 </td>
               </tr>
@@ -155,12 +161,13 @@ function UsersSection() {
 }
 
 function WatchlistSection() {
+  const { t } = useTranslation()
   const [entries, setEntries] = useState<WatchlistEntry[] | null>(null)
 
   function load() {
     watchlistApi.list(false).then(setEntries)
   }
-  useEffect(load, [])
+  useEffect(load, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function toggle(entry: WatchlistEntry) {
     await watchlistApi.update(entry.id, !entry.active)
@@ -172,11 +179,11 @@ function WatchlistSection() {
       <table className="w-full text-left text-sm">
         <thead className="border-b border-border-subtle text-xs uppercase tracking-wide text-text-tertiary">
           <tr>
-            <th className="px-4 py-2.5 font-medium">Plate</th>
-            <th className="px-4 py-2.5 font-medium">Type</th>
-            <th className="px-4 py-2.5 font-medium">Priority</th>
-            <th className="px-4 py-2.5 font-medium">Valid until</th>
-            <th className="px-4 py-2.5 font-medium">Status</th>
+            <th className="px-4 py-2.5 font-medium">{t('admin.watchlist.columns.plate')}</th>
+            <th className="px-4 py-2.5 font-medium">{t('admin.watchlist.columns.type')}</th>
+            <th className="px-4 py-2.5 font-medium">{t('admin.watchlist.columns.priority')}</th>
+            <th className="px-4 py-2.5 font-medium">{t('admin.watchlist.columns.validUntil')}</th>
+            <th className="px-4 py-2.5 font-medium">{t('admin.watchlist.columns.status')}</th>
             <th className="px-4 py-2.5 font-medium" />
           </tr>
         </thead>
@@ -187,14 +194,14 @@ function WatchlistSection() {
               <td className="px-4 py-2.5 text-text-secondary">{e.entry_type}</td>
               <td className="px-4 py-2.5 capitalize text-text-secondary">{e.priority}</td>
               <td className="px-4 py-2.5 text-text-tertiary">
-                {e.valid_until ? new Date(e.valid_until).toLocaleDateString() : 'No expiry'}
+                {e.valid_until ? new Date(e.valid_until).toLocaleDateString() : t('common.noExpiry')}
               </td>
               <td className={e.active ? 'px-4 py-2.5 text-ok' : 'px-4 py-2.5 text-text-tertiary'}>
-                {e.active ? 'Active' : 'Deactivated'}
+                {e.active ? t('common.active') : t('common.deactivated')}
               </td>
               <td className="px-4 py-2.5 text-right">
                 <Button size="sm" variant="ghost" onClick={() => toggle(e)}>
-                  {e.active ? 'Deactivate' : 'Reactivate'}
+                  {e.active ? t('admin.watchlist.deactivate') : t('admin.watchlist.reactivate')}
                 </Button>
               </td>
             </tr>
@@ -202,7 +209,7 @@ function WatchlistSection() {
           {entries?.length === 0 && (
             <tr>
               <td colSpan={6} className="px-4 py-6 text-center text-text-tertiary">
-                No watchlist entries yet.
+                {t('admin.watchlist.noEntries')}
               </td>
             </tr>
           )}
@@ -213,6 +220,7 @@ function WatchlistSection() {
 }
 
 function RetentionSection() {
+  const { t } = useTranslation()
   const [detectionsDays, setDetectionsDays] = useState(30)
   const [clipsDays, setClipsDays] = useState(90)
   const [preview, setPreview] = useState<RetentionPreview | null>(null)
@@ -238,12 +246,16 @@ function RetentionSection() {
       .retentionExecute(detectionsDays, clipsDays)
       .then((r) => {
         setResult(
-          `Deleted ${r.detections_deleted.toLocaleString()} detection(s) and ${r.clips_deleted.toLocaleString()} clip(s) (${bytesLabel(r.clips_bytes_deleted)}).`,
+          t('admin.retention.deletedSummary', {
+            detections: r.detections_deleted.toLocaleString(),
+            clips: r.clips_deleted.toLocaleString(),
+            size: bytesLabel(r.clips_bytes_deleted),
+          }),
         )
         setConfirming(false)
         loadPreview()
       })
-      .catch((e) => setError(e instanceof ApiError ? e.message : 'Deletion failed.'))
+      .catch((e) => setError(e instanceof ApiError ? e.message : t('admin.retention.deletionFailed')))
       .finally(() => setExecuting(false))
   }
 
@@ -251,8 +263,8 @@ function RetentionSection() {
     <Card className="flex flex-col gap-5 p-5">
       <div>
         <div className="mb-1 flex items-center justify-between text-sm">
-          <span className="font-medium text-text-primary">Detection reads</span>
-          <span className="plate-mono text-text-secondary">{detectionsDays} days</span>
+          <span className="font-medium text-text-primary">{t('admin.retention.detectionReads')}</span>
+          <span className="plate-mono text-text-secondary">{t('admin.retention.days', { count: detectionsDays })}</span>
         </div>
         <input
           type="range"
@@ -263,14 +275,14 @@ function RetentionSection() {
           className="w-full"
         />
         <p className="mt-1.5 text-xs text-text-tertiary">
-          Plate reads older than {detectionsDays} days would be deleted.
-          {preview && ` About ${preview.detections_affected.toLocaleString()} detection(s) affected right now.`}
+          {t('admin.retention.detectionsHelp', { count: detectionsDays })}
+          {preview && t('admin.retention.detectionsAffected', { count: preview.detections_affected.toLocaleString() })}
         </p>
       </div>
       <div>
         <div className="mb-1 flex items-center justify-between text-sm">
-          <span className="font-medium text-text-primary">Sealed event clips</span>
-          <span className="plate-mono text-text-secondary">{clipsDays} days</span>
+          <span className="font-medium text-text-primary">{t('admin.retention.sealedClips')}</span>
+          <span className="plate-mono text-text-secondary">{t('admin.retention.days', { count: clipsDays })}</span>
         </div>
         <input
           type="range"
@@ -281,41 +293,40 @@ function RetentionSection() {
           className="w-full"
         />
         <p className="mt-1.5 text-xs text-text-tertiary">
-          Sealed clips older than {clipsDays} days would be deleted.
+          {t('admin.retention.clipsHelp', { count: clipsDays })}
           {preview &&
-            ` About ${preview.clips_affected.toLocaleString()} clip(s) affected right now — ${bytesLabel(preview.clips_bytes_affected)}.`}
+            t('admin.retention.clipsAffected', {
+              count: preview.clips_affected.toLocaleString(),
+              size: bytesLabel(preview.clips_bytes_affected),
+            })}
         </p>
       </div>
       {!confirming ? (
         <Button variant="danger" onClick={() => setConfirming(true)}>
-          Delete now
+          {t('admin.retention.deleteNow')}
         </Button>
       ) : (
         <div className="rounded-md border border-sev-critical/30 bg-sev-critical/5 p-3">
-          <p className="text-sm text-text-primary">
-            This permanently deletes the data described above right now — it cannot be undone.
-          </p>
+          <p className="text-sm text-text-primary">{t('admin.retention.confirmMessage')}</p>
           <div className="mt-3 flex gap-2">
             <Button variant="danger" onClick={executeNow} disabled={executing}>
-              {executing ? 'Deleting…' : 'Yes, delete permanently'}
+              {executing ? t('admin.retention.deleting') : t('admin.retention.confirmDelete')}
             </Button>
             <Button variant="secondary" onClick={() => setConfirming(false)} disabled={executing}>
-              Cancel
+              {t('admin.retention.cancel')}
             </Button>
           </div>
         </div>
       )}
       {result && <p className="text-sm text-ok">{result}</p>}
       {error && <p className="text-sm text-sev-critical">{error}</p>}
-      <p className="rounded-md bg-bg-inset px-3 py-2 text-xs text-text-tertiary">
-        Every deletion is recorded in the tamper-evident audit log (see the Audit log tab) with who ran it and
-        exactly what was removed.
-      </p>
+      <p className="rounded-md bg-bg-inset px-3 py-2 text-xs text-text-tertiary">{t('admin.retention.auditNotice')}</p>
     </Card>
   )
 }
 
 function IntegrationsSection() {
+  const { t } = useTranslation()
   const [statuses, setStatuses] = useState<IntegrationStatus[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -326,18 +337,18 @@ function IntegrationsSection() {
     adminApi
       .integrations()
       .then(setStatuses)
-      .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not reach the integrations check.'))
+      .catch((e) => setError(e instanceof ApiError ? e.message : t('admin.integrations.loadError')))
       .finally(() => setLoading(false))
   }
 
-  useEffect(load, [])
+  useEffect(load, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) {
     return (
       <Card className="p-6 text-center text-sm text-text-tertiary">
         {error}
         <Button variant="secondary" className="mt-3" onClick={load}>
-          Retry
+          {t('admin.integrations.retry')}
         </Button>
       </Card>
     )
@@ -346,11 +357,9 @@ function IntegrationsSection() {
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs text-text-tertiary">
-          Each card runs a real sample lookup against that provider's driver right now.
-        </p>
+        <p className="text-xs text-text-tertiary">{t('admin.integrations.description')}</p>
         <Button variant="secondary" onClick={load} disabled={loading}>
-          {loading ? 'Checking…' : 'Recheck'}
+          {loading ? t('admin.integrations.checking') : t('admin.integrations.recheck')}
         </Button>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -363,7 +372,7 @@ function IntegrationsSection() {
                   s.connected ? 'bg-ok/12 text-ok' : 'bg-sev-critical/12 text-sev-critical'
                 }`}
               >
-                {s.connected ? 'Connected (mock)' : 'Error'}
+                {s.connected ? t('admin.integrations.connected') : t('admin.integrations.error')}
               </span>
             </div>
             <p className="mt-1 text-xs text-text-tertiary">{s.description}</p>
@@ -380,6 +389,7 @@ function IntegrationsSection() {
 }
 
 function AuditSection() {
+  const { t } = useTranslation()
   const [entries, setEntries] = useState<AuditLogEntry[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [verifying, setVerifying] = useState(false)
@@ -390,10 +400,10 @@ function AuditSection() {
     adminApi
       .auditLog()
       .then(setEntries)
-      .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load the audit log.'))
+      .catch((e) => setError(e instanceof ApiError ? e.message : t('admin.audit.loadError')))
   }
 
-  useEffect(load, [])
+  useEffect(load, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function verify() {
     setVerifying(true)
@@ -404,20 +414,20 @@ function AuditSection() {
         setVerifyOk(r.intact)
         setVerifyResult(
           r.intact
-            ? `Chain intact — ${r.rows_checked.toLocaleString()} row(s) verified.`
-            : `Tampering detected at row ${r.first_broken_seq}: ${r.detail}`,
+            ? t('admin.audit.chainIntact', { count: r.rows_checked.toLocaleString() })
+            : t('admin.audit.tamperingDetected', { row: r.first_broken_seq, detail: r.detail }),
         )
       })
       .catch((e) => {
         setVerifyOk(false)
-        setVerifyResult(e instanceof ApiError ? e.message : 'Verification failed.')
+        setVerifyResult(e instanceof ApiError ? e.message : t('admin.audit.verificationFailed'))
       })
       .finally(() => setVerifying(false))
   }
 
   function detailSummary(entry: AuditLogEntry): string {
     const parts = Object.entries(entry.detail).map(([k, v]) => `${k}: ${String(v)}`)
-    return parts.join(', ') || '—'
+    return parts.join(', ') || t('common.unknown')
   }
 
   if (error) {
@@ -426,19 +436,16 @@ function AuditSection() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card className="flex items-center justify-between p-4">
+      <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
         <div>
-          <p className="text-sm font-medium text-text-primary">Tamper-evident audit trail</p>
-          <p className="text-xs text-text-tertiary">
-            Every sensitive action (face reveals, user changes, watchlist edits, retention deletions) is
-            hash-chained — editing any row after the fact breaks every row after it.
-          </p>
+          <p className="text-sm font-medium text-text-primary">{t('admin.audit.title')}</p>
+          <p className="text-xs text-text-tertiary">{t('admin.audit.description')}</p>
           {verifyResult && (
             <p className={`mt-1.5 text-xs ${verifyOk ? 'text-ok' : 'text-sev-critical'}`}>{verifyResult}</p>
           )}
         </div>
         <Button variant="secondary" onClick={verify} disabled={verifying}>
-          {verifying ? 'Verifying…' : 'Verify integrity'}
+          {verifying ? t('admin.audit.verifying') : t('admin.audit.verifyIntegrity')}
         </Button>
       </Card>
 
@@ -446,18 +453,18 @@ function AuditSection() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border-subtle text-xs uppercase tracking-wide text-text-tertiary">
             <tr>
-              <th className="px-4 py-2.5 font-medium">When</th>
-              <th className="px-4 py-2.5 font-medium">Actor</th>
-              <th className="px-4 py-2.5 font-medium">Action</th>
-              <th className="px-4 py-2.5 font-medium">Resource</th>
-              <th className="px-4 py-2.5 font-medium">Detail</th>
+              <th className="px-4 py-2.5 font-medium">{t('admin.audit.columns.when')}</th>
+              <th className="px-4 py-2.5 font-medium">{t('admin.audit.columns.actor')}</th>
+              <th className="px-4 py-2.5 font-medium">{t('admin.audit.columns.action')}</th>
+              <th className="px-4 py-2.5 font-medium">{t('admin.audit.columns.resource')}</th>
+              <th className="px-4 py-2.5 font-medium">{t('admin.audit.columns.detail')}</th>
             </tr>
           </thead>
           <tbody>
             {entries?.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-6 text-center text-text-tertiary">
-                  No audited actions yet.
+                  {t('admin.audit.noEntries')}
                 </td>
               </tr>
             )}
@@ -466,7 +473,7 @@ function AuditSection() {
                 <td className="px-4 py-2.5 plate-mono text-xs text-text-tertiary">
                   {new Date(e.created_at).toLocaleString()}
                 </td>
-                <td className="px-4 py-2.5 text-text-secondary">{e.actor_email ?? '—'}</td>
+                <td className="px-4 py-2.5 text-text-secondary">{e.actor_email ?? t('common.unknown')}</td>
                 <td className="px-4 py-2.5 text-text-primary">{e.action}</td>
                 <td className="px-4 py-2.5 text-xs text-text-tertiary">
                   {e.resource_type}
@@ -484,38 +491,43 @@ function AuditSection() {
 
 export function AdminPortal() {
   const { user } = useAuth()
+  const { t } = useTranslation()
   const [section, setSection] = useState<Section>('users')
 
   if (user && user.role !== 'admin') {
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-center">
-        <p className="text-sm font-medium text-text-primary">Admin access required</p>
-        <p className="text-sm text-text-tertiary">Ask an administrator to grant your account the admin role.</p>
+        <p className="text-sm font-medium text-text-primary">{t('admin.accessRequired')}</p>
+        <p className="text-sm text-text-tertiary">{t('admin.askAdmin')}</p>
       </div>
     )
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <TopBar title="Admin Portal" subtitle="Departments, users, watchlists & policy" />
-      <div className="flex min-h-0 flex-1">
-        <nav className="flex w-52 flex-shrink-0 flex-col gap-1 border-r border-border-subtle p-3">
-          {SECTIONS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setSection(id)}
-              className={
-                section === id
-                  ? 'flex items-center gap-2 rounded-md bg-accent/15 px-3 py-2 text-sm font-medium text-accent'
-                  : 'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-text-secondary hover:bg-bg-overlay'
-              }
-            >
-              <Icon size={15} />
-              {label}
-            </button>
-          ))}
+      <TopBar title={t('nav.admin')} subtitle={t('admin.subtitle')} />
+      <div className="admin-layout page-body">
+        <nav aria-label={t('workspace.adminNavigation')} className="flex flex-wrap content-start gap-1 md:flex-col">
+          {SECTIONS.map((id) => {
+            const Icon = SECTION_ICONS[id]
+            return (
+              <button
+                key={id}
+                onClick={() => setSection(id)}
+                aria-current={section === id ? 'page' : undefined}
+                className={
+                  section === id
+                    ? 'flex min-h-11 items-center gap-2 rounded-md bg-accent/15 px-3 py-2 text-left text-sm font-medium text-accent'
+                    : 'flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-text-secondary hover:bg-bg-overlay'
+                }
+              >
+                <Icon size={17} className="shrink-0" />
+                {t(`admin.sections.${id}`)}
+              </button>
+            )
+          })}
         </nav>
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="min-w-0">
           {section === 'users' && <UsersSection />}
           {section === 'watchlist' && <WatchlistSection />}
           {section === 'retention' && <RetentionSection />}

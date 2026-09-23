@@ -1,5 +1,6 @@
 import { CheckCircle2, Compass, FileUp, Link2, Radar, Server } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { camerasApi, departmentsApi } from '../lib/api'
 import { ApiError } from '../lib/http'
 import type { BulkImportResult, Camera, CameraCreate, CameraStream, Department } from '../lib/types'
@@ -12,23 +13,12 @@ import { Modal } from './ui/Modal'
 
 type Step = 'location' | 'connect' | 'bulk-import' | 'discover' | 'analytics' | 'success'
 
-const TIER_CHOICES: { tier: string; label: string; detail: string }[] = [
-  {
-    tier: 'a_continuous',
-    label: 'Read number plates continuously',
-    detail: 'Traffic junctions, check-posts, high-value sites — analysed every frame.',
-  },
-  {
-    tier: 'b_sampled',
-    label: 'Watch, but sample to save bandwidth',
-    detail: 'General coverage cameras — analysed a few times a second.',
-  },
-  {
-    tier: 'c_motion_gated',
-    label: 'Only watch when something moves',
-    detail: 'Low-traffic areas, godowns, offices — idle until motion, then samples.',
-  },
-]
+const TIER_CHOICES = ['continuous', 'sampled', 'motionGated'] as const
+const TIER_VALUE: Record<(typeof TIER_CHOICES)[number], string> = {
+  continuous: 'a_continuous',
+  sampled: 'b_sampled',
+  motionGated: 'c_motion_gated',
+}
 
 interface OnboardingWizardProps {
   open: boolean
@@ -43,6 +33,7 @@ interface OnboardingWizardProps {
  * (a direct link, a CSV, or the department catalogue) rather than assuming
  * everyone is typing an RTSP URL by hand. */
 export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizardProps) {
+  const { t } = useTranslation()
   const [step, setStep] = useState<Step>('location')
   const [departments, setDepartments] = useState<Department[]>([])
 
@@ -126,12 +117,12 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
       try {
         setPreview(await camerasApi.stream(camera.camera_id))
       } catch {
-        setPreview({ available: false, hls_url: null, reason: 'Could not check the live preview.' })
+        setPreview({ available: false, hls_url: null, reason: t('onboarding.previewCheckFailed') })
       }
       setStep('success')
       onOnboarded()
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.detail) : 'Could not create this camera.')
+      setError(err instanceof ApiError ? String(err.detail) : t('onboarding.createError'))
     } finally {
       setSubmitting(false)
     }
@@ -144,7 +135,7 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
     try {
       setDryRunResult(await camerasApi.bulkImport(file, true))
     } catch {
-      setError('Could not read this file. Check it is a CSV with the expected columns.')
+      setError(t('onboarding.readFileError'))
     } finally {
       setImportBusy(false)
     }
@@ -158,7 +149,7 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
       setDryRunResult(await camerasApi.bulkImport(file, false))
       onOnboarded()
     } catch {
-      setError('Import failed — nothing was committed.')
+      setError(t('onboarding.importFailed'))
     } finally {
       setImportBusy(false)
     }
@@ -171,19 +162,19 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
       setDiscoverResult(await camerasApi.discover())
       onOnboarded()
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.detail) : 'Could not reach the department catalogue.')
+      setError(err instanceof ApiError ? String(err.detail) : t('onboarding.discoverError'))
     } finally {
       setDiscovering(false)
     }
   }
 
   const titleByStep: Record<Step, string> = {
-    location: 'Add a camera — where is it?',
-    connect: 'Add a camera — how do we connect?',
-    'bulk-import': 'Import cameras from a file',
-    discover: 'Connect a department system',
-    analytics: 'Add a camera — what should it watch for?',
-    success: 'Camera added',
+    location: t('onboarding.titles.location'),
+    connect: t('onboarding.titles.connect'),
+    'bulk-import': t('onboarding.titles.bulkImport'),
+    discover: t('onboarding.titles.discover'),
+    analytics: t('onboarding.titles.analytics'),
+    success: t('onboarding.titles.success'),
   }
 
   return (
@@ -212,7 +203,7 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
           <div className="flex flex-col gap-3">
             <Input
               autoFocus
-              placeholder="Camera name (e.g. Sarkhej Circle North)"
+              placeholder={t('onboarding.namePlaceholder')}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -222,16 +213,20 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
                 onChange={(e) => setDepartmentName(e.target.value)}
                 className="h-10 rounded-md border border-border-subtle bg-bg-inset px-3 text-sm text-text-primary"
               >
-                <option value="">No department</option>
+                <option value="">{t('onboarding.noDepartment')}</option>
                 {departments.map((d) => (
                   <option key={d.id} value={d.name}>
                     {d.name}
                   </option>
                 ))}
               </select>
-              <Input placeholder="Site (optional)" value={siteName} onChange={(e) => setSiteName(e.target.value)} />
+              <Input
+                placeholder={t('onboarding.sitePlaceholder')}
+                value={siteName}
+                onChange={(e) => setSiteName(e.target.value)}
+              />
             </div>
-            <p className="text-xs text-text-tertiary">Click the map to drop a pin where this camera is mounted.</p>
+            <p className="text-xs text-text-tertiary">{t('onboarding.clickMapToPin')}</p>
             <div className="relative h-64 overflow-hidden rounded-md border border-border-subtle">
               <MapView
                 markers={markers}
@@ -246,7 +241,7 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
                 </span>
                 <label className="flex items-center gap-2">
                   <Compass size={14} className="text-text-tertiary" />
-                  Facing
+                  {t('onboarding.facing')}
                   <input
                     type="range"
                     min={0}
@@ -260,7 +255,7 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
             )}
             <div className="flex justify-end">
               <Button disabled={!name.trim()} onClick={() => setStep('connect')}>
-                Next
+                {t('onboarding.next')}
               </Button>
             </div>
           </div>
@@ -274,33 +269,35 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
                 onClick={() => {}}
               >
                 <Link2 size={20} className="text-accent" />
-                <p className="text-sm font-medium text-text-primary">I have a link</p>
-                <p className="text-xs text-text-tertiary">RTSP, HLS or WHEP URL</p>
+                <p className="text-sm font-medium text-text-primary">{t('onboarding.connectOptions.haveLink')}</p>
+                <p className="text-xs text-text-tertiary">{t('onboarding.connectOptions.haveLinkDetail')}</p>
               </Card>
               <Card
                 className="flex cursor-pointer flex-col items-center gap-2 p-4 text-center hover:border-accent/40"
                 onClick={() => setStep('bulk-import')}
               >
                 <FileUp size={20} className="text-text-tertiary" />
-                <p className="text-sm font-medium text-text-primary">Import a file</p>
-                <p className="text-xs text-text-tertiary">CSV of many cameras at once</p>
+                <p className="text-sm font-medium text-text-primary">{t('onboarding.connectOptions.importFile')}</p>
+                <p className="text-xs text-text-tertiary">{t('onboarding.connectOptions.importFileDetail')}</p>
               </Card>
               <Card
                 className="flex cursor-pointer flex-col items-center gap-2 p-4 text-center hover:border-accent/40"
                 onClick={() => setStep('discover')}
               >
                 <Server size={20} className="text-text-tertiary" />
-                <p className="text-sm font-medium text-text-primary">Connect a department system</p>
-                <p className="text-xs text-text-tertiary">Sync from the department catalogue</p>
+                <p className="text-sm font-medium text-text-primary">{t('onboarding.connectOptions.connectDept')}</p>
+                <p className="text-xs text-text-tertiary">{t('onboarding.connectOptions.connectDeptDetail')}</p>
               </Card>
               <Card className="flex flex-col items-center gap-2 p-4 text-center opacity-50">
                 <Radar size={20} className="text-text-tertiary" />
-                <p className="text-sm font-medium text-text-primary">Discover on my network</p>
-                <p className="text-xs text-text-tertiary">Not available in this build yet</p>
+                <p className="text-sm font-medium text-text-primary">
+                  {t('onboarding.connectOptions.discoverNetwork')}
+                </p>
+                <p className="text-xs text-text-tertiary">{t('onboarding.connectOptions.discoverNetworkDetail')}</p>
               </Card>
             </div>
             <div className="flex flex-col gap-2 rounded-md border border-border-subtle p-3">
-              <p className="text-xs font-medium text-text-secondary">Stream link</p>
+              <p className="text-xs font-medium text-text-secondary">{t('onboarding.streamLink')}</p>
               <div className="flex gap-2">
                 <select
                   value={protocol}
@@ -313,7 +310,7 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
                 </select>
                 <Input
                   className="flex-1 plate-mono"
-                  placeholder="rtsp://192.168.1.20:554/stream1"
+                  placeholder={t('onboarding.urlPlaceholder')}
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                 />
@@ -322,9 +319,9 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
             {error && <p className="text-xs text-sev-critical">{error}</p>}
             <div className="flex justify-between">
               <Button variant="secondary" onClick={() => setStep('location')}>
-                Back
+                {t('onboarding.back')}
               </Button>
-              <Button onClick={() => setStep('analytics')}>Next</Button>
+              <Button onClick={() => setStep('analytics')}>{t('onboarding.next')}</Button>
             </div>
           </div>
         )}
@@ -333,9 +330,9 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
           <div className="flex flex-col gap-3">
             {TIER_CHOICES.map((choice) => (
               <label
-                key={choice.tier}
+                key={choice}
                 className={
-                  tier === choice.tier
+                  tier === TIER_VALUE[choice]
                     ? 'flex cursor-pointer items-start gap-3 rounded-md border border-accent bg-accent/10 p-3'
                     : 'flex cursor-pointer items-start gap-3 rounded-md border border-border-subtle p-3 hover:border-accent/40'
                 }
@@ -343,22 +340,22 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
                 <input
                   type="radio"
                   className="mt-1"
-                  checked={tier === choice.tier}
-                  onChange={() => setTier(choice.tier)}
+                  checked={tier === TIER_VALUE[choice]}
+                  onChange={() => setTier(TIER_VALUE[choice])}
                 />
                 <div>
-                  <p className="text-sm font-medium text-text-primary">{choice.label}</p>
-                  <p className="text-xs text-text-tertiary">{choice.detail}</p>
+                  <p className="text-sm font-medium text-text-primary">{t(`onboarding.tiers.${choice}.label`)}</p>
+                  <p className="text-xs text-text-tertiary">{t(`onboarding.tiers.${choice}.detail`)}</p>
                 </div>
               </label>
             ))}
             {error && <p className="text-xs text-sev-critical">{error}</p>}
             <div className="flex justify-between">
               <Button variant="secondary" onClick={() => setStep('connect')}>
-                Back
+                {t('onboarding.back')}
               </Button>
               <Button disabled={submitting} onClick={submitLinkCamera}>
-                {submitting ? 'Adding…' : 'Add camera'}
+                {submitting ? t('onboarding.adding') : t('onboarding.addCamera')}
               </Button>
             </div>
           </div>
@@ -366,11 +363,7 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
 
         {step === 'bulk-import' && (
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-text-secondary">
-              CSV columns: <span className="plate-mono">camera_id, name</span> required;{' '}
-              <span className="plate-mono">department_name, site_name, lat, lon, tier, protocol, url, codec</span>{' '}
-              optional.
-            </p>
+            <p className="text-sm text-text-secondary">{t('onboarding.bulkImportHelp')}</p>
             <input
               type="file"
               accept=".csv"
@@ -382,24 +375,24 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
             />
             {!dryRunResult && (
               <Button disabled={!file || importBusy} onClick={runDryRun}>
-                {importBusy ? 'Checking…' : 'Preview (dry run)'}
+                {importBusy ? t('onboarding.checkingFile') : t('onboarding.previewDryRun')}
               </Button>
             )}
             {dryRunResult && (
               <>
                 <Card className="max-h-64 overflow-y-auto p-3 text-xs">
                   <p className="mb-2 font-medium text-text-primary">
-                    {dryRunResult.succeeded} of {dryRunResult.total_rows} row(s) valid
-                    {dryRunResult.dry_run ? ' (dry run — nothing saved yet)' : ' — imported'}
+                    {t('onboarding.rowsValid', { succeeded: dryRunResult.succeeded, total: dryRunResult.total_rows })}
+                    {dryRunResult.dry_run ? t('onboarding.dryRunNotice') : t('onboarding.importedNotice')}
                   </p>
                   <table className="w-full text-left">
                     <tbody>
                       {dryRunResult.rows.map((row) => (
                         <tr key={row.row_number} className="border-t border-border-subtle/60">
                           <td className="py-1 pr-2">#{row.row_number}</td>
-                          <td className="py-1 pr-2 plate-mono">{row.camera_id ?? '—'}</td>
+                          <td className="py-1 pr-2 plate-mono">{row.camera_id ?? t('common.unknown')}</td>
                           <td className={row.ok ? 'py-1 text-ok' : 'py-1 text-sev-critical'}>
-                            {row.ok ? 'OK' : row.error}
+                            {row.ok ? t('onboarding.rowOk') : row.error}
                           </td>
                         </tr>
                       ))}
@@ -408,21 +401,21 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
                 </Card>
                 {dryRunResult.dry_run && dryRunResult.succeeded > 0 && (
                   <Button disabled={importBusy} onClick={commitImport}>
-                    {importBusy ? 'Importing…' : `Import ${dryRunResult.succeeded} camera(s)`}
+                    {importBusy ? t('onboarding.importing') : t('onboarding.importCameras', { count: dryRunResult.succeeded })}
                   </Button>
                 )}
                 {!dryRunResult.dry_run && (
-                  <p className="text-sm text-ok">Import committed — cameras are now in the registry.</p>
+                  <p className="text-sm text-ok">{t('onboarding.importCommitted')}</p>
                 )}
               </>
             )}
             {error && <p className="text-xs text-sev-critical">{error}</p>}
             <div className="flex justify-between">
               <Button variant="secondary" onClick={() => setStep('connect')}>
-                Back
+                {t('onboarding.back')}
               </Button>
               <Button variant="ghost" onClick={handleClose}>
-                Done
+                {t('onboarding.done')}
               </Button>
             </div>
           </div>
@@ -430,13 +423,10 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
 
         {step === 'discover' && (
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-text-secondary">
-              Fetches the department catalogue right now and onboards every camera it lists — no manual entry
-              needed once your department's credentials are configured.
-            </p>
+            <p className="text-sm text-text-secondary">{t('onboarding.discoverHelp')}</p>
             {!discoverResult && (
               <Button disabled={discovering} onClick={runDiscovery}>
-                {discovering ? 'Syncing…' : 'Sync now'}
+                {discovering ? t('onboarding.syncing') : t('onboarding.syncNow')}
               </Button>
             )}
             {discoverResult && (
@@ -447,10 +437,10 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
             {error && <p className="text-xs text-sev-critical">{error}</p>}
             <div className="flex justify-between">
               <Button variant="secondary" onClick={() => setStep('connect')}>
-                Back
+                {t('onboarding.back')}
               </Button>
               <Button variant="ghost" onClick={handleClose}>
-                Done
+                {t('onboarding.done')}
               </Button>
             </div>
           </div>
@@ -459,17 +449,19 @@ export function OnboardingWizard({ open, onClose, onOnboarded }: OnboardingWizar
         {step === 'success' && createdCamera && (
           <div className="flex flex-col items-center gap-3 py-2 text-center">
             <CheckCircle2 size={28} className="text-ok" />
-            <p className="text-sm font-medium text-text-primary">{createdCamera.name} was added</p>
+            <p className="text-sm font-medium text-text-primary">
+              {t('onboarding.cameraAdded', { name: createdCamera.name })}
+            </p>
             <div className="aspect-video w-full overflow-hidden rounded-md bg-bg-inset">
               {preview?.available && preview.hls_url ? (
                 <HlsVideoPlayer src={preview.hls_url} className="h-full w-full" />
               ) : (
                 <div className="flex h-full items-center justify-center p-4 text-center text-xs text-text-tertiary">
-                  {preview?.reason ?? 'Checking live preview…'}
+                  {preview?.reason ?? t('onboarding.checkingPreview')}
                 </div>
               )}
             </div>
-            <Button onClick={handleClose}>Done</Button>
+            <Button onClick={handleClose}>{t('onboarding.done')}</Button>
           </div>
         )}
       </div>

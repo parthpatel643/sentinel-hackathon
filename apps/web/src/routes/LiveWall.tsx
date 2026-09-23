@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react'
 import { LayoutGrid } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { TopBar } from '../components/layout/TopBar'
 import { CameraDetailModal } from '../components/CameraDetailModal'
 import { LiveWallTile } from '../components/LiveWallTile'
 import { Button } from '../components/ui/Button'
+import { RequestError } from '../components/ui/RequestError'
+import { Link } from 'react-router-dom'
 import { camerasApi, detectionsApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
 import type { Camera, Detection } from '../lib/types'
@@ -23,9 +26,10 @@ const STATUS_ORDER: Record<string, number> = { live: 0, degraded: 1, connecting:
  * the actual "only visible tiles stream" performance/compliance rule, a
  * real transport/status badge per tile, and the layout density picker. */
 export function LiveWall() {
+  const { t } = useTranslation()
   const [layout, setLayout] = useState<(typeof LAYOUTS)[number]>(LAYOUTS[1])
   const [selected, setSelected] = useState<Camera | null>(null)
-  const { data: cameras } = usePolling(() => camerasApi.list(), 10000)
+  const { data: cameras, error, refetch } = usePolling(() => camerasApi.list(), 10000)
   // A single shared poll for recent detections, rather than one per tile —
   // dozens of tiles polling detections individually would multiply load for
   // no benefit; every tile just looks up its own camera_id in the result.
@@ -49,34 +53,39 @@ export function LiveWall() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <TopBar title="Live Wall" subtitle={cameras ? `${cameras.length} registered` : undefined} />
-      <div className="flex items-center gap-2 border-b border-border-subtle px-6 py-3">
+      <TopBar
+        title={t('nav.liveWall')}
+        subtitle={cameras ? t('liveWall.registered', { count: cameras.length }) : undefined}
+      />
+      <div className="page-toolbar" role="group" aria-label={t('workspace.layout')}>
         <LayoutGrid size={15} className="text-text-tertiary" />
+        <span className="mr-2 text-sm text-text-secondary">{t('workspace.layout')}</span>
         {LAYOUTS.map((option) => (
           <Button
             key={option.label}
             size="sm"
             variant={layout.label === option.label ? 'primary' : 'secondary'}
             onClick={() => setLayout(option)}
+            aria-pressed={layout.label === option.label}
           >
             {option.label}
           </Button>
         ))}
         {cameras && cameras.length > layout.count && (
           <span className="ml-2 text-xs text-text-tertiary">
-            Showing {layout.count} of {cameras.length} — live cameras first
+            {t('liveWall.showingOf', { shown: layout.count, total: cameras.length })}
           </span>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="page-body">
+        {Boolean(error) && <RequestError onRetry={refetch} />}
+        {!cameras && !error && <p className="py-6 text-text-secondary">{t('common.loading')}</p>}
         {cameras && cameras.length === 0 && (
-          <p className="p-6 text-sm text-text-tertiary">
-            No cameras registered yet. Run catalogue discovery or add one manually via the API.
-          </p>
+          <div className="empty-state"><p>{t('workspace.noCameras')}</p><Link className="text-link" to="/cameras">{t('cameras.addCamera')}</Link></div>
         )}
         <div
-          className="grid gap-3"
+          className="live-wall-grid grid gap-4"
           style={{ gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))` }}
         >
           {visibleCameras.map((camera) => (

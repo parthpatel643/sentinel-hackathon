@@ -1,0 +1,529 @@
+{
+  "workspace": {
+    "overview": "અવલોકન",
+    "overviewTitle": "કામગીરીનું અવલોકન",
+    "overviewDescription": "કેમેરા નેટવર્ક પર નજર રાખો, અલર્ટની સમીક્ષા કરો અને તપાસ શરૂ કરો.",
+    "console": "કામગીરી કાર્યક્ષેત્ર",
+    "navigation": "કાર્યક્ષેત્ર",
+    "openNavigation": "નેવિગેશન ખોલો",
+    "skip": "મુખ્ય સામગ્રી પર જાઓ",
+    "vehicleSearch": "વાહન શોધ",
+    "plate": "નોંધણી નંબર",
+    "searchPlaceholder": "નોંધણી નંબરથી વાહન શોધો",
+    "cameraNetwork": "કેમેરા નેટવર્ક",
+    "manageCameras": "કેમેરા સંચાલિત કરો",
+    "viewQueue": "બધા જુઓ",
+    "queueDescription": "નવા વૉચલિસ્ટ મેળ સમીક્ષા માટે અહીં દેખાશે.",
+    "noCameras": "તમારું કેમેરા નેટવર્ક અહીંથી શરૂ થાય છે.",
+    "statusUnavailable": "નેટવર્કની સ્થિતિ ઉપલબ્ધ નથી",
+    "refreshError": "ડેટા અપડેટ થઈ શક્યો નથી. દેખાતી માહિતી જૂની હોઈ શકે છે.",
+    "startInvestigation": "વાહનની તપાસ શરૂ કરો",
+    "openLiveWall": "લાઇવ વૉલ ખોલો",
+    "investigationDescription": "નોંધણી નંબરથી વાહન દેખાયાની સમયરેખા સુધી.",
+    "startWithPlate": "નોંધણી નંબરથી શરૂ કરો.",
+    "traceTitle": "વાહન દેખાયાના રેકોર્ડ જુઓ",
+    "traceDescription": "કેમેરાનું સ્થાન, સમય અને ઓળખનો વિશ્વાસ સ્તર એક જ જગ્યાએ જુઓ.",
+    "replayDescription": "નકશા પર નોંધાયેલાં સ્થળો વચ્ચે વાહનની મુસાફરી જુઓ.",
+    "watchDescription": "હજુ કોઈ રેકોર્ડ નથી? આગળની ઓળખ માટે નંબર વૉચલિસ્ટમાં ઉમેરો.",
+    "filterCameras": "નામ અથવા આઈડીથી કેમેરા ફિલ્ટર કરો",
+    "allStatuses": "બધી સ્થિતિઓ",
+    "noMatchingCameras": "આ ફિલ્ટરથી કોઈ કેમેરા મળ્યા નથી.",
+    "layout": "કેમેરા લેઆઉટ",
+    "adminNavigation": "વહીવટી વિભાગો"
+  },
+  "common": {
+    "appName": "Sentinel Platform",
+    "loading": "લોડ થઈ રહ્યું છે…",
+    "search": "શોધો",
+    "cancel": "રદ કરો",
+    "back": "પાછા",
+    "next": "આગળ",
+    "done": "પૂર્ણ",
+    "retry": "ફરી પ્રયાસ કરો",
+    "close": "બંધ કરો",
+    "add": "ઉમેરો",
+    "unknown": "—",
+    "notAvailable": "ઉપલબ્ધ નથી",
+    "active": "સક્રિય",
+    "deactivated": "નિષ્ક્રિય",
+    "noExpiry": "કોઈ સમાપ્તિ નથી",
+    "justNow": "હમણાં જ",
+    "minutesAgo": "{{count}} મિનિટ પહેલા",
+    "hoursAgo": "{{count}} કલાક પહેલા",
+    "daysAgo": "{{count}} દિવસ પહેલા",
+    "never": "ક્યારેય નહીં",
+    "kmAway": "{{distance}} કિમી દૂર",
+    "signOut": "સાઇન આઉટ",
+    "signOutWithEmail": "સાઇન આઉટ ({{email}})"
+  },
+  "theme": {
+    "light": "હળવું",
+    "dark": "ગાઢ",
+    "toggle": "{{theme}} મોડ પર જાઓ"
+  },
+  "language": {
+    "label": "ભાષા",
+    "en": "English",
+    "hi": "हिन्दी",
+    "gu": "ગુજરાતી"
+  },
+  "severity": {
+    "critical": "ગંભીર",
+    "high": "ઉચ્ચ",
+    "medium": "મધ્યમ",
+    "low": "નિમ્ન",
+    "ok": "સામાન્ય"
+  },
+  "cameraStatus": {
+    "live": "લાઇવ",
+    "connecting": "કનેક્ટ થઈ રહ્યું છે",
+    "degraded": "નબળી સ્થિતિ",
+    "down": "બંધ",
+    "unknown": "અજ્ઞાત"
+  },
+  "tamperStatus": {
+    "ok": "ઠીક",
+    "covered": "ઢાંકાયેલું",
+    "blurred": "ધૂંધળું",
+    "moved": "ખસેડાયેલું"
+  },
+  "map": {
+    "zoomIn": "ઝૂમ ઇન કરો",
+    "zoomOut": "ઝૂમ આઉટ કરો",
+    "toggleAttribution": "એટ્રિબ્યુશન ટૉગલ કરો",
+    "title": "નકશો"
+  },
+  "nav": {
+    "home": "હોમ",
+    "liveWall": "લાઇવ વોલ",
+    "findVehicle": "વાહન શોધો",
+    "alerts": "અલર્ટ્સ",
+    "cameras": "કેમેરા",
+    "health": "હેલ્થ",
+    "admin": "એડમિન",
+    "fieldPwa": "ફિલ્ડ PWA"
+  },
+  "topBar": {
+    "searchPlaceholder": "નંબર પ્લેટ, કેમેરા અથવા સ્થળ શોધો…"
+  },
+  "commandPalette": {
+    "label": "કમાન્ડ પેલેટ",
+    "placeholder": "નંબર પ્લેટ, કેમેરા અથવા સ્થળ શોધો…",
+    "noMatches": "કોઈ મેળ નથી.",
+    "findVehicleGroup": "વાહન શોધો",
+    "searchPlate": "નંબર પ્લેટ શોધો",
+    "goTo": "જાઓ",
+    "camerasGroup": "કેમેરા",
+    "accountGroup": "એકાઉન્ટ"
+  },
+  "login": {
+    "title": "Sentinel Platform",
+    "subtitle": "ઓપરેટર કન્સોલમાં સાઇન ઇન કરો",
+    "emailPlaceholder": "ઈમેલ",
+    "passwordPlaceholder": "પાસવર્ડ",
+    "signIn": "સાઇન ઇન કરો",
+    "signingIn": "સાઇન ઇન થઈ રહ્યું છે…",
+    "errorIncorrect": "ઈમેલ અથવા પાસવર્ડ ખોટો છે.",
+    "errorUnreachable": "API સુધી પહોંચી શકાયું નથી."
+  },
+  "home": {
+    "title": "Sentinel",
+    "subtitle": "પરિસ્થિતિની જાણકારી",
+    "live": "{{count}} લાઇવ",
+    "down": "{{count}} બંધ",
+    "degraded": "{{count}} નબળી સ્થિતિમાં",
+    "needsAttention": "ધ્યાન જરૂરી",
+    "nothingNeedsYou": "હમણાં તમારા ધ્યાનની જરૂર નથી.",
+    "watchlistHit": "વૉચલિસ્ટ મેળ",
+    "sighting_one": "{{count}} વખત જોાયું",
+    "sighting_other": "{{count}} વખત જોાયું"
+  },
+  "liveWall": {
+    "registered": "{{count}} નોંધાયેલ",
+    "showingOf": "{{shown}} / {{total}} બતાવવામાં આવ્યા છે — લાઇવ કેમેરા પહેલાં",
+    "noCameras": "હજુ સુધી કોઈ કેમેરા નોંધાયેલ નથી. કૅટલોગ ડિસ્કવરી ચલાવો અથવા API દ્વારા હાથેથી ઉમેરો.",
+    "pausedOffscreen": "થોભાયેલ · સ્ક્રીન બહાર",
+    "checkingStream": "સ્ટ્રીમ તપાસી રહ્યા છીએ…",
+    "previewUnavailable": "પ્રીવ્યૂ ઉપલબ્ધ નથી",
+    "doubleClickDetails": "વિગતો માટે ડબલ-ક્લિક કરો",
+    "playback": {
+      "loading": "કનેક્ટ થઈ રહ્યું છે…",
+      "playing": "HLS · લાઇવ",
+      "buffering": "HLS · બફર થઈ રહ્યું છે",
+      "error": "સ્ટ્રીમ ભૂલ"
+    }
+  },
+  "cameras": {
+    "registered": "{{count}} નોંધાયેલ",
+    "table": "ટેબલ",
+    "map": "નકશો",
+    "addCamera": "કેમેરા ઉમેરો",
+    "loading": "કેમેરા લોડ થઈ રહ્યા છે…",
+    "noCameras": "હજુ સુધી કોઈ કેમેરા નોંધાયેલ નથી. કૅટલોગ ડિસ્કવરી ચલાવો અથવા API દ્વારા હાથેથી ઉમેરો.",
+    "notMonitored": "મોનિટરિંગમાં નથી",
+    "columns": {
+      "name": "નામ",
+      "department": "વિભાગ",
+      "tier": "સ્તર",
+      "status": "સ્થિતિ",
+      "fps": "FPS",
+      "reconnects": "ફરી જોડાણો",
+      "tamper": "છેડછાડ"
+    }
+  },
+  "cameraDetail": {
+    "checkingStream": "સ્ટ્રીમ તપાસી રહ્યા છીએ…",
+    "liveUnavailable": "લાઇવ પ્રીવ્યૂ ઉપલબ્ધ નથી.",
+    "couldNotReachApi": "API સુધી પહોંચી શકાયું નથી.",
+    "tier": "સ્તર",
+    "reconnects": "ફરી જોડાણો",
+    "source": "સ્ત્રોત",
+    "lastSeen": "છેલ્લે જોવા મળ્યું",
+    "zoneRules": {
+      "title": "ઝોન નિયમો",
+      "addZone": "ઝોન ઉમેરો",
+      "cancel": "રદ કરો",
+      "namePlaceholder": "ઝોનનું નામ (દા.ત. Loading Bay)",
+      "create": "બનાવો",
+      "createError": "આ ઝોન બનાવી શકાયો નથી.",
+      "noZones": "આ કેમેરા માટે હજી કોઈ ઝોન નિયમો કૉન્ફિગર નથી.",
+      "recentEvents": "તાજેતરની ઝોન ઘટનાઓ",
+      "ruleTypes": {
+        "intrusion": "અનધિકૃત પ્રવેશ",
+        "loitering": "શંકાસ્પદ રોકાણ",
+        "wrong_way": "ખોટી દિશા",
+        "stopped_vehicle": "અટકેલું વાહન"
+      },
+      "presets": {
+        "fullFrame": "પૂરો ફ્રેમ",
+        "leftHalf": "ડાબું અડધું",
+        "rightHalf": "જમણું અડધું",
+        "topHalf": "ઉપરનું અડધું",
+        "bottomHalf": "નીચેનું અડધું",
+        "centreThird": "મધ્યનો ત્રીજો ભાગ"
+      }
+    }
+  },
+  "findVehicle": {
+    "title": "વાહન શોધો",
+    "platePlaceholder": "GJ 01 AB 1234",
+    "search": "શોધો",
+    "searchesLast24h": "છેલ્લા 24 કલાકના બધા કેમેરા રેકોર્ડમાં શોધે છે.",
+    "newSearch": "← નવી શોધ",
+    "searching": "શોધ ચાલી રહી છે…",
+    "searchFailed": "શોધ નિષ્ફળ ગઈ.",
+    "sighting_one": "{{count}} વખત જોાયું",
+    "sighting_other": "{{count}} વખત જોાયું",
+    "camera_one": "{{count}} કેમેરા",
+    "camera_other": "{{count}} કેમેરા",
+    "summary": "{{cameras}} માં {{sightings}}",
+    "replayRoute": "માર્ગ ફરી ચલાવો",
+    "stop": "રોકો",
+    "exportReport": "રિપોર્ટ એક્સપોર્ટ કરો",
+    "preparingReport": "તૈયાર થઈ રહ્યું છે…",
+    "exportFailed": "એક્સપોર્ટ નિષ્ફળ ગયો. ફરી પ્રયાસ કરો.",
+    "timeline": "સમયરેખા",
+    "exactMatch": "ચોક્કસ મેળ",
+    "probableMatch": "સંભવિત મેળ",
+    "readClearly": "આ કેમેરા પર સ્પષ્ટ રીતે વાંચાયું",
+    "matchedByAmbiguity": "OCR અનિશ્ચિતતા વર્ગ દ્વારા મેળ — એક અથવા વધુ અક્ષરો અંગે નિશ્ચિતતા નહોતી",
+    "watchArmed": "{{plate}} માટે વૉચ સક્રિય કરવામાં આવી",
+    "foundPastSightings_one": "રેકોર્ડમાં પહેલેથી {{count}} અગાઉની જોવાની ઘટના છે — અલર્ટ્સ જુઓ.",
+    "foundPastSightings_other": "રેકોર્ડમાં પહેલેથી {{count}} અગાઉની જોવાની ઘટનાઓ છે — અલર્ટ્સ જુઓ.",
+    "noPastSightings": "અગાઉની કોઈ જોવાની ઘટના નથી — આ નંબર પ્લેટ દેખાતાં જ તમને અલર્ટ મળશે.",
+    "noSightingsIn24h": "છેલ્લા 24 કલાકમાં આ નંબર પ્લેટનો કોઈ રેકોર્ડ મળ્યો નથી. તેના પર નજર રાખો — દરેક કેમેરા ભવિષ્યની તમામ રીડ્સ તેની સામે તપાસશે, અને રેકોર્ડમાં રહેલી દરેક જૂની ડિટેક્શન પણ હમણાં જ તપાસાઈ રહી છે.",
+    "watchForVehicle": "આ વાહન પર નજર રાખો",
+    "arming": "સક્રિય કરવામાં આવી રહ્યું છે…",
+    "armError": "વૉચલિસ્ટ એન્ટ્રી સક્રિય કરી શકાયી નથી."
+  },
+  "alerts": {
+    "shown": "{{count}} બતાવ્યા",
+    "filters": {
+      "unacknowledged": "હજી સ્વીકાર્યા નથી",
+      "acknowledged": "સ્વીકારેલા",
+      "resolved": "નિષ્પન્ન",
+      "all": "બધા"
+    },
+    "noAlerts": "અહીં કોઈ અલર્ટ નથી.",
+    "onWatchlistLine": "{{match}} વૉચલિસ્ટમાં · {{camera}}",
+    "exactMatch": "ચોક્કસ મેળ",
+    "probableMatch": "સંભવિત મેળ (OCR અનિશ્ચિતતા)",
+    "sighting_one": "{{count}} વખત જોાયું",
+    "sighting_other": "{{count}} વખત જોાયું",
+    "acknowledge": "સ્વીકારો",
+    "acknowledging": "સ્વીકારી રહ્યા છીએ…",
+    "notThisVehicle": "આ વાહન નથી",
+    "resolve": "નિષ્પન્ન કરો",
+    "resolving": "નિષ્પન્ન કરી રહ્યા છીએ…",
+    "resolved": "નિષ્પન્ન",
+    "sealClip": "ક્લિપ સીલ કરો",
+    "sealingClip": "ક્લિપ સીલ થઈ રહી છે…",
+    "sealingFailed": "સીલ કરવામાં નિષ્ફળ — ફરી પ્રયાસ કરો",
+    "watchSealedClip": "સીલ કરેલી ક્લિપ જુઓ"
+  },
+  "sealedClip": {
+    "title": "સીલ કરેલી ઇવેન્ટ ક્લિપ",
+    "loading": "લોડ થઈ રહ્યું છે…",
+    "loadError": "સીલ કરેલી ક્લિપ લોડ થઈ શકી નથી.",
+    "sealed": "{{date}} એ સીલ કરવામાં આવ્યું",
+    "sha256": "SHA-256 {{hash}}"
+  },
+  "health": {
+    "subtitle": "સિસ્ટમ અને ઇન્ટેગ્રેશન સ્થિતિ",
+    "integratorCompliance": "ઇન્ટેગ્રેટર અનુપાલન",
+    "liveStatus": "આયોજકોની pre-submission checklist સામેની લાઇવ સ્થિતિ",
+    "loading": "લોડ થઈ રહ્યું છે…",
+    "connectionError": "compliance endpoint સુધી પહોંચી શકાયું નથી. તે દર થોડા સેકન્ડે અપડેટ થાય છે — આ પોતે જ સાફ થઈ જશે.",
+    "checklist": {
+      "rtspTcp": {
+        "label": "RTSP ને TCP ટ્રાન્સપોર્ટ પર મજબૂરીથી ચલાવવામાં આવ્યું",
+        "detail": "ભીડભર્યા નેટવર્ક પર UDP પૅકેટ લોસથી ફ્રેમ ખરાબ ન થાય તે માટે મદદ કરે છે."
+      },
+      "ptsTiming": {
+        "label": "PTS આધારિત ટાઇમિંગ",
+        "detail": "દરેક timestamp stream ની presentation clock પરથી લેવાય છે, wall-clock arrival time પરથી નહીં."
+      },
+      "backoff": {
+        "label": "reconnect backoff સક્રિય",
+        "detail": "stream તૂટે ત્યારે {{initial}}s થી શરૂ થઈ {{max}}s સુધી exponential backoff લાગુ પડે છે."
+      },
+      "catalogue": {
+        "label": "કૅટલોગ આધારિત શોધ",
+        "detail": "કેમેરા વિભાગીય કૅટલોગમાંથી જોડાય છે, એક-એક કરીને હાથથી ટાઇપ કરીને નહીં."
+      },
+      "codecs": {
+        "label": "mixed-codec હેન્ડલિંગ",
+        "detailWithCodecs": "હાલ સર્વ થઈ રહ્યું છે: {{codecs}}.",
+        "detailEmpty": "હાલ નિરીક્ષણ માટે કોઈ લાઇવ કેમેરા નથી."
+      },
+      "publishing": {
+        "label": "gateway પર publishing બંધ છે",
+        "detail": "આ સિસ્ટમ માત્ર સ્ટ્રીમ પ્રાપ્ત કરે છે — તે આયોજકોના relay માં ક્યારેય push કરતી નથી."
+      }
+    }
+  },
+  "admin": {
+    "subtitle": "વિભાગો, વપરાશકર્તાઓ, વૉચલિસ્ટ અને નીતિ",
+    "accessRequired": "એડમિન ઍક્સેસ જરૂરી",
+    "askAdmin": "તમારા એકાઉન્ટને એડમિન ભૂમિકા આપવા માટે કોઈ પ્રશાસકને કહો.",
+    "sections": {
+      "users": "વપરાશકર્તા અને ભૂમિકાઓ",
+      "watchlist": "વૉચલિસ્ટ",
+      "retention": "ડેટા રિટેન્શન અને ગોપનીયતા",
+      "integrations": "ઇન્ટેગ્રેશન્સ",
+      "audit": "ઑડિટ લોગ"
+    },
+    "users": {
+      "addUser": "વપરાશકર્તા ઉમેરો",
+      "fullNamePlaceholder": "પૂરું નામ",
+      "emailPlaceholder": "ઈમેલ",
+      "passwordPlaceholder": "કામચલાઉ પાસવર્ડ",
+      "roleOperator": "ઓપરેટર — સામાન્ય કન્સોલ ઍક્સેસ",
+      "roleAdmin": "એડમિન — કન્સોલ + આ પોર્ટલ",
+      "adding": "ઉમેરી રહ્યા છીએ…",
+      "add": "વપરાશકર્તા ઉમેરો",
+      "createError": "આ વપરાશકર્તા બનાવી શકાયો નથી.",
+      "loadError": "વપરાશકર્તાઓ લોડ કરી શકાયા નથી.",
+      "columns": {
+        "name": "નામ",
+        "email": "ઈમેલ",
+        "role": "ભૂમિકા",
+        "sees": "ઍક્સેસ",
+        "status": "સ્થિતિ"
+      },
+      "seesAdmin": "ઓપરેટર કન્સોલ + એડમિન પોર્ટલ",
+      "seesOperator": "માત્ર ઓપરેટર કન્સોલ (હોમ, લાઇવ વોલ, વાહન શોધો, અલર્ટ્સ, કેમેરા, હેલ્થ)",
+      "makeOperator": "ઓપરેટર બનાવો",
+      "makeAdmin": "એડમિન બનાવો",
+      "deactivate": "નિષ્ક્રિય કરો",
+      "reactivate": "ફરી સક્રિય કરો"
+    },
+    "watchlist": {
+      "columns": {
+        "plate": "નંબર પ્લેટ",
+        "type": "પ્રકાર",
+        "priority": "પ્રાથમિકતા",
+        "validUntil": "આ સુધી માન્ય",
+        "status": "સ્થિતિ"
+      },
+      "noEntries": "હજુ સુધી કોઈ વૉચલિસ્ટ એન્ટ્રી નથી.",
+      "deactivate": "નિષ્ક્રિય કરો",
+      "reactivate": "ફરી સક્રિય કરો"
+    },
+    "retention": {
+      "detectionReads": "ડિટેક્શન રીડ્સ",
+      "days": "{{count}} દિવસ",
+      "detectionsHelp": "{{count}} દિવસથી જૂની નંબર પ્લેટ રીડ્સ કાઢી નાખવામાં આવશે.",
+      "detectionsAffected": " હાલમાં આશરે {{count}} ડિટેક્શન અસરગ્રસ્ત છે.",
+      "sealedClips": "સીલ કરેલી ઇવેન્ટ ક્લિપ્સ",
+      "clipsHelp": "{{count}} દિવસથી જૂની સીલ કરેલી ક્લિપ્સ કાઢી નાખવામાં આવશે.",
+      "clipsAffected": " હાલમાં આશરે {{count}} ક્લિપ્સ અસરગ્રસ્ત છે — {{size}}.",
+      "deleteNow": "હમણાં કાઢી નાખો",
+      "confirmMessage": "આ ઉપર વર્ણવેલ ડેટાને અત્યારે કાયમ માટે કાઢી નાખે છે — તેને પાછું લાવી શકાશે નહીં.",
+      "confirmDelete": "હા, કાયમ માટે કાઢી નાખો",
+      "deleting": "કાઢી રહ્યા છીએ…",
+      "cancel": "રદ કરો",
+      "deletionFailed": "કાઢી નાખવામાં નિષ્ફળ.",
+      "auditNotice": "દરેક deletion છેડછાડ-પ્રમાણિત ઑડિટ લોગમાં નોંધાય છે (ઑડિટ લોગ ટૅબ જુઓ), જેમાં કોણે ચલાવ્યું અને ચોક્કસ શું દૂર થયું તે પણ નોંધાય છે.",
+      "deletedSummary": "{{detections}} ડિટેક્શન અને {{clips}} ક્લિપ્સ કાઢી નાખવામાં આવી ({{size}})."
+    },
+    "integrations": {
+      "description": "દરેક કાર્ડ હાલ તે પ્રદાતાના ડ્રાઇવર સામે એક વાસ્તવિક નમૂના તપાસ ચલાવે છે.",
+      "recheck": "ફરી તપાસો",
+      "checking": "તપાસી રહ્યા છીએ…",
+      "connected": "જોડાયેલ (mock)",
+      "error": "ભૂલ",
+      "loadError": "ઇન્ટેગ્રેશન ચેક સુધી પહોંચી શકાયું નથી.",
+      "retry": "ફરી પ્રયાસ કરો"
+    },
+    "audit": {
+      "title": "છેડછાડ-પ્રમાણિત ઑડિટ ટ્રેલ",
+      "description": "દરેક સંવેદનશીલ કાર્યવાહી (ચહેરો દેખાડવો, વપરાશકર્તા ફેરફાર, વૉચલિસ્ટ ફેરફાર, રિટેન્શન કાઢી નાખવું) hash-chain સાથે જોડાયેલી છે — પછીથી કોઈ પણ પંક્તિમાં ફેરફાર કરશો તો તેની પાછળની દરેક પંક્તિ તૂટી જશે.",
+      "verifyIntegrity": "અખંડિતતા ચકાસો",
+      "verifying": "ચકાસી રહ્યા છીએ…",
+      "verificationFailed": "ચકાસણી નિષ્ફળ ગઈ.",
+      "chainIntact": "ચેઇન સલામત છે — {{count}} પંક્તિ(ઓ) ચકાસાઈ.",
+      "tamperingDetected": "પંક્તિ {{row}} પર છેડછાડ મળી: {{detail}}",
+      "loadError": "ઑડિટ લોગ લોડ થઈ શક્યો નથી.",
+      "noEntries": "હજુ સુધી કોઈ ઑડિટ કરેલી કાર્યવાહી નથી.",
+      "columns": {
+        "when": "ક્યારે",
+        "actor": "કર્તા",
+        "action": "ક્રિયા",
+        "resource": "સંસાધન",
+        "detail": "વિગત"
+      }
+    }
+  },
+  "onboarding": {
+    "titles": {
+      "location": "કેમેરા ઉમેરો — તે ક્યાં છે?",
+      "connect": "કેમેરા ઉમેરો — અમે કેવી રીતે કનેક્ટ કરીએ?",
+      "bulkImport": "ફાઇલમાંથી કેમેરા આયાત કરો",
+      "discover": "વિભાગીય સિસ્ટમ જોડો",
+      "analytics": "કેમેરા ઉમેરો — તેને શેની દેખરેખ રાખવી જોઈએ?",
+      "success": "કેમેરા ઉમેરાયો"
+    },
+    "namePlaceholder": "કેમેરાનું નામ (દા.ત. Sarkhej Circle North)",
+    "noDepartment": "કોઈ વિભાગ નથી",
+    "sitePlaceholder": "સાઇટ (વૈકલ્પિક)",
+    "clickMapToPin": "આ કેમેરા જ્યાં લગાવવામાં આવ્યો છે ત્યાં પિન મૂકવા માટે નકશા પર ક્લિક કરો.",
+    "facing": "દિશા",
+    "next": "આગળ",
+    "back": "પાછા",
+    "connectOptions": {
+      "haveLink": "મારી પાસે લિંક છે",
+      "haveLinkDetail": "RTSP, HLS અથવા WHEP URL",
+      "importFile": "ફાઇલ આયાત કરો",
+      "importFileDetail": "એક સાથે અનેક કેમેરાનો CSV",
+      "connectDept": "વિભાગીય સિસ્ટમ જોડો",
+      "connectDeptDetail": "વિભાગીય કૅટલોગમાંથી સિંક કરો",
+      "discoverNetwork": "મારા નેટવર્ક પર શોધો",
+      "discoverNetworkDetail": "આ બિલ્ડમાં હજી ઉપલબ્ધ નથી"
+    },
+    "streamLink": "સ્ટ્રીમ લિંક",
+    "urlPlaceholder": "rtsp://192.168.1.20:554/stream1",
+    "tiers": {
+      "continuous": {
+        "label": "નંબર પ્લેટ સતત વાંચો",
+        "detail": "ટ્રાફિક જંકશન, ચેક-પોસ્ટ, ઉચ્ચ-મૂલ્ય સાઇટ્સ — દરેક ફ્રેમનું વિશ્લેષણ થાય છે."
+      },
+      "sampled": {
+        "label": "નિરીક્ષણ રાખો, પરંતુ bandwidth બચાવવા નમૂનો લો",
+        "detail": "સામાન્ય કવરેજ કેમેરા — સેકન્ડમાં થોડાં વખત વિશ્લેષણ થાય છે."
+      },
+      "motionGated": {
+        "label": "કેવળ ત્યારે જુઓ જ્યારે કંઈક હલે",
+        "detail": "ઓછા ટ્રાફિકવાળા વિસ્તાર, ગોડાઉન, ઓફિસ — motion સુધી નિષ્ક્રિય, પછી નમૂનો લેવાય છે."
+      }
+    },
+    "adding": "ઉમેરી રહ્યા છીએ…",
+    "addCamera": "કેમેરા ઉમેરો",
+    "createError": "આ કેમેરા બનાવી શકાયો નથી.",
+    "bulkImportHelp": "CSV કૉલમ: camera_id, name જરૂરી; department_name, site_name, lat, lon, tier, protocol, url, codec વૈકલ્પિક.",
+    "previewDryRun": "પ્રીવ્યૂ (dry run)",
+    "checkingFile": "તપાસી રહ્યા છીએ…",
+    "readFileError": "આ ફાઇલ વાંચી શકાયી નથી. ખાતરી કરો કે તે અપેક્ષિત કૉલમવાળો CSV છે.",
+    "rowsValid": "{{succeeded}} / {{total}} પંક્તિ(ઓ) માન્ય છે",
+    "dryRunNotice": " (dry run — હજી સુધી કંઈ સાચવાયું નથી)",
+    "importedNotice": " — આયાત થયું",
+    "rowOk": "ઠીક",
+    "importCameras": "{{count}} કેમેરા આયાત કરો",
+    "importing": "આયાત થઈ રહ્યું છે…",
+    "importFailed": "આયાત નિષ્ફળ ગઈ — કંઈપણ સાચવાયું નથી.",
+    "importCommitted": "આયાત પૂર્ણ થઈ — કેમેરા હવે રજિસ્ટ્રીમાં છે.",
+    "discoverHelp": "આ હમણાં વિભાગીય કૅટલોગ મેળવે છે અને તેમાં સૂચિબદ્ધ દરેક કેમેરાને જોડે છે — વિભાગના credentials કૉન્ફિગર થયા પછી હસ્તચાલિત એન્ટ્રીની જરૂર રહેતી નથી.",
+    "syncNow": "હમણાં સિંક કરો",
+    "syncing": "સિંક થઈ રહ્યું છે…",
+    "discoverError": "વિભાગીય કૅટલોગ સુધી પહોંચી શકાયું નથી.",
+    "previewCheckFailed": "લાઇવ પ્રીવ્યૂ તપાસી શકાયું નથી.",
+    "done": "પૂર્ણ",
+    "cameraAdded": "{{name}} ઉમેરવામાં આવ્યું",
+    "checkingPreview": "લાઇવ પ્રીવ્યૂ તપાસી રહ્યા છીએ…"
+  },
+  "field": {
+    "shell": {
+      "appName": "Sentinel Field",
+      "syncing": "સિંક થઈ રહ્યું છે…",
+      "lastSynced": "છેલ્લું સિંક {{time}}",
+      "queued": "{{count}} કતારમાં",
+      "lowBandwidthOn": "low-bandwidth ચાલુ",
+      "lowBandwidthOff": "low-bandwidth બંધ"
+    },
+    "nav": {
+      "alerts": "અલર્ટ્સ",
+      "lookup": "તપાસ",
+      "report": "રિપોર્ટ",
+      "nearby": "આસપાસ"
+    },
+    "alerts": {
+      "noOpenAlerts": "હમણાં કોઈ ખુલ્લા અલર્ટ્સ નથી.",
+      "navigate": "માર્ગદર્શન લો",
+      "acknowledge": "સ્વીકારો",
+      "iSeeIt": "મને દેખાયું",
+      "kmAway": "{{distance}} કિમી દૂર"
+    },
+    "lookup": {
+      "prompt": "સ્થિતિ તપાસવા માટે નંબર પ્લેટ દાખલ કરો",
+      "platePlaceholder": "GJ 01 AB 1234",
+      "lookUp": "તપાસો",
+      "checking": "તપાસી રહ્યા છીએ…",
+      "unreachable": "સર્વર સુધી પહોંચી શકાયું નથી.",
+      "clear": "સાફ કરો",
+      "status": {
+        "clear": "ક્લિયર",
+        "stolen_vehicle": "ચોરાયેલું વાહન",
+        "wanted_vehicle": "વૉન્ટેડ વાહન",
+        "missing_person": "ગુમ વ્યક્તિ",
+        "suspect": "શંકાસ્પદ વાહન",
+        "bolo": "સતર્ક રહો"
+      },
+      "lastSeen": "{{date}} એ છેલ્લે જોાયું",
+      "lastSeenAt": "{{date}} એ {{camera}} પર છેલ્લે જોાયું",
+      "noSightings": "રેકોર્ડમાં જોવાની કોઈ ઘટના નથી.",
+      "lookupAnother": "બીજી નંબર પ્લેટ તપાસો"
+    },
+    "report": {
+      "plate": "નંબર પ્લેટ",
+      "platePlaceholder": "GJ 01 AB 1234",
+      "photo": "ફોટો",
+      "takePhoto": "ફોટો લો",
+      "capturedSighting": "જોવાની ઘટના નોંધાઈ",
+      "location": "સ્થાન",
+      "captureLocation": "મારું સ્થાન કૅપ્ચર કરો",
+      "gpsUnavailable": "આ ઉપકરણ પર GPS ઉપલબ્ધ નથી.",
+      "gpsError": "GPS fix મળી શક્યો નથી — સ્થાન પરવાનગીઓ તપાસો.",
+      "notes": "નોંધો (વૈકલ્પિક)",
+      "notesPlaceholder": "મુસાફરીની દિશા, સવાર લોકો, બીજું કંઈ…",
+      "submit": "રિપોર્ટ સબમિટ કરો",
+      "queued": "રિપોર્ટ કતારમાં મૂકાયો",
+      "willSync": "કનેક્શન મળતાં જ તે આપમેળે સિંક થઈ જશે.",
+      "reportAnother": "આવી બીજી જોવાની ઘટના રિપોર્ટ કરો"
+    },
+    "nearby": {
+      "map": "નકશો",
+      "list": "યાદી",
+      "noCameras": "હજુ સુધી જાણીતા સ્થાનવાળો કોઈ કેમેરો નથી."
+    }
+  }
+}

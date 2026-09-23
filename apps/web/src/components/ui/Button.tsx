@@ -5,16 +5,16 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md'
 
 const variantClasses: Record<Variant, string> = {
-  primary: 'bg-accent text-white hover:bg-accent-hover shadow-1',
+  primary: 'bg-accent text-on-accent hover:bg-accent-hover',
   secondary:
     'bg-bg-overlay text-text-primary border border-border-subtle hover:border-border-strong',
   ghost: 'text-text-secondary hover:text-text-primary hover:bg-bg-overlay',
-  danger: 'bg-sev-critical/90 text-white hover:bg-sev-critical',
+  danger: 'bg-danger-fill text-white hover:brightness-110',
 }
 
 const sizeClasses: Record<Size, string> = {
-  sm: 'h-8 px-3 text-sm gap-1.5',
-  md: 'h-10 px-4 text-sm gap-2',
+  sm: 'min-h-10 px-3 py-2 text-sm gap-1.5',
+  md: 'min-h-11 px-4 py-2.5 text-sm gap-2',
 }
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

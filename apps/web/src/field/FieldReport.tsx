@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Camera as CameraIcon, CheckCircle2, MapPin } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { enqueueSighting } from './outbox'
 import { useOutboxSync } from './sync'
 
@@ -17,6 +18,7 @@ import { useOutboxSync } from './sync'
  *   something a browser can run today, so the plate field is manual
  *   entry here, not silently faked as automatic. */
 export function FieldReport() {
+  const { t } = useTranslation()
   const [plateText, setPlateText] = useState('')
   const [notes, setNotes] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
@@ -30,12 +32,12 @@ export function FieldReport() {
   function captureGps() {
     setGpsError(null)
     if (!navigator.geolocation) {
-      setGpsError('GPS is not available on this device.')
+      setGpsError(t('field.report.gpsUnavailable'))
       return
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => setGps({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-      () => setGpsError('Could not get a GPS fix — check location permissions.'),
+      () => setGpsError(t('field.report.gpsError')),
       { enableHighAccuracy: true, timeout: 10_000 },
     )
   }
@@ -79,34 +81,40 @@ export function FieldReport() {
 
   if (submitted) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
-        <CheckCircle2 size={64} className="text-ok" />
-        <p className="text-lg font-semibold text-text-primary">Report queued</p>
-        <p className="text-sm text-text-tertiary">
-          It will sync automatically the moment you have a connection.
-        </p>
-        <button onClick={reset} className="mt-4 rounded-full bg-bg-raised px-6 py-3 text-sm font-medium text-text-primary">
-          Report another sighting
+      <div className="flex min-h-full flex-col items-center justify-center gap-4 p-6 text-center">
+        <CheckCircle2 size={56} className="text-ok" aria-hidden="true" />
+        <h1 className="text-2xl font-semibold text-text-primary">{t('field.report.queued')}</h1>
+        <p role="status" className="max-w-sm text-sm leading-relaxed text-text-secondary">{t('field.report.willSync')}</p>
+        <button onClick={reset} className="mt-4 min-h-12 w-full rounded-md border border-border-strong bg-bg-raised px-5 py-3 text-sm font-medium text-text-primary hover:bg-bg-hover focus-visible:outline-2 focus-visible:outline-accent">
+          {t('field.report.reportAnother')}
         </button>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <section className="p-5 sm:p-8" aria-labelledby="report-heading">
+      <h1 id="report-heading" className="text-2xl font-semibold tracking-tight">{t('field.report.submit')}</h1>
+      <div className="mt-7 flex flex-col gap-6">
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-text-tertiary">Plate</label>
+        <label htmlFor="report-plate" className="mb-2 block text-sm font-medium text-text-primary">{t('field.report.plate')}</label>
         <input
+          id="report-plate"
+          autoCapitalize="characters"
+          autoComplete="off"
+          spellCheck={false}
           value={plateText}
           onChange={(e) => setPlateText(e.target.value.toUpperCase())}
-          placeholder="GJ 01 AB 1234"
-          className="plate-mono w-full rounded-xl border border-border-subtle bg-bg-inset px-4 py-3.5 text-lg text-text-primary placeholder:text-text-tertiary"
+          placeholder={t('field.report.platePlaceholder')}
+          className="plate-mono min-h-12 w-full rounded-md border border-border-strong bg-bg-raised px-4 py-3 text-xl text-text-primary placeholder:text-text-tertiary focus-visible:outline-2 focus-visible:outline-accent"
         />
       </div>
 
+      <div className="grid gap-6 border-y border-border-subtle py-6 sm:grid-cols-2">
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-text-tertiary">Photo</label>
+        <label htmlFor="report-photo" className="mb-2 block text-sm font-medium text-text-primary">{t('field.report.photo')}</label>
         <input
+          id="report-photo"
           ref={fileInputRef}
           type="file"
           accept="image/*"
@@ -115,50 +123,54 @@ export function FieldReport() {
           onChange={(e) => onPhotoSelected(e.target.files?.[0] ?? null)}
         />
         {photoPreviewUrl ? (
-          <button onClick={() => fileInputRef.current?.click()} className="block w-full overflow-hidden rounded-xl">
-            <img src={photoPreviewUrl} alt="Captured sighting" className="h-40 w-full object-cover" />
+          <button aria-label={t('field.report.takePhoto')} onClick={() => fileInputRef.current?.click()} className="block w-full overflow-hidden rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+            <img src={photoPreviewUrl} alt={t('field.report.capturedSighting')} className="h-40 w-full object-cover" />
           </button>
         ) : (
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex h-24 w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border-subtle text-sm text-text-tertiary"
+            className="flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border-strong bg-bg-raised px-4 py-5 text-sm font-medium text-text-secondary hover:bg-bg-hover focus-visible:outline-2 focus-visible:outline-accent"
           >
-            <CameraIcon size={22} />
-            Take a photo
+            <CameraIcon size={24} className="text-accent" aria-hidden="true" />
+            {t('field.report.takePhoto')}
           </button>
         )}
       </div>
 
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-text-tertiary">Location</label>
+        <p id="report-location-label" className="mb-2 text-sm font-medium text-text-primary">{t('field.report.location')}</p>
         <button
           onClick={captureGps}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-border-subtle bg-bg-inset py-3 text-sm font-medium text-text-secondary"
+          aria-describedby={gpsError ? 'report-gps-error' : 'report-location-label'}
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-border-strong bg-bg-raised px-4 py-3 text-sm font-medium text-text-secondary hover:bg-bg-hover focus-visible:outline-2 focus-visible:outline-accent sm:min-h-28 sm:flex-col"
         >
-          <MapPin size={16} />
-          {gps ? `${gps.lat.toFixed(4)}, ${gps.lon.toFixed(4)}` : 'Capture my location'}
+          <MapPin size={22} className="shrink-0 text-accent" aria-hidden="true" />
+          {gps ? `${gps.lat.toFixed(4)}, ${gps.lon.toFixed(4)}` : t('field.report.captureLocation')}
         </button>
-        {gpsError && <p className="mt-1 text-xs text-sev-critical">{gpsError}</p>}
+        {gpsError && <p id="report-gps-error" role="alert" className="mt-2 text-sm text-sev-critical">{gpsError}</p>}
+      </div>
       </div>
 
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-text-tertiary">Notes (optional)</label>
+        <label htmlFor="report-notes" className="mb-2 block text-sm font-medium text-text-primary">{t('field.report.notes')}</label>
         <textarea
+          id="report-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          className="w-full rounded-xl border border-border-subtle bg-bg-inset px-4 py-3 text-sm text-text-primary placeholder:text-text-tertiary"
-          placeholder="Direction of travel, occupants, anything else…"
+          className="w-full resize-y rounded-md border border-border-strong bg-bg-raised px-4 py-3 text-base leading-relaxed text-text-primary placeholder:text-text-tertiary focus-visible:outline-2 focus-visible:outline-accent"
+          placeholder={t('field.report.notesPlaceholder')}
         />
       </div>
 
       <button
         onClick={submit}
         disabled={!plateText.trim()}
-        className="rounded-xl bg-accent py-4 text-base font-semibold text-white disabled:opacity-50"
+        className="min-h-12 rounded-md bg-accent px-4 py-3 text-base font-semibold text-on-accent hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
       >
-        Submit sighting
+        {t('field.report.submit')}
       </button>
-    </div>
+      </div>
+    </section>
   )
 }

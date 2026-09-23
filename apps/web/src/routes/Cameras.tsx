@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { camerasApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
 import { TopBar } from '../components/layout/TopBar'
@@ -8,6 +9,8 @@ import { Card } from '../components/ui/Card'
 import { SeverityBadge, statusToSeverity, tamperToSeverity } from '../components/ui/SeverityBadge'
 import { MapView, type MapMarker } from '../components/MapView'
 import { Button } from '../components/ui/Button'
+import { Input } from '../components/ui/Input'
+import { RequestError } from '../components/ui/RequestError'
 import { CameraDetailModal } from '../components/CameraDetailModal'
 import { OnboardingWizard } from '../components/OnboardingWizard'
 import type { Camera } from '../lib/types'
@@ -27,8 +30,11 @@ function fpsLabel(camera: Camera): string {
 }
 
 export function Cameras() {
-  const { data: cameras, loading, refetch } = usePolling(() => camerasApi.list(), 10000)
+  const { t } = useTranslation()
+  const { data: cameras, loading, error, refetch } = usePolling(() => camerasApi.list(), 10000)
   const [view, setView] = useState<'table' | 'map'>('table')
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState('all')
   const [selected, setSelected] = useState<Camera | null>(null)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -49,8 +55,12 @@ export function Cameras() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameras, searchParams])
 
+  const filteredCameras = cameras?.filter((camera) =>
+    (status === 'all' || camera.status === status) &&
+    `${camera.name} ${camera.camera_id}`.toLowerCase().includes(query.trim().toLowerCase()),
+  )
   const markers: MapMarker[] =
-    cameras
+    filteredCameras
       ?.filter((c): c is Camera & { location: NonNullable<Camera['location']> } => c.location !== null)
       .map((c) => ({
         id: c.camera_id,
@@ -63,61 +73,69 @@ export function Cameras() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <TopBar title="Cameras" subtitle={cameras ? `${cameras.length} registered` : undefined} />
-      <div className="flex items-center gap-2 border-b border-border-subtle px-6 py-3">
-        <Button size="sm" variant={view === 'table' ? 'primary' : 'secondary'} onClick={() => setView('table')}>
-          Table
+      <TopBar
+        title={t('nav.cameras')}
+        subtitle={cameras ? t('cameras.registered', { count: cameras.length }) : undefined}
+      />
+      <div className="page-toolbar">
+        <Input className="w-full sm:w-64" aria-label={t('workspace.filterCameras')} placeholder={t('workspace.filterCameras')} value={query} onChange={(e) => setQuery(e.target.value)} />
+        <select aria-label={t('workspace.allStatuses')} value={status} onChange={(e) => setStatus(e.target.value)} className="h-11 rounded-md border border-border-strong bg-bg-inset px-3 text-sm">
+          <option value="all">{t('workspace.allStatuses')}</option>
+          {['live', 'connecting', 'degraded', 'down', 'unknown'].map((value) => <option key={value} value={value}>{t(`cameraStatus.${value}`)}</option>)}
+        </select>
+        <Button aria-pressed={view === 'table'} size="sm" variant={view === 'table' ? 'primary' : 'secondary'} onClick={() => setView('table')}>
+          {t('cameras.table')}
         </Button>
-        <Button size="sm" variant={view === 'map' ? 'primary' : 'secondary'} onClick={() => setView('map')}>
-          Map
+        <Button aria-pressed={view === 'map'} size="sm" variant={view === 'map' ? 'primary' : 'secondary'} onClick={() => setView('map')}>
+          {t('cameras.map')}
         </Button>
         <Button size="sm" variant="secondary" className="ml-auto" onClick={() => setWizardOpen(true)}>
           <Plus size={14} />
-          Add camera
+          {t('cameras.addCamera')}
         </Button>
       </div>
+      {Boolean(error) && <div className="px-5 md:px-8"><RequestError onRetry={refetch} /></div>}
 
       {view === 'map' ? (
-        <div className="relative flex-1">
+        <div className="relative mx-5 mb-6 min-h-80 flex-1 overflow-hidden rounded-lg border border-border-subtle md:mx-8">
           <MapView markers={markers} className="absolute inset-0" />
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-6">
-          {loading && !cameras && <p className="text-sm text-text-tertiary">Loading cameras…</p>}
+        <div className="page-body">
+          {loading && !cameras && <p className="text-sm text-text-tertiary">{t('cameras.loading')}</p>}
           {cameras?.length === 0 && (
-            <p className="text-sm text-text-tertiary">
-              No cameras registered yet. Run catalogue discovery or add one manually via the API.
-            </p>
+            <div className="empty-state"><p>{t('workspace.noCameras')}</p><Button onClick={() => setWizardOpen(true)}><Plus size={16} />{t('cameras.addCamera')}</Button></div>
           )}
-          {cameras && cameras.length > 0 && (
+          {cameras && cameras.length > 0 && filteredCameras?.length === 0 && <div className="empty-state"><p>{t('workspace.noMatchingCameras')}</p></div>}
+          {filteredCameras && filteredCameras.length > 0 && (
             <Card className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead className="border-b border-border-subtle text-xs uppercase tracking-wide text-text-tertiary">
                   <tr>
-                    <th className="px-4 py-2.5 font-medium">Name</th>
-                    <th className="px-4 py-2.5 font-medium">Department</th>
-                    <th className="px-4 py-2.5 font-medium">Tier</th>
-                    <th className="px-4 py-2.5 font-medium">Status</th>
-                    <th className="px-4 py-2.5 font-medium">FPS</th>
-                    <th className="px-4 py-2.5 font-medium">Reconnects</th>
-                    <th className="px-4 py-2.5 font-medium">Tamper</th>
+                    <th className="px-4 py-2.5 font-medium">{t('cameras.columns.name')}</th>
+                    <th className="px-4 py-2.5 font-medium">{t('cameras.columns.department')}</th>
+                    <th className="px-4 py-2.5 font-medium">{t('cameras.columns.tier')}</th>
+                    <th className="px-4 py-2.5 font-medium">{t('cameras.columns.status')}</th>
+                    <th className="px-4 py-2.5 font-medium">{t('cameras.columns.fps')}</th>
+                    <th className="px-4 py-2.5 font-medium">{t('cameras.columns.reconnects')}</th>
+                    <th className="px-4 py-2.5 font-medium">{t('cameras.columns.tamper')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {cameras.map((camera) => (
+                  {filteredCameras.map((camera) => (
                     <tr
                       key={camera.camera_id}
                       onClick={() => setSelected(camera)}
                       className="cursor-pointer border-b border-border-subtle/60 last:border-0 hover:bg-bg-overlay"
                     >
                       <td className="px-4 py-2.5">
-                        <div className="font-medium text-text-primary">{camera.name}</div>
+                        <button type="button" onClick={() => setSelected(camera)} className="min-h-10 text-left font-medium text-text-primary hover:text-accent">{camera.name}</button>
                         <div className="text-xs text-text-tertiary">{camera.camera_id}</div>
                       </td>
-                      <td className="px-4 py-2.5 text-text-secondary">{camera.department_name ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-text-secondary">{camera.department_name ?? t('common.unknown')}</td>
                       <td className="px-4 py-2.5 text-text-secondary">{camera.tier}</td>
                       <td className="px-4 py-2.5">
-                        <SeverityBadge severity={statusToSeverity(camera.status)} label={camera.status} />
+                        <SeverityBadge severity={statusToSeverity(camera.status)} label={t(`cameraStatus.${camera.status}`)} />
                       </td>
                       <td className="px-4 py-2.5 plate-mono text-text-secondary">{fpsLabel(camera)}</td>
                       <td className="px-4 py-2.5 text-text-secondary">{camera.reconnects}</td>
@@ -125,10 +143,10 @@ export function Cameras() {
                         {camera.tamper_status ? (
                           <SeverityBadge
                             severity={tamperToSeverity(camera.tamper_status)}
-                            label={camera.tamper_status}
+                            label={t(`tamperStatus.${camera.tamper_status}`)}
                           />
                         ) : (
-                          <span className="text-xs text-text-tertiary">Not monitored</span>
+                          <span className="text-xs text-text-tertiary">{t('cameras.notMonitored')}</span>
                         )}
                       </td>
                     </tr>

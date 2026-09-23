@@ -1,37 +1,37 @@
 @import "tailwindcss";
 @import "maplibre-gl/dist/maplibre-gl.css";
 
-/* Design tokens — docs/03-UX-DESIGN.md section 2. Dark is the default
-   (control rooms are dim, video is the content); light is a documented next
-   step for the daytime office/admin use case, not implemented in this pass. */
+/* Shared workspace palette; preferences are persisted by ThemeContext. */
 @theme {
-  --color-bg-base: oklch(0.16 0.006 250);
-  --color-bg-raised: oklch(0.2 0.008 250);
-  --color-bg-overlay: oklch(0.24 0.01 250);
-  --color-bg-inset: oklch(0.13 0.006 250);
-  --color-border-subtle: oklch(0.28 0.008 250);
-  --color-border-strong: oklch(0.38 0.01 250);
+  --color-bg-base: #101a23;
+  --color-bg-raised: #17232e;
+  --color-bg-overlay: #233440;
+  --color-bg-inset: #111c26;
+  --color-border-subtle: #2c404e;
+  --color-border-strong: #647e8f;
 
-  --color-text-primary: oklch(0.97 0.004 250);
-  --color-text-secondary: oklch(0.76 0.008 250);
-  --color-text-tertiary: oklch(0.58 0.008 250);
+  --color-text-primary: #edf3f7;
+  --color-text-secondary: #becdd7;
+  --color-text-tertiary: #a3b5c3;
 
-  --color-accent: oklch(0.68 0.16 245);
-  --color-accent-hover: oklch(0.74 0.16 245);
+  --color-accent: #66d9c1;
+  --color-accent-hover: #8be5d2;
+  --color-on-accent: #092b26;
+  --color-danger-fill: #b32632;
 
-  --color-sev-critical: oklch(0.62 0.21 25);
-  --color-sev-high: oklch(0.75 0.17 65);
-  --color-sev-medium: oklch(0.72 0.13 230);
-  --color-sev-low: oklch(0.66 0.02 250);
-  --color-ok: oklch(0.72 0.16 155);
+  --color-sev-critical: #ff929a;
+  --color-sev-high: #f1c17b;
+  --color-sev-medium: #8ccdf2;
+  --color-sev-low: #b4c4d0;
+  --color-ok: #85d6ac;
 
   --font-ui: "Inter Variable", "Inter", system-ui, sans-serif;
   --font-data: "Geist Mono", ui-monospace, "SF Mono", monospace;
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
   --shadow-1: 0 1px 2px rgb(0 0 0 / 0.32);
   --shadow-2: 0 4px 12px rgb(0 0 0 / 0.36);
@@ -42,6 +42,33 @@
   --duration-fast: 120ms;
   --duration-base: 200ms;
   --duration-slow: 320ms;
+}
+
+[data-theme='light'] {
+  --color-bg-base: #eef2f4;
+  --color-bg-raised: #ffffff;
+  --color-bg-overlay: #e3ebef;
+  --color-bg-inset: #f6f8fa;
+  --color-border-subtle: #d3dde3;
+  --color-border-strong: #879ba8;
+
+  --color-text-primary: #1b2d38;
+  --color-text-secondary: #415b6b;
+  --color-text-tertiary: #506a7b;
+
+  --color-accent: #087665;
+  --color-accent-hover: #066453;
+  --color-on-accent: #ffffff;
+
+  --color-sev-critical: #b32632;
+  --color-sev-high: #865209;
+  --color-sev-medium: #17658e;
+  --color-sev-low: #506a7b;
+  --color-ok: #246a44;
+
+  --shadow-1: 0 1px 2px rgb(28 32 44 / 0.06);
+  --shadow-2: 0 4px 12px rgb(28 32 44 / 0.08);
+  --shadow-3: 0 12px 32px rgb(28 32 44 / 0.12);
 }
 
 html,
@@ -56,10 +83,103 @@ body {
   color: var(--color-text-primary);
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
+  transition:
+    background-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out);
 }
 
 * {
   font-variant-numeric: tabular-nums;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+html { color-scheme: dark; }
+html[data-theme='light'] { color-scheme: light; }
+body { font-size: 14px; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button:not(:disabled), select { cursor: pointer; }
+input, textarea { caret-color: var(--color-accent); }
+::selection { background: var(--color-accent); color: var(--color-on-accent); }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+a { text-underline-offset: 3px; }
+table thead { background: var(--color-bg-overlay); }
+table th { text-transform: none; letter-spacing: normal; }
+table tbody tr { transition: background-color 120ms; }
+table tbody tr:hover { background: var(--color-bg-overlay); }
+
+.workspace-shell { display: flex; height: 100dvh; overflow: hidden; }
+.workspace-sidebar { display: flex; flex-direction: column; width: 236px; flex-shrink: 0; border-right: 1px solid var(--color-border-subtle); background: var(--color-bg-raised); overflow-y: auto; }
+.workspace-brand { display: flex; align-items: center; gap: 12px; padding: 28px 24px 32px; font-size: 25px; font-weight: 650; letter-spacing: -0.03em; }
+.workspace-nav-link { display: flex; align-items: center; gap: 12px; padding: 12px; min-height: 46px; border-radius: 6px; font-size: 14px; line-height: 1.4; color: var(--color-text-secondary); transition: background-color 120ms; }
+.workspace-nav-link svg { flex-shrink: 0; }
+.workspace-nav-link:hover { color: var(--color-text-primary); background: var(--color-bg-overlay); }
+.workspace-nav-link.is-active { background: color-mix(in srgb, var(--color-accent) 13%, var(--color-bg-raised)); color: var(--color-accent); font-weight: 600; }
+.workspace-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.workspace-toolbar { display: flex; align-items: center; gap: 20px; padding: 14px 32px; min-height: 74px; border-bottom: 1px solid var(--color-border-subtle); background: var(--color-bg-raised); }
+.workspace-search { display: flex; align-items: center; gap: 10px; width: min(100%, 490px); border: 1px solid var(--color-border-subtle); border-radius: 6px; padding: 0 5px 0 12px; background: var(--color-bg-inset); }
+.workspace-search:focus-within { border-color: var(--color-accent); }
+.workspace-search input { min-width: 0; width: 100%; height: 42px; outline: none; font-size: 13px; }
+.workspace-search input::placeholder { color: var(--color-text-tertiary); }
+.workspace-preferences { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.workspace-content { display: flex; flex: 1; min-height: 0; min-width: 0; flex-direction: column; overflow-y: auto; }
+.mobile-nav-trigger { display: none; }
+.mobile-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 50; width: min(300px, 88vw); display: flex; flex-direction: column; background: var(--color-bg-raised); overflow-y: auto; }
+.skip-link { position: fixed; z-index: 60; top: 8px; left: 8px; padding: 12px; background: var(--color-accent); color: var(--color-on-accent); transform: translateY(-150%); }
+.skip-link:focus { transform: translateY(0); }
+.page-heading { padding: 28px 32px 24px; flex-shrink: 0; }
+.page-heading h1 { font-size: clamp(23px, 2.2vw, 30px); font-weight: 600; letter-spacing: -0.03em; line-height: 1.3; }
+.page-heading p { color: var(--color-text-secondary); margin-top: 7px; line-height: 1.6; max-width: 70ch; }
+.page-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 0 32px 20px; }
+.page-body { padding: 0 32px 32px; min-width: 0; }
+.empty-state { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; padding: 32px; border: 1px dashed var(--color-border-strong); border-radius: 12px; color: var(--color-text-secondary); }
+.empty-state p { max-width: 65ch; line-height: 1.7; }
+.request-error { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; margin-bottom: 16px; border: 1px solid var(--color-sev-critical); border-radius: 6px; color: var(--color-sev-critical); background: var(--color-bg-raised); font-size: 14px; }
+.overview-layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 24px; }
+.overview-map { position: relative; min-height: 390px; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--color-border-subtle); }
+.section-heading h2 { font-size: 16px; font-weight: 600; }
+.text-link { display: inline-flex; align-items: center; gap: 6px; color: var(--color-accent); font-size: 13px; font-weight: 500; }
+.text-link:hover { text-decoration: underline; }
+.network-summary { display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 16px 20px; font-size: 13px; border-top: 1px solid var(--color-border-subtle); }
+.network-summary span { display: inline-flex; align-items: center; gap: 7px; }
+.attention-entry { display: block; padding: 18px 20px; border-bottom: 1px solid var(--color-border-subtle); }
+.attention-entry:last-child { border-bottom: 0; }
+.attention-entry:hover { background: var(--color-bg-overlay); }
+.investigation-start { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(230px, .65fr); border: 1px solid var(--color-border-subtle); border-radius: 12px; overflow: hidden; background: var(--color-bg-raised); }
+.investigation-form { padding: clamp(24px, 4vw, 48px); }
+.investigation-guide { padding: 32px; background: var(--color-bg-overlay); border-left: 1px solid var(--color-border-subtle); }
+.investigation-guide li + li { margin-top: 28px; }
+.investigation-guide h3 { font-size: 14px; font-weight: 600; margin-bottom: 7px; }
+.investigation-guide p { font-size: 13px; color: var(--color-text-secondary); line-height: 1.7; }
+.investigation-results { display: grid; grid-template-columns: minmax(0, 1fr) 350px; flex: 1; min-height: 420px; margin: 0 32px 32px; border: 1px solid var(--color-border-subtle); border-radius: 12px; overflow: hidden; }
+.investigation-map { position: relative; min-height: 360px; }
+.investigation-timeline { padding: 24px; background: var(--color-bg-raised); border-left: 1px solid var(--color-border-subtle); overflow-y: auto; }
+.admin-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 24px; }
+
+@media (max-width: 1199px) {
+  .workspace-sidebar { width: 210px; }
+  .overview-layout { grid-template-columns: minmax(0, 1fr); }
+  .investigation-results { grid-template-columns: minmax(0, 1fr) 300px; }
+}
+@media (max-width: 767px) {
+  .workspace-sidebar { display: none; }
+  .workspace-toolbar { flex-wrap: wrap; gap: 8px; padding: 10px 16px; }
+  .mobile-nav-trigger { display: flex; justify-content: center; align-items: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 6px; }
+  .workspace-preferences { gap: 4px; }
+  .workspace-search { order: 3; width: 100%; }
+  .page-heading { padding: 24px 20px 20px; }
+  .page-toolbar { padding: 0 20px 20px; }
+  .page-body { padding: 0 20px 24px; }
+  .overview-map { min-height: 320px; }
+  .section-heading { padding: 16px; }
+  .investigation-start, .investigation-results { grid-template-columns: minmax(0, 1fr); }
+  .investigation-guide { border-left: 0; border-top: 1px solid var(--color-border-subtle); padding: 24px; }
+  .investigation-results { flex: none; margin: 0 20px 24px; }
+  .investigation-timeline { border-left: 0; border-top: 1px solid var(--color-border-subtle); overflow: visible; }
+  .admin-layout { grid-template-columns: minmax(0, 1fr); }
+  .live-wall-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .request-error { flex-wrap: wrap; }
 }
 
 /* Plates: mono, letter-spaced, slashed zero — a deliberate visual cue that
@@ -83,8 +203,9 @@ body {
 /* Darken the no-key OSM raster demo basemap to match the control-room dark
    theme. Scoped to the canvas layer only (not `.maplibregl-marker` /
    `.maplibregl-popup`, which are siblings in MapLibre's DOM, not
-   descendants) so markers keep their true colours. */
-.maplibregl-canvas-container {
+   descendants) so markers keep their true colours. Light theme leaves the
+   basemap's own daytime colours alone. */
+[data-theme='dark'] .maplibregl-canvas-container {
   filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92);
 }
 

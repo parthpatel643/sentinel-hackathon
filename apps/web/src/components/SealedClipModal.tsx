@@ -1,5 +1,6 @@
 import { ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { alertsApi } from '../lib/api'
 import type { EvidenceClip } from '../lib/types'
 import { Modal } from './ui/Modal'
@@ -14,6 +15,7 @@ interface SealedClipModalProps {
  * computed over the exact bytes the video element is playing, not a
  * separate claim, because both come from the one blob fetched below. */
 export function SealedClipModal({ clip, onClose }: SealedClipModalProps) {
+  const { t } = useTranslation()
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const objectUrlRef = useRef<string | null>(null)
@@ -32,7 +34,7 @@ export function SealedClipModal({ clip, onClose }: SealedClipModalProps) {
         objectUrlRef.current = url
         setVideoUrl(url)
       })
-      .catch(() => !cancelled && setError('Could not load the sealed clip.'))
+      .catch(() => !cancelled && setError(t('sealedClip.loadError')))
     return () => {
       cancelled = true
       if (objectUrlRef.current) {
@@ -40,15 +42,17 @@ export function SealedClipModal({ clip, onClose }: SealedClipModalProps) {
         objectUrlRef.current = null
       }
     }
-  }, [clip])
+  }, [clip, t])
 
   return (
-    <Modal open={clip !== null} onOpenChange={(open) => !open && onClose()} title="Sealed event clip">
+    <Modal open={clip !== null} onOpenChange={(open) => !open && onClose()} title={t('sealedClip.title')}>
       {clip && (
         <div className="flex flex-col gap-4">
           <div className="aspect-video w-full overflow-hidden rounded-md bg-bg-inset">
             {!videoUrl && !error && (
-              <div className="flex h-full items-center justify-center text-sm text-text-tertiary">Loading…</div>
+              <div className="flex h-full items-center justify-center text-sm text-text-tertiary">
+                {t('sealedClip.loading')}
+              </div>
             )}
             {error && <div className="flex h-full items-center justify-center text-sm text-sev-critical">{error}</div>}
             {videoUrl && (
@@ -59,10 +63,12 @@ export function SealedClipModal({ clip, onClose }: SealedClipModalProps) {
             <ShieldCheck size={15} className="mt-0.5 flex-shrink-0 text-ok" />
             <div className="min-w-0">
               <p className="text-text-secondary">
-                Sealed {clip.sealed_at && new Date(clip.sealed_at).toLocaleString()}
+                {clip.sealed_at && t('sealedClip.sealed', { date: new Date(clip.sealed_at).toLocaleString() })}
                 {clip.duration_s != null && ` · ${clip.duration_s.toFixed(1)}s`}
               </p>
-              <p className="plate-mono mt-0.5 truncate text-text-tertiary">SHA-256 {clip.sha256}</p>
+              <p className="plate-mono mt-0.5 truncate text-text-tertiary">
+                {t('sealedClip.sha256', { hash: clip.sha256 })}
+              </p>
             </div>
           </div>
         </div>

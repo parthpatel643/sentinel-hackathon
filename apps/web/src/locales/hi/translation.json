@@ -1,0 +1,529 @@
+{
+  "workspace": {
+    "overview": "अवलोकन",
+    "overviewTitle": "संचालन अवलोकन",
+    "overviewDescription": "कैमरा नेटवर्क की निगरानी करें, अलर्ट की समीक्षा करें और जाँच शुरू करें।",
+    "console": "संचालन कार्यक्षेत्र",
+    "navigation": "कार्यक्षेत्र",
+    "openNavigation": "नेविगेशन खोलें",
+    "skip": "मुख्य सामग्री पर जाएँ",
+    "vehicleSearch": "वाहन खोज",
+    "plate": "पंजीकरण नंबर",
+    "searchPlaceholder": "पंजीकरण नंबर से वाहन खोजें",
+    "cameraNetwork": "कैमरा नेटवर्क",
+    "manageCameras": "कैमरे प्रबंधित करें",
+    "viewQueue": "सभी देखें",
+    "queueDescription": "नए वॉचलिस्ट मिलान समीक्षा के लिए यहाँ दिखाई देंगे।",
+    "noCameras": "आपका कैमरा नेटवर्क यहाँ से शुरू होता है।",
+    "statusUnavailable": "नेटवर्क की स्थिति उपलब्ध नहीं है",
+    "refreshError": "डेटा अपडेट नहीं हो सका। दिखाई गई जानकारी पुरानी हो सकती है।",
+    "startInvestigation": "वाहन की जाँच शुरू करें",
+    "openLiveWall": "लाइव वॉल खोलें",
+    "investigationDescription": "पंजीकरण नंबर से वाहन दिखने की समयरेखा तक।",
+    "startWithPlate": "पंजीकरण नंबर से शुरू करें।",
+    "traceTitle": "वाहन दिखने के रिकॉर्ड देखें",
+    "traceDescription": "कैमरा स्थान, समय और पहचान का विश्वास स्तर एक ही जगह देखें।",
+    "replayDescription": "मानचित्र पर दर्ज स्थानों के बीच वाहन की यात्रा देखें।",
+    "watchDescription": "अभी कोई रिकॉर्ड नहीं है? आगे की पहचान के लिए नंबर वॉचलिस्ट में जोड़ें।",
+    "filterCameras": "नाम या आईडी से कैमरे फ़िल्टर करें",
+    "allStatuses": "सभी स्थितियाँ",
+    "noMatchingCameras": "इन फ़िल्टर से कोई कैमरा नहीं मिला।",
+    "layout": "कैमरा लेआउट",
+    "adminNavigation": "प्रशासन अनुभाग"
+  },
+  "common": {
+    "appName": "Sentinel Platform",
+    "loading": "लोड हो रहा है…",
+    "search": "खोजें",
+    "cancel": "रद्द करें",
+    "back": "वापस",
+    "next": "आगे",
+    "done": "पूर्ण",
+    "retry": "फिर से प्रयास करें",
+    "close": "बंद करें",
+    "add": "जोड़ें",
+    "unknown": "—",
+    "notAvailable": "उपलब्ध नहीं",
+    "active": "सक्रिय",
+    "deactivated": "निष्क्रिय",
+    "noExpiry": "कोई समाप्ति नहीं",
+    "justNow": "अभी-अभी",
+    "minutesAgo": "{{count}} मिनट पहले",
+    "hoursAgo": "{{count}} घंटे पहले",
+    "daysAgo": "{{count}} दिन पहले",
+    "never": "कभी नहीं",
+    "kmAway": "{{distance}} किमी दूर",
+    "signOut": "साइन आउट",
+    "signOutWithEmail": "साइन आउट ({{email}})"
+  },
+  "theme": {
+    "light": "हल्का",
+    "dark": "गहरा",
+    "toggle": "{{theme}} मोड पर जाएँ"
+  },
+  "language": {
+    "label": "भाषा",
+    "en": "English",
+    "hi": "हिन्दी",
+    "gu": "ગુજરાતી"
+  },
+  "severity": {
+    "critical": "गंभीर",
+    "high": "उच्च",
+    "medium": "मध्यम",
+    "low": "निम्न",
+    "ok": "सामान्य"
+  },
+  "cameraStatus": {
+    "live": "लाइव",
+    "connecting": "कनेक्ट हो रहा है",
+    "degraded": "कमज़ोर",
+    "down": "बंद",
+    "unknown": "अज्ञात"
+  },
+  "tamperStatus": {
+    "ok": "ठीक",
+    "covered": "ढका हुआ",
+    "blurred": "धुंधला",
+    "moved": "हिला हुआ"
+  },
+  "map": {
+    "zoomIn": "ज़ूम इन करें",
+    "zoomOut": "ज़ूम आउट करें",
+    "toggleAttribution": "एट्रिब्यूशन टॉगल करें",
+    "title": "मानचित्र"
+  },
+  "nav": {
+    "home": "होम",
+    "liveWall": "लाइव वॉल",
+    "findVehicle": "वाहन खोजें",
+    "alerts": "अलर्ट",
+    "cameras": "कैमरे",
+    "health": "हेल्थ",
+    "admin": "एडमिन",
+    "fieldPwa": "फील्ड PWA"
+  },
+  "topBar": {
+    "searchPlaceholder": "किसी नंबर प्लेट, कैमरा या स्थान को खोजें…"
+  },
+  "commandPalette": {
+    "label": "कमांड पैलेट",
+    "placeholder": "किसी नंबर प्लेट, कैमरा या स्थान को खोजें…",
+    "noMatches": "कोई मिलान नहीं।",
+    "findVehicleGroup": "वाहन खोजें",
+    "searchPlate": "नंबर प्लेट खोजें",
+    "goTo": "जाएँ",
+    "camerasGroup": "कैमरे",
+    "accountGroup": "खाता"
+  },
+  "login": {
+    "title": "Sentinel Platform",
+    "subtitle": "ऑपरेटर कंसोल में साइन इन करें",
+    "emailPlaceholder": "ईमेल",
+    "passwordPlaceholder": "पासवर्ड",
+    "signIn": "साइन इन करें",
+    "signingIn": "साइन इन हो रहा है…",
+    "errorIncorrect": "ईमेल या पासवर्ड गलत है।",
+    "errorUnreachable": "API तक पहुँचा नहीं जा सका।"
+  },
+  "home": {
+    "title": "Sentinel",
+    "subtitle": "परिस्थिति की जानकारी",
+    "live": "{{count}} लाइव",
+    "down": "{{count}} बंद",
+    "degraded": "{{count}} कमज़ोर",
+    "needsAttention": "ध्यान आवश्यक",
+    "nothingNeedsYou": "अभी आपके ध्यान की कोई आवश्यकता नहीं है।",
+    "watchlistHit": "वॉचलिस्ट मिलान",
+    "sighting_one": "{{count}} बार देखा गया",
+    "sighting_other": "{{count}} बार देखा गया"
+  },
+  "liveWall": {
+    "registered": "{{count}} पंजीकृत",
+    "showingOf": "{{shown}} / {{total}} दिखाए जा रहे हैं — लाइव कैमरे पहले",
+    "noCameras": "अभी तक कोई कैमरा पंजीकृत नहीं है। कैटलॉग खोज चलाएँ या API के माध्यम से मैन्युअल रूप से जोड़ें।",
+    "pausedOffscreen": "रुका हुआ · स्क्रीन से बाहर",
+    "checkingStream": "स्ट्रीम जाँची जा रही है…",
+    "previewUnavailable": "प्रीव्यू उपलब्ध नहीं",
+    "doubleClickDetails": "विवरण के लिए डबल-क्लिक करें",
+    "playback": {
+      "loading": "कनेक्ट हो रहा है…",
+      "playing": "HLS · लाइव",
+      "buffering": "HLS · बफर हो रहा है",
+      "error": "स्ट्रीम त्रुटि"
+    }
+  },
+  "cameras": {
+    "registered": "{{count}} पंजीकृत",
+    "table": "तालिका",
+    "map": "मानचित्र",
+    "addCamera": "कैमरा जोड़ें",
+    "loading": "कैमरे लोड हो रहे हैं…",
+    "noCameras": "अभी तक कोई कैमरा पंजीकृत नहीं है। कैटलॉग खोज चलाएँ या API के माध्यम से मैन्युअल रूप से जोड़ें।",
+    "notMonitored": "निगरानी में नहीं",
+    "columns": {
+      "name": "नाम",
+      "department": "विभाग",
+      "tier": "स्तर",
+      "status": "स्थिति",
+      "fps": "FPS",
+      "reconnects": "पुनः कनेक्शन",
+      "tamper": "छेड़छाड़"
+    }
+  },
+  "cameraDetail": {
+    "checkingStream": "स्ट्रीम जाँची जा रही है…",
+    "liveUnavailable": "लाइव प्रीव्यू उपलब्ध नहीं है।",
+    "couldNotReachApi": "API तक पहुँचा नहीं जा सका।",
+    "tier": "स्तर",
+    "reconnects": "पुनः कनेक्शन",
+    "source": "स्रोत",
+    "lastSeen": "अंतिम बार देखा गया",
+    "zoneRules": {
+      "title": "ज़ोन नियम",
+      "addZone": "ज़ोन जोड़ें",
+      "cancel": "रद्द करें",
+      "namePlaceholder": "ज़ोन का नाम (जैसे Loading Bay)",
+      "create": "बनाएँ",
+      "createError": "यह ज़ोन बनाया नहीं जा सका।",
+      "noZones": "इस कैमरे के लिए अभी कोई ज़ोन नियम कॉन्फ़िगर नहीं हैं।",
+      "recentEvents": "हाल की ज़ोन घटनाएँ",
+      "ruleTypes": {
+        "intrusion": "घुसपैठ",
+        "loitering": "मँडराना",
+        "wrong_way": "गलत दिशा",
+        "stopped_vehicle": "रुका हुआ वाहन"
+      },
+      "presets": {
+        "fullFrame": "पूरा फ़्रेम",
+        "leftHalf": "बायाँ आधा",
+        "rightHalf": "दायाँ आधा",
+        "topHalf": "ऊपरी आधा",
+        "bottomHalf": "निचला आधा",
+        "centreThird": "बीच का तिहाई भाग"
+      }
+    }
+  },
+  "findVehicle": {
+    "title": "वाहन खोजें",
+    "platePlaceholder": "GJ 01 AB 1234",
+    "search": "खोजें",
+    "searchesLast24h": "पिछले 24 घंटों में सभी कैमरों पर खोज करता है।",
+    "newSearch": "← नई खोज",
+    "searching": "खोज की जा रही है…",
+    "searchFailed": "खोज विफल रही।",
+    "sighting_one": "{{count}} बार देखा गया",
+    "sighting_other": "{{count}} बार देखा गया",
+    "camera_one": "{{count}} कैमरा",
+    "camera_other": "{{count}} कैमरे",
+    "summary": "{{cameras}} में {{sightings}}",
+    "replayRoute": "मार्ग पुनः चलाएँ",
+    "stop": "रोकें",
+    "exportReport": "रिपोर्ट निर्यात करें",
+    "preparingReport": "तैयार हो रहा है…",
+    "exportFailed": "निर्यात विफल रहा। फिर से प्रयास करें।",
+    "timeline": "समयरेखा",
+    "exactMatch": "सटीक मिलान",
+    "probableMatch": "संभावित मिलान",
+    "readClearly": "इस कैमरे पर स्पष्ट रूप से पढ़ा गया",
+    "matchedByAmbiguity": "OCR-अस्पष्टता वर्ग के माध्यम से मिलान — एक या अधिक वर्ण अनिश्चित थे",
+    "watchArmed": "{{plate}} के लिए निगरानी सक्रिय की गई",
+    "foundPastSightings_one": "रिकॉर्ड में पहले से {{count}} पिछली देखे जाने की घटना है — अलर्ट देखें।",
+    "foundPastSightings_other": "रिकॉर्ड में पहले से {{count}} पिछली देखे जाने की घटनाएँ हैं — अलर्ट देखें।",
+    "noPastSightings": "पहले की कोई देखे जाने की घटना नहीं मिली — यह नंबर प्लेट दिखते ही आपको अलर्ट मिलेगा।",
+    "noSightingsIn24h": "पिछले 24 घंटों में इस नंबर प्लेट का कोई रिकॉर्ड नहीं मिला। इस पर नज़र रखें — हर कैमरा भविष्य की सभी रीड इसके साथ मिलाएगा, और रिकॉर्ड में मौजूद हर पुरानी डिटेक्शन अभी जाँची जा रही है।",
+    "watchForVehicle": "इस वाहन पर नज़र रखें",
+    "arming": "सक्रिय किया जा रहा है…",
+    "armError": "वॉचलिस्ट प्रविष्टि सक्रिय नहीं की जा सकी।"
+  },
+  "alerts": {
+    "shown": "{{count}} दिखाए गए",
+    "filters": {
+      "unacknowledged": "बिना स्वीकारे",
+      "acknowledged": "स्वीकार किए गए",
+      "resolved": "निस्तारित",
+      "all": "सभी"
+    },
+    "noAlerts": "यहाँ कोई अलर्ट नहीं है।",
+    "onWatchlistLine": "{{match}} वॉचलिस्ट में · {{camera}}",
+    "exactMatch": "सटीक मिलान",
+    "probableMatch": "संभावित मिलान (OCR अस्पष्टता)",
+    "sighting_one": "{{count}} बार देखा गया",
+    "sighting_other": "{{count}} बार देखा गया",
+    "acknowledge": "स्वीकार करें",
+    "acknowledging": "स्वीकार किया जा रहा है…",
+    "notThisVehicle": "यह वाहन नहीं",
+    "resolve": "निस्तारित करें",
+    "resolving": "निस्तारित किया जा रहा है…",
+    "resolved": "निस्तारित",
+    "sealClip": "क्लिप सील करें",
+    "sealingClip": "क्लिप सील की जा रही है…",
+    "sealingFailed": "सील करना विफल रहा — फिर से प्रयास करें",
+    "watchSealedClip": "सील की गई क्लिप देखें"
+  },
+  "sealedClip": {
+    "title": "सील की गई इवेंट क्लिप",
+    "loading": "लोड हो रहा है…",
+    "loadError": "सील की गई क्लिप लोड नहीं हो सकी।",
+    "sealed": "{{date}} को सील किया गया",
+    "sha256": "SHA-256 {{hash}}"
+  },
+  "health": {
+    "subtitle": "सिस्टम और इंटीग्रेशन की स्थिति",
+    "integratorCompliance": "इंटीग्रेटर अनुपालन",
+    "liveStatus": "आयोजकों की प्री-सबमिशन चेकलिस्ट के अनुसार लाइव स्थिति",
+    "loading": "लोड हो रहा है…",
+    "connectionError": "अनुपालन एंडपॉइंट तक पहुँचा नहीं जा सका। यह हर कुछ सेकंड में अपडेट होता है — यह अपने आप साफ हो जाएगा।",
+    "checklist": {
+      "rtspTcp": {
+        "label": "RTSP को TCP ट्रांसपोर्ट पर मजबूर किया गया",
+        "detail": "भीड़भाड़ वाले नेटवर्क पर UDP पैकेट लॉस से फ़्रेम खराब होने से बचाता है।"
+      },
+      "ptsTiming": {
+        "label": "PTS-आधारित टाइमिंग",
+        "detail": "हर टाइमस्टैम्प स्ट्रीम की presentation clock से लिया जाता है, wall-clock arrival time से नहीं।"
+      },
+      "backoff": {
+        "label": "रीकनेक्ट backoff सक्रिय",
+        "detail": "स्ट्रीम टूटने पर {{initial}}s से शुरू होकर {{max}}s तक exponential backoff।"
+      },
+      "catalogue": {
+        "label": "कैटलॉग-आधारित खोज",
+        "detail": "कैमरे विभागीय कैटलॉग से ऑनबोर्ड किए जाते हैं, एक-एक करके हाथ से टाइप नहीं किए जाते।"
+      },
+      "codecs": {
+        "label": "मिश्रित-codec हैंडलिंग",
+        "detailWithCodecs": "वर्तमान में परोसा जा रहा है: {{codecs}}।",
+        "detailEmpty": "अभी देखने के लिए कोई लाइव कैमरा नहीं है।"
+      },
+      "publishing": {
+        "label": "गेटवे पर publishing बंद है",
+        "detail": "यह सिस्टम केवल स्ट्रीम प्राप्त करता है — यह आयोजकों के relay में कभी push नहीं करता।"
+      }
+    }
+  },
+  "admin": {
+    "subtitle": "विभाग, उपयोगकर्ता, वॉचलिस्ट और नीति",
+    "accessRequired": "एडमिन एक्सेस आवश्यक",
+    "askAdmin": "अपने खाते को एडमिन भूमिका देने के लिए किसी प्रशासक से कहें।",
+    "sections": {
+      "users": "उपयोगकर्ता और भूमिकाएँ",
+      "watchlist": "वॉचलिस्ट",
+      "retention": "डेटा प्रतिधारण और गोपनीयता",
+      "integrations": "इंटीग्रेशन",
+      "audit": "ऑडिट लॉग"
+    },
+    "users": {
+      "addUser": "उपयोगकर्ता जोड़ें",
+      "fullNamePlaceholder": "पूरा नाम",
+      "emailPlaceholder": "ईमेल",
+      "passwordPlaceholder": "अस्थायी पासवर्ड",
+      "roleOperator": "ऑपरेटर — मानक कंसोल एक्सेस",
+      "roleAdmin": "एडमिन — कंसोल + यह पोर्टल",
+      "adding": "जोड़ा जा रहा है…",
+      "add": "उपयोगकर्ता जोड़ें",
+      "createError": "यह उपयोगकर्ता बनाया नहीं जा सका।",
+      "loadError": "उपयोगकर्ता लोड नहीं किए जा सके।",
+      "columns": {
+        "name": "नाम",
+        "email": "ईमेल",
+        "role": "भूमिका",
+        "sees": "पहुंच",
+        "status": "स्थिति"
+      },
+      "seesAdmin": "ऑपरेटर कंसोल + एडमिन पोर्टल",
+      "seesOperator": "केवल ऑपरेटर कंसोल (होम, लाइव वॉल, वाहन खोजें, अलर्ट, कैमरे, हेल्थ)",
+      "makeOperator": "ऑपरेटर बनाएं",
+      "makeAdmin": "एडमिन बनाएं",
+      "deactivate": "निष्क्रिय करें",
+      "reactivate": "फिर से सक्रिय करें"
+    },
+    "watchlist": {
+      "columns": {
+        "plate": "नंबर प्लेट",
+        "type": "प्रकार",
+        "priority": "प्राथमिकता",
+        "validUntil": "तक मान्य",
+        "status": "स्थिति"
+      },
+      "noEntries": "अभी तक कोई वॉचलिस्ट प्रविष्टि नहीं है।",
+      "deactivate": "निष्क्रिय करें",
+      "reactivate": "फिर से सक्रिय करें"
+    },
+    "retention": {
+      "detectionReads": "डिटेक्शन रीड्स",
+      "days": "{{count}} दिन",
+      "detectionsHelp": "{{count}} दिनों से पुरानी नंबर प्लेट रीड हटाई जाएँगी।",
+      "detectionsAffected": " अभी लगभग {{count}} डिटेक्शन प्रभावित हैं।",
+      "sealedClips": "सील की गई इवेंट क्लिप्स",
+      "clipsHelp": "{{count}} दिनों से पुरानी सील की गई क्लिप हटाई जाएँगी।",
+      "clipsAffected": " अभी लगभग {{count}} क्लिप प्रभावित हैं — {{size}}।",
+      "deleteNow": "अभी हटाएँ",
+      "confirmMessage": "यह ऊपर वर्णित डेटा को अभी स्थायी रूप से हटा देता है — इसे वापस नहीं लाया जा सकता।",
+      "confirmDelete": "हाँ, स्थायी रूप से हटाएँ",
+      "deleting": "हटाया जा रहा है…",
+      "cancel": "रद्द करें",
+      "deletionFailed": "हटाना विफल रहा।",
+      "auditNotice": "हर deletion छेड़छाड़-साक्ष्य ऑडिट लॉग में दर्ज होती है (ऑडिट लॉग टैब देखें), जिसमें यह भी दर्ज होता है कि किसने इसे चलाया और वास्तव में क्या हटाया गया।",
+      "deletedSummary": "{{detections}} डिटेक्शन और {{clips}} क्लिप हटाई गईं ({{size}})।"
+    },
+    "integrations": {
+      "description": "हर कार्ड अभी उसी प्रदाता के ड्राइवर के विरुद्ध एक वास्तविक नमूना जाँच चलाता है।",
+      "recheck": "फिर जाँचें",
+      "checking": "जाँच हो रही है…",
+      "connected": "कनेक्टेड (mock)",
+      "error": "त्रुटि",
+      "loadError": "इंटीग्रेशन जाँच तक पहुँचा नहीं जा सका।",
+      "retry": "फिर से प्रयास करें"
+    },
+    "audit": {
+      "title": "छेड़छाड़-साक्ष्य ऑडिट ट्रेल",
+      "description": "हर संवेदनशील कार्रवाई (चेहरा प्रदर्शित करना, उपयोगकर्ता बदलाव, वॉचलिस्ट संपादन, प्रतिधारण हटाना) hash-chain से जुड़ी होती है — बाद में किसी भी पंक्ति में बदलाव करने से उसके बाद की हर पंक्ति टूट जाती है।",
+      "verifyIntegrity": "अखंडता जाँचें",
+      "verifying": "जाँच हो रही है…",
+      "verificationFailed": "सत्यापन विफल रहा।",
+      "chainIntact": "श्रृंखला सुरक्षित है — {{count}} पंक्ति/पंक्तियाँ सत्यापित।",
+      "tamperingDetected": "पंक्ति {{row}} पर छेड़छाड़ मिली: {{detail}}",
+      "loadError": "ऑडिट लॉग लोड नहीं किया जा सका।",
+      "noEntries": "अभी तक कोई ऑडिट की गई कार्रवाई नहीं है।",
+      "columns": {
+        "when": "कब",
+        "actor": "कर्ता",
+        "action": "क्रिया",
+        "resource": "संसाधन",
+        "detail": "विवरण"
+      }
+    }
+  },
+  "onboarding": {
+    "titles": {
+      "location": "कैमरा जोड़ें — यह कहाँ है?",
+      "connect": "कैमरा जोड़ें — हम कैसे कनेक्ट करें?",
+      "bulkImport": "फ़ाइल से कैमरे आयात करें",
+      "discover": "विभागीय सिस्टम कनेक्ट करें",
+      "analytics": "कैमरा जोड़ें — इसे किस पर नज़र रखनी चाहिए?",
+      "success": "कैमरा जोड़ दिया गया"
+    },
+    "namePlaceholder": "कैमरे का नाम (जैसे Sarkhej Circle North)",
+    "noDepartment": "कोई विभाग नहीं",
+    "sitePlaceholder": "साइट (वैकल्पिक)",
+    "clickMapToPin": "यह कैमरा जहाँ लगा है, वहाँ पिन डालने के लिए मानचित्र पर क्लिक करें।",
+    "facing": "दिशा",
+    "next": "आगे",
+    "back": "वापस",
+    "connectOptions": {
+      "haveLink": "मेरे पास लिंक है",
+      "haveLinkDetail": "RTSP, HLS या WHEP URL",
+      "importFile": "फ़ाइल आयात करें",
+      "importFileDetail": "एक साथ कई कैमरों का CSV",
+      "connectDept": "विभागीय सिस्टम कनेक्ट करें",
+      "connectDeptDetail": "विभागीय कैटलॉग से सिंक करें",
+      "discoverNetwork": "मेरे नेटवर्क पर खोजें",
+      "discoverNetworkDetail": "यह इस बिल्ड में अभी उपलब्ध नहीं है"
+    },
+    "streamLink": "स्ट्रीम लिंक",
+    "urlPlaceholder": "rtsp://192.168.1.20:554/stream1",
+    "tiers": {
+      "continuous": {
+        "label": "नंबर प्लेट लगातार पढ़ें",
+        "detail": "ट्रैफ़िक जंक्शन, चेक-पोस्ट, उच्च-मूल्य स्थल — हर फ़्रेम का विश्लेषण।"
+      },
+      "sampled": {
+        "label": "निगरानी रखें, लेकिन बैंडविड्थ बचाने के लिए नमूना लें",
+        "detail": "सामान्य कवरेज वाले कैमरे — सेकंड में कुछ बार विश्लेषण।"
+      },
+      "motionGated": {
+        "label": "केवल तब देखें जब कुछ हिले",
+        "detail": "कम-यातायात क्षेत्र, गोदाम, कार्यालय — motion तक निष्क्रिय, फिर नमूना लिया जाता है।"
+      }
+    },
+    "adding": "जोड़ा जा रहा है…",
+    "addCamera": "कैमरा जोड़ें",
+    "createError": "यह कैमरा बनाया नहीं जा सका।",
+    "bulkImportHelp": "CSV कॉलम: camera_id, name आवश्यक; department_name, site_name, lat, lon, tier, protocol, url, codec वैकल्पिक।",
+    "previewDryRun": "प्रीव्यू (dry run)",
+    "checkingFile": "जाँच रहे हैं…",
+    "readFileError": "यह फ़ाइल पढ़ी नहीं जा सकी। जाँचें कि यह अपेक्षित कॉलम वाला CSV है।",
+    "rowsValid": "{{succeeded}} / {{total}} पंक्ति/पंक्तियाँ मान्य हैं",
+    "dryRunNotice": " (dry run — अभी कुछ भी सहेजा नहीं गया है)",
+    "importedNotice": " — आयात किया गया",
+    "rowOk": "ठीक",
+    "importCameras": "{{count}} कैमरा आयात करें",
+    "importing": "आयात हो रहा है…",
+    "importFailed": "आयात विफल रहा — कुछ भी सहेजा नहीं गया।",
+    "importCommitted": "आयात पूरा हुआ — कैमरे अब रजिस्ट्री में हैं।",
+    "discoverHelp": "यह अभी विभागीय कैटलॉग प्राप्त करता है और उसमें सूचीबद्ध हर कैमरे को ऑनबोर्ड करता है — विभाग के credentials कॉन्फ़िगर होने के बाद मैन्युअल एंट्री की आवश्यकता नहीं रहती।",
+    "syncNow": "अभी सिंक करें",
+    "syncing": "सिंक हो रहा है…",
+    "discoverError": "विभागीय कैटलॉग तक पहुँचा नहीं जा सका।",
+    "previewCheckFailed": "लाइव प्रीव्यू की जाँच नहीं हो सकी।",
+    "done": "पूर्ण",
+    "cameraAdded": "{{name}} जोड़ दिया गया",
+    "checkingPreview": "लाइव प्रीव्यू जाँचा जा रहा है…"
+  },
+  "field": {
+    "shell": {
+      "appName": "Sentinel Field",
+      "syncing": "सिंक हो रहा है…",
+      "lastSynced": "अंतिम सिंक {{time}}",
+      "queued": "{{count}} कतार में",
+      "lowBandwidthOn": "कम-बैंडविड्थ चालू",
+      "lowBandwidthOff": "कम-बैंडविड्थ बंद"
+    },
+    "nav": {
+      "alerts": "अलर्ट",
+      "lookup": "जाँच",
+      "report": "रिपोर्ट",
+      "nearby": "आस-पास"
+    },
+    "alerts": {
+      "noOpenAlerts": "अभी कोई खुला अलर्ट नहीं है।",
+      "navigate": "नेविगेट करें",
+      "acknowledge": "स्वीकार करें",
+      "iSeeIt": "मैंने देख लिया",
+      "kmAway": "{{distance}} किमी दूर"
+    },
+    "lookup": {
+      "prompt": "स्थिति जाँचने के लिए नंबर प्लेट दर्ज करें",
+      "platePlaceholder": "GJ 01 AB 1234",
+      "lookUp": "जाँचें",
+      "checking": "जाँच हो रही है…",
+      "unreachable": "सर्वर तक पहुँचा नहीं जा सका।",
+      "clear": "साफ करें",
+      "status": {
+        "clear": "क्लियर",
+        "stolen_vehicle": "चोरी का वाहन",
+        "wanted_vehicle": "वांछित वाहन",
+        "missing_person": "लापता व्यक्ति",
+        "suspect": "संदिग्ध वाहन",
+        "bolo": "सतर्क रहें"
+      },
+      "lastSeen": "{{date}} को अंतिम बार देखा गया",
+      "lastSeenAt": "{{date}} को {{camera}} पर अंतिम बार देखा गया",
+      "noSightings": "रिकॉर्ड में देखे जाने की कोई घटना नहीं है।",
+      "lookupAnother": "एक और नंबर प्लेट जाँचें"
+    },
+    "report": {
+      "plate": "नंबर प्लेट",
+      "platePlaceholder": "GJ 01 AB 1234",
+      "photo": "फ़ोटो",
+      "takePhoto": "फ़ोटो लें",
+      "capturedSighting": "देखे जाने की घटना दर्ज हुई",
+      "location": "स्थान",
+      "captureLocation": "मेरा स्थान कैप्चर करें",
+      "gpsUnavailable": "इस डिवाइस पर GPS उपलब्ध नहीं है।",
+      "gpsError": "GPS fix नहीं मिल सका — स्थान अनुमति जाँचें।",
+      "notes": "नोट्स (वैकल्पिक)",
+      "notesPlaceholder": "यात्रा की दिशा, सवार लोग, और कुछ…",
+      "submit": "रिपोर्ट जमा करें",
+      "queued": "रिपोर्ट कतार में डाली गई",
+      "willSync": "कनेक्शन मिलते ही यह अपने आप सिंक हो जाएगी।",
+      "reportAnother": "एक और देखे जाने की घटना रिपोर्ट करें"
+    },
+    "nearby": {
+      "map": "मानचित्र",
+      "list": "सूची",
+      "noCameras": "अभी तक ज्ञात स्थान वाला कोई कैमरा नहीं है।"
+    }
+  }
+}

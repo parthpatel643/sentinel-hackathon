@@ -1,14 +1,15 @@
 import { AlertOctagon, AlertTriangle, CheckCircle2, CircleDot, Info } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn'
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'ok'
 
-const SEVERITY_META: Record<Severity, { label: string; icon: typeof Info; className: string }> = {
-  critical: { label: 'Critical', icon: AlertOctagon, className: 'text-sev-critical bg-sev-critical/12' },
-  high: { label: 'High', icon: AlertTriangle, className: 'text-sev-high bg-sev-high/12' },
-  medium: { label: 'Medium', icon: Info, className: 'text-sev-medium bg-sev-medium/12' },
-  low: { label: 'Low', icon: CircleDot, className: 'text-sev-low bg-sev-low/12' },
-  ok: { label: 'Healthy', icon: CheckCircle2, className: 'text-ok bg-ok/12' },
+const SEVERITY_META: Record<Severity, { labelKey: string; icon: typeof Info; className: string }> = {
+  critical: { labelKey: 'severity.critical', icon: AlertOctagon, className: 'text-sev-critical bg-sev-critical/12' },
+  high: { labelKey: 'severity.high', icon: AlertTriangle, className: 'text-sev-high bg-sev-high/12' },
+  medium: { labelKey: 'severity.medium', icon: Info, className: 'text-sev-medium bg-sev-medium/12' },
+  low: { labelKey: 'severity.low', icon: CircleDot, className: 'text-sev-low bg-sev-low/12' },
+  ok: { labelKey: 'severity.ok', icon: CheckCircle2, className: 'text-ok bg-ok/12' },
 }
 
 interface SeverityBadgeProps {
@@ -20,6 +21,7 @@ interface SeverityBadgeProps {
 /** Severity is never colour alone — every instance carries an icon and a
  * plain-language label (docs/03-UX-DESIGN.md section 2.1). */
 export function SeverityBadge({ severity, label, className }: SeverityBadgeProps) {
+  const { t } = useTranslation()
   const meta = SEVERITY_META[severity]
   const Icon = meta.icon
   return (
@@ -31,7 +33,7 @@ export function SeverityBadge({ severity, label, className }: SeverityBadgeProps
       )}
     >
       <Icon size={13} strokeWidth={2.25} />
-      {label ?? meta.label}
+      {label ?? t(meta.labelKey)}
     </span>
   )
 }

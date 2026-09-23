@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Film } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { alertsApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
 import { TopBar } from '../components/layout/TopBar'
@@ -8,12 +9,13 @@ import { Button } from '../components/ui/Button'
 import { SeverityBadge, type Severity } from '../components/ui/SeverityBadge'
 import { SealedClipModal } from '../components/SealedClipModal'
 import type { Alert, AlertStatus, EvidenceClip } from '../lib/types'
+import { RequestError } from '../components/ui/RequestError'
 
-const FILTERS: { label: string; status?: AlertStatus }[] = [
-  { label: 'Unacknowledged', status: 'new' },
-  { label: 'Acknowledged', status: 'acknowledged' },
-  { label: 'Resolved', status: 'resolved' },
-  { label: 'All', status: undefined },
+const FILTERS: { key: string; status?: AlertStatus }[] = [
+  { key: 'unacknowledged', status: 'new' },
+  { key: 'acknowledged', status: 'acknowledged' },
+  { key: 'resolved', status: 'resolved' },
+  { key: 'all', status: undefined },
 ]
 
 function formatTime(iso: string): string {
@@ -35,6 +37,7 @@ function severityForAlert(alert: Alert): Severity {
 }
 
 function ClipAction({ alert, onView }: { alert: Alert; onView: (clip: EvidenceClip) => void }) {
+  const { t } = useTranslation()
   const [clip, setClip] = useState<EvidenceClip | null>(null)
   const [loaded, setLoaded] = useState(false)
 
@@ -76,9 +79,9 @@ function ClipAction({ alert, onView }: { alert: Alert; onView: (clip: EvidenceCl
       <div className="flex flex-col items-end gap-1">
         <Button size="sm" variant="ghost" onClick={requestSeal}>
           <Film size={14} />
-          Seal clip
+          {t('alerts.sealClip')}
         </Button>
-        {clip?.status === 'failed' && <p className="text-[11px] text-sev-critical">Sealing failed — try again</p>}
+        {clip?.status === 'failed' && <p className="text-[11px] text-sev-critical">{t('alerts.sealingFailed')}</p>}
       </div>
     )
   }
@@ -87,7 +90,7 @@ function ClipAction({ alert, onView }: { alert: Alert; onView: (clip: EvidenceCl
     return (
       <Button size="sm" variant="ghost" disabled>
         <Film size={14} />
-        Sealing clip…
+        {t('alerts.sealingClip')}
       </Button>
     )
   }
@@ -95,7 +98,7 @@ function ClipAction({ alert, onView }: { alert: Alert; onView: (clip: EvidenceCl
   return (
     <Button size="sm" variant="ghost" onClick={() => onView(clip)}>
       <Film size={14} />
-      Watch sealed clip
+      {t('alerts.watchSealedClip')}
     </Button>
   )
 }
@@ -109,6 +112,7 @@ function AlertRow({
   onUpdated: () => void
   onViewClip: (clip: EvidenceClip) => void
 }) {
+  const { t } = useTranslation()
   const [busy, setBusy] = useState<AlertStatus | null>(null)
 
   async function act(status: AlertStatus) {
@@ -133,28 +137,30 @@ function AlertRow({
           </div>
           <p className="plate-mono text-lg font-semibold text-text-primary">{alert.plate_text}</p>
           <p className="mt-1 text-sm text-text-secondary">
-            {alert.match_rung === 'exact' ? 'Exact match' : 'Probable match (OCR ambiguity)'} on
-            watchlist · {alert.camera_id}
-            {alert.sighting_count > 1 && ` · ${alert.sighting_count} sightings`}
+            {t('alerts.onWatchlistLine', {
+              match: alert.match_rung === 'exact' ? t('alerts.exactMatch') : t('alerts.probableMatch'),
+              camera: alert.camera_id,
+            })}
+            {alert.sighting_count > 1 && ` · ${t('alerts.sighting', { count: alert.sighting_count })}`}
           </p>
         </div>
         {isOpen && (
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => act('acknowledged')}>
-              {busy === 'acknowledged' ? 'Acknowledging…' : 'Acknowledge'}
+              {busy === 'acknowledged' ? t('alerts.acknowledging') : t('alerts.acknowledge')}
             </Button>
             <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => act('false_positive')}>
-              Not this vehicle
+              {t('alerts.notThisVehicle')}
             </Button>
             <Button size="sm" disabled={busy !== null} onClick={() => act('resolved')}>
-              {busy === 'resolved' ? 'Resolving…' : 'Resolve'}
+              {busy === 'resolved' ? t('alerts.resolving') : t('alerts.resolve')}
             </Button>
           </div>
         )}
         {!isOpen && (
           <SeverityBadge
             severity={alert.status === 'false_positive' ? 'low' : 'ok'}
-            label={alert.status === 'false_positive' ? 'Not this vehicle' : 'Resolved'}
+            label={alert.status === 'false_positive' ? t('alerts.notThisVehicle') : t('alerts.resolved')}
           />
         )}
       </div>
@@ -166,28 +172,31 @@ function AlertRow({
 }
 
 export function Alerts() {
+  const { t } = useTranslation()
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>(FILTERS[0])
   const [viewingClip, setViewingClip] = useState<EvidenceClip | null>(null)
-  const { data: alerts, refetch } = usePolling(() => alertsApi.list(filter.status), 6000, [filter.status])
+  const { data: alerts, error, refetch } = usePolling(() => alertsApi.list(filter.status), 6000, [filter.status])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <TopBar title="Alerts" subtitle={alerts ? `${alerts.length} shown` : undefined} />
-      <div className="flex gap-2 border-b border-border-subtle px-6 py-3">
+      <TopBar title={t('nav.alerts')} subtitle={alerts ? t('alerts.shown', { count: alerts.length }) : undefined} />
+      <div className="page-toolbar">
         {FILTERS.map((f) => (
           <Button
-            key={f.label}
+            key={f.key}
             size="sm"
-            variant={filter.label === f.label ? 'primary' : 'secondary'}
+            variant={filter.key === f.key ? 'primary' : 'secondary'}
             onClick={() => setFilter(f)}
+            aria-pressed={filter.key === f.key}
           >
-            {f.label}
+            {t(`alerts.filters.${f.key}`)}
           </Button>
         ))}
       </div>
-      <div className="flex-1 overflow-y-auto p-6">
-        {!alerts && <p className="text-sm text-text-tertiary">Loading…</p>}
-        {alerts?.length === 0 && <p className="text-sm text-text-tertiary">No alerts here.</p>}
+      <div className="page-body">
+        {Boolean(error) && <RequestError onRetry={refetch} />}
+        {!alerts && !error && <p className="text-sm text-text-tertiary">{t('common.loading')}</p>}
+        {alerts?.length === 0 && !error && <div className="empty-state"><p className="font-medium text-text-primary">{t('alerts.noAlerts')}</p><p>{t('workspace.queueDescription')}</p></div>}
         <div className="flex flex-col gap-3">
           {alerts?.map((alert) => (
             <AlertRow key={alert.id} alert={alert} onUpdated={refetch} onViewClip={setViewingClip} />

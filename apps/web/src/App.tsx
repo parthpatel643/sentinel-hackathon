@@ -9,6 +9,7 @@ import { Health } from './routes/Health'
 import { AdminPortal } from './routes/AdminPortal'
 import { Login } from './routes/Login'
 import { AuthProvider, useAuth } from './lib/AuthContext'
+import { ThemeProvider } from './lib/ThemeContext'
 import { CommandPalette } from './components/CommandPalette'
 import { FieldApp } from './field/FieldApp'
 import type { ReactNode } from 'react'
@@ -48,18 +49,20 @@ function OperatorConsole() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <AuthGate>
-          <Routes>
-            {/* The Field PWA is a completely separate information
-             * architecture (docs/03-UX-DESIGN.md §3) — it gets its own
-             * route branch with its own layout, not the console's Shell. */}
-            <Route path="/field/*" element={<FieldApp />} />
-            <Route path="/*" element={<OperatorConsole />} />
-          </Routes>
-        </AuthGate>
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <AuthGate>
+            <Routes>
+              {/* The Field PWA is a completely separate information
+               * architecture (docs/03-UX-DESIGN.md §3) — it gets its own
+               * route branch with its own layout, not the console's Shell. */}
+              <Route path="/field/*" element={<FieldApp />} />
+              <Route path="/*" element={<OperatorConsole />} />
+            </Routes>
+          </AuthGate>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }

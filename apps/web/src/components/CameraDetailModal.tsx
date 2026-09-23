@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { camerasApi, zonesApi } from '../lib/api'
 import type { Camera, CameraStream, Zone, ZoneEvent } from '../lib/types'
 import { HlsVideoPlayer } from './HlsVideoPlayer'
@@ -7,21 +8,16 @@ import { Modal } from './ui/Modal'
 import { SeverityBadge, statusToSeverity } from './ui/SeverityBadge'
 import { useAuth } from '../lib/AuthContext'
 
-const PRESET_REGIONS: { label: string; polygon: number[][] }[] = [
-  { label: 'Full frame', polygon: [[0, 0], [1, 0], [1, 1], [0, 1]] },
-  { label: 'Left half', polygon: [[0, 0], [0.5, 0], [0.5, 1], [0, 1]] },
-  { label: 'Right half', polygon: [[0.5, 0], [1, 0], [1, 1], [0.5, 1]] },
-  { label: 'Top half', polygon: [[0, 0], [1, 0], [1, 0.5], [0, 0.5]] },
-  { label: 'Bottom half', polygon: [[0, 0.5], [1, 0.5], [1, 1], [0, 1]] },
-  { label: 'Centre third', polygon: [[0.33, 0.33], [0.67, 0.33], [0.67, 0.67], [0.33, 0.67]] },
+const PRESET_REGIONS: { key: string; polygon: number[][] }[] = [
+  { key: 'fullFrame', polygon: [[0, 0], [1, 0], [1, 1], [0, 1]] },
+  { key: 'leftHalf', polygon: [[0, 0], [0.5, 0], [0.5, 1], [0, 1]] },
+  { key: 'rightHalf', polygon: [[0.5, 0], [1, 0], [1, 1], [0.5, 1]] },
+  { key: 'topHalf', polygon: [[0, 0], [1, 0], [1, 0.5], [0, 0.5]] },
+  { key: 'bottomHalf', polygon: [[0, 0.5], [1, 0.5], [1, 1], [0, 1]] },
+  { key: 'centreThird', polygon: [[0.33, 0.33], [0.67, 0.33], [0.67, 0.67], [0.33, 0.67]] },
 ]
 
-const RULE_TYPES = [
-  { value: 'intrusion', label: 'Intrusion' },
-  { value: 'loitering', label: 'Loitering' },
-  { value: 'wrong_way', label: 'Wrong-way' },
-  { value: 'stopped_vehicle', label: 'Stopped vehicle' },
-]
+const RULE_TYPES = ['intrusion', 'loitering', 'wrong_way', 'stopped_vehicle'] as const
 
 interface CameraDetailModalProps {
   camera: Camera | null
@@ -40,12 +36,13 @@ function fpsLabel(camera: Camera): string {
  * deliberately simple configuration surface on top of it, not a
  * limitation of what the engine itself can express. */
 function ZoneRulesSection({ camera }: { camera: Camera }) {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const [zones, setZones] = useState<Zone[] | null>(null)
   const [events, setEvents] = useState<ZoneEvent[] | null>(null)
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
-  const [ruleType, setRuleType] = useState(RULE_TYPES[0].value)
+  const [ruleType, setRuleType] = useState<(typeof RULE_TYPES)[number]>(RULE_TYPES[0])
   const [presetIndex, setPresetIndex] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
@@ -54,7 +51,7 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
     zonesApi.events(camera.camera_id).then(setEvents)
   }
 
-  useEffect(load, [camera.camera_id])
+  useEffect(load, [camera.camera_id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function createZone() {
     if (!name.trim()) return
@@ -70,16 +67,16 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
         setAdding(false)
         load()
       })
-      .catch(() => setError('Could not create this zone.'))
+      .catch(() => setError(t('cameraDetail.zoneRules.createError')))
   }
 
   return (
     <div className="flex flex-col gap-3 border-t border-border-subtle pt-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-text-primary">Zone rules</p>
+        <p className="text-sm font-medium text-text-primary">{t('cameraDetail.zoneRules.title')}</p>
         {user?.role === 'admin' && (
           <Button size="sm" variant="secondary" onClick={() => setAdding((v) => !v)}>
-            {adding ? 'Cancel' : 'Add zone'}
+            {adding ? t('cameraDetail.zoneRules.cancel') : t('cameraDetail.zoneRules.addZone')}
           </Button>
         )}
       </div>
@@ -88,7 +85,7 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
         <div className="flex flex-col gap-2 rounded-md bg-bg-inset p-3">
           <input
             className="rounded-md border border-border-subtle bg-bg-base px-2.5 py-1.5 text-sm text-text-primary"
-            placeholder="Zone name (e.g. Loading Bay)"
+            placeholder={t('cameraDetail.zoneRules.namePlaceholder')}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -96,11 +93,11 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
             <select
               className="flex-1 rounded-md border border-border-subtle bg-bg-base px-2.5 py-1.5 text-sm text-text-primary"
               value={ruleType}
-              onChange={(e) => setRuleType(e.target.value)}
+              onChange={(e) => setRuleType(e.target.value as (typeof RULE_TYPES)[number])}
             >
               {RULE_TYPES.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
+                <option key={r} value={r}>
+                  {t(`cameraDetail.zoneRules.ruleTypes.${r}`)}
                 </option>
               ))}
             </select>
@@ -110,14 +107,14 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
               onChange={(e) => setPresetIndex(Number(e.target.value))}
             >
               {PRESET_REGIONS.map((r, i) => (
-                <option key={r.label} value={i}>
-                  {r.label}
+                <option key={r.key} value={i}>
+                  {t(`cameraDetail.zoneRules.presets.${r.key}`)}
                 </option>
               ))}
             </select>
           </div>
           <Button size="sm" onClick={createZone}>
-            Create
+            {t('cameraDetail.zoneRules.create')}
           </Button>
           {error && <p className="text-xs text-sev-critical">{error}</p>}
         </div>
@@ -134,12 +131,14 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
         </ul>
       )}
       {zones && zones.length === 0 && !adding && (
-        <p className="text-xs text-text-tertiary">No zone rules configured for this camera yet.</p>
+        <p className="text-xs text-text-tertiary">{t('cameraDetail.zoneRules.noZones')}</p>
       )}
 
       {events && events.length > 0 && (
         <div>
-          <p className="mb-1 text-xs uppercase tracking-wide text-text-tertiary">Recent zone events</p>
+          <p className="mb-1 text-xs uppercase tracking-wide text-text-tertiary">
+            {t('cameraDetail.zoneRules.recentEvents')}
+          </p>
           <ul className="flex flex-col gap-1 text-xs text-text-secondary">
             {events.slice(0, 5).map((e) => (
               <li key={e.id}>
@@ -162,6 +161,7 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
  * A camera outside our own local relay is reported as unavailable with a
  * plain-language reason instead of silently failing. */
 export function CameraDetailModal({ camera, onClose }: CameraDetailModalProps) {
+  const { t } = useTranslation()
   const [stream, setStream] = useState<CameraStream | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -175,16 +175,16 @@ export function CameraDetailModal({ camera, onClose }: CameraDetailModalProps) {
     camerasApi
       .stream(camera.camera_id)
       .then(setStream)
-      .catch(() => setStream({ available: false, hls_url: null, reason: 'Could not reach the API.' }))
+      .catch(() => setStream({ available: false, hls_url: null, reason: t('cameraDetail.couldNotReachApi') }))
       .finally(() => setLoading(false))
-  }, [camera])
+  }, [camera, t])
 
   return (
     <Modal open={camera !== null} onOpenChange={(open) => !open && onClose()} title={camera?.name ?? ''}>
       {camera && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <SeverityBadge severity={statusToSeverity(camera.status)} label={camera.status} />
+            <SeverityBadge severity={statusToSeverity(camera.status)} label={t(`cameraStatus.${camera.status}`)} />
             <span className="text-text-tertiary">{camera.camera_id}</span>
             {camera.department_name && <span className="text-text-secondary">{camera.department_name}</span>}
             <span className="plate-mono text-text-secondary">{fpsLabel(camera)}</span>
@@ -193,7 +193,7 @@ export function CameraDetailModal({ camera, onClose }: CameraDetailModalProps) {
           <div className="aspect-video w-full overflow-hidden rounded-md bg-bg-inset">
             {loading && (
               <div className="flex h-full items-center justify-center text-sm text-text-tertiary">
-                Checking stream…
+                {t('cameraDetail.checkingStream')}
               </div>
             )}
             {!loading && stream?.available && stream.hls_url && (
@@ -201,28 +201,28 @@ export function CameraDetailModal({ camera, onClose }: CameraDetailModalProps) {
             )}
             {!loading && stream && !stream.available && (
               <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
-                <p className="text-sm text-text-secondary">{stream.reason ?? 'Live preview unavailable.'}</p>
+                <p className="text-sm text-text-secondary">{stream.reason ?? t('cameraDetail.liveUnavailable')}</p>
               </div>
             )}
           </div>
 
           <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
             <div>
-              <dt className="text-text-tertiary">Tier</dt>
+              <dt className="text-text-tertiary">{t('cameraDetail.tier')}</dt>
               <dd className="text-text-primary">{camera.tier}</dd>
             </div>
             <div>
-              <dt className="text-text-tertiary">Reconnects</dt>
+              <dt className="text-text-tertiary">{t('cameraDetail.reconnects')}</dt>
               <dd className="text-text-primary">{camera.reconnects}</dd>
             </div>
             <div>
-              <dt className="text-text-tertiary">Source</dt>
+              <dt className="text-text-tertiary">{t('cameraDetail.source')}</dt>
               <dd className="text-text-primary">{camera.source}</dd>
             </div>
             <div>
-              <dt className="text-text-tertiary">Last seen</dt>
+              <dt className="text-text-tertiary">{t('cameraDetail.lastSeen')}</dt>
               <dd className="text-text-primary">
-                {camera.last_seen_at ? new Date(camera.last_seen_at).toLocaleString() : '—'}
+                {camera.last_seen_at ? new Date(camera.last_seen_at).toLocaleString() : t('common.unknown')}
               </dd>
             </div>
           </dl>

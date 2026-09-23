@@ -1,5 +1,6 @@
 import { PauseCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { camerasApi } from '../lib/api'
 import { useInView } from '../lib/useInView'
 import type { Camera, CameraStream, Detection } from '../lib/types'
@@ -18,11 +19,11 @@ function fpsLabel(camera: Camera): string {
   return camera.measured_fps != null ? `${camera.measured_fps.toFixed(0)} fps` : '—'
 }
 
-const PLAYBACK_LABEL: Record<PlaybackState, string> = {
-  loading: 'Connecting…',
-  playing: 'HLS · live',
-  buffering: 'HLS · buffering',
-  error: 'Stream error',
+const PLAYBACK_LABEL_KEY: Record<PlaybackState, string> = {
+  loading: 'liveWall.playback.loading',
+  playing: 'liveWall.playback.playing',
+  buffering: 'liveWall.playback.buffering',
+  error: 'liveWall.playback.error',
 }
 
 interface LiveWallTileProps {
@@ -36,6 +37,7 @@ interface LiveWallTileProps {
  * <HlsVideoPlayer> entirely rather than merely hiding it, which is what
  * actually stops the network/decode work, not just the pixels. */
 export function LiveWallTile({ camera, latestDetection, onOpen }: LiveWallTileProps) {
+  const { t } = useTranslation()
   const { ref, inView } = useInView<HTMLDivElement>(0.15)
   const [stream, setStream] = useState<CameraStream | null>(null)
   const [playback, setPlayback] = useState<PlaybackState>('loading')
@@ -55,11 +57,11 @@ export function LiveWallTile({ camera, latestDetection, onOpen }: LiveWallTilePr
     camerasApi
       .stream(camera.camera_id)
       .then((s) => !cancelled && setStream(s))
-      .catch(() => !cancelled && setStream({ available: false, hls_url: null, reason: 'Could not reach the API.' }))
+      .catch(() => !cancelled && setStream({ available: false, hls_url: null, reason: t('cameraDetail.couldNotReachApi') }))
     return () => {
       cancelled = true
     }
-  }, [camera.camera_id, inView])
+  }, [camera.camera_id, inView, t])
 
   const recentRead =
     latestDetection && now - new Date(latestDetection.observed_at).getTime() < 30_000 ? latestDetection : undefined
@@ -69,7 +71,7 @@ export function LiveWallTile({ camera, latestDetection, onOpen }: LiveWallTilePr
       ref={ref}
       onDoubleClick={() => onOpen(camera)}
       className="group relative flex cursor-pointer flex-col overflow-hidden rounded-lg border border-border-subtle bg-bg-raised"
-      title="Double-click for details"
+      title={t('liveWall.doubleClickDetails')}
     >
       <div className="flex items-center gap-2 border-b border-border-subtle bg-bg-inset px-2.5 py-1.5 text-xs">
         <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${STATUS_DOT[camera.status] ?? STATUS_DOT.unknown}`} />
@@ -83,11 +85,13 @@ export function LiveWallTile({ camera, latestDetection, onOpen }: LiveWallTilePr
         {!inView && (
           <div className="flex h-full flex-col items-center justify-center gap-1.5 text-text-tertiary">
             <PauseCircle size={20} />
-            <span className="text-[11px]">Paused · off-screen</span>
+            <span className="text-[11px]">{t('liveWall.pausedOffscreen')}</span>
           </div>
         )}
         {inView && !stream && (
-          <div className="flex h-full items-center justify-center text-xs text-text-tertiary">Checking stream…</div>
+          <div className="flex h-full items-center justify-center text-xs text-text-tertiary">
+            {t('liveWall.checkingStream')}
+          </div>
         )}
         {inView && stream?.available && stream.hls_url && (
           <HlsVideoPlayer
@@ -99,13 +103,13 @@ export function LiveWallTile({ camera, latestDetection, onOpen }: LiveWallTilePr
         )}
         {inView && stream && !stream.available && (
           <div className="flex h-full flex-col items-center justify-center gap-1 p-3 text-center">
-            <p className="text-xs text-text-tertiary">{stream.reason ?? 'Preview unavailable'}</p>
+            <p className="text-xs text-text-tertiary">{stream.reason ?? t('liveWall.previewUnavailable')}</p>
           </div>
         )}
 
         {inView && stream?.available && (
           <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-            {PLAYBACK_LABEL[playback]}
+            {t(PLAYBACK_LABEL_KEY[playback])}
           </span>
         )}
         {recentRead && (
@@ -117,7 +121,7 @@ export function LiveWallTile({ camera, latestDetection, onOpen }: LiveWallTilePr
       </div>
 
       <div className="flex items-center gap-2 px-2.5 py-1 text-[11px] text-text-tertiary">
-        <SeverityBadge severity={statusToSeverity(camera.status)} label={camera.status} />
+        <SeverityBadge severity={statusToSeverity(camera.status)} label={t(`cameraStatus.${camera.status}`)} />
         <span className="plate-mono">{fpsLabel(camera)}</span>
       </div>
     </div>

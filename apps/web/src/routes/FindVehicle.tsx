@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Download, Pause, Play } from 'lucide-react'
+import { ArrowRight, Download, Pause, Play, Search } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { detectionsApi, watchlistApi } from '../lib/api'
 import { ApiError } from '../lib/http'
 import { MapView, type MapMarker } from '../components/MapView'
@@ -10,9 +11,11 @@ import { Button } from '../components/ui/Button'
 import { SeverityBadge } from '../components/ui/SeverityBadge'
 import { cn } from '../lib/cn'
 import type { RoutePoint, VehicleRoute } from '../lib/types'
+import { TopBar } from '../components/layout/TopBar'
+import i18n from '../lib/i18n'
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
+  return new Date(iso).toLocaleString(i18n.language, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -21,11 +24,9 @@ function formatTime(iso: string): string {
 }
 
 function ConfidenceBar({ point }: { point: RoutePoint }) {
+  const { t } = useTranslation()
   const pct = Math.round(point.plate_confidence * 100)
-  const tooltip =
-    point.match_rung === 'exact'
-      ? 'Read clearly at this camera'
-      : 'Matched via OCR-ambiguity class — one or more characters were uncertain'
+  const tooltip = point.match_rung === 'exact' ? t('findVehicle.readClearly') : t('findVehicle.matchedByAmbiguity')
   return (
     <div title={tooltip} className="flex items-center gap-2">
       <div className="h-1.5 w-16 overflow-hidden rounded-full bg-bg-inset">
@@ -40,6 +41,7 @@ function ConfidenceBar({ point }: { point: RoutePoint }) {
 }
 
 function ArmBoloPanel({ plate, onArmed }: { plate: string; onArmed: () => void }) {
+  const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [armed, setArmed] = useState<{ retro_alerts_created: number; retro_sightings_found: number } | null>(
     null,
@@ -54,7 +56,7 @@ function ArmBoloPanel({ plate, onArmed }: { plate: string; onArmed: () => void }
       setArmed(result)
       onArmed()
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.detail) : 'Could not arm the watchlist entry.')
+      setError(err instanceof ApiError ? String(err.detail) : t('findVehicle.armError'))
     } finally {
       setBusy(false)
     }
@@ -63,11 +65,11 @@ function ArmBoloPanel({ plate, onArmed }: { plate: string; onArmed: () => void }
   if (armed) {
     return (
       <Card className="p-6 text-center">
-        <p className="text-sm font-medium text-ok">Watch armed for {plate}</p>
+        <p className="text-sm font-medium text-ok">{t('findVehicle.watchArmed', { plate })}</p>
         <p className="mt-1 text-sm text-text-secondary">
           {armed.retro_sightings_found > 0
-            ? `Found ${armed.retro_sightings_found} past sighting${armed.retro_sightings_found === 1 ? '' : 's'} already on file — check Alerts.`
-            : 'No past sightings — you will be alerted the moment this plate is seen.'}
+            ? t('findVehicle.foundPastSightings', { count: armed.retro_sightings_found })
+            : t('findVehicle.noPastSightings')}
         </p>
       </Card>
     )
@@ -76,12 +78,9 @@ function ArmBoloPanel({ plate, onArmed }: { plate: string; onArmed: () => void }
   return (
     <Card className="flex flex-col items-center gap-3 p-8 text-center">
       <p className="plate-mono text-2xl font-semibold text-text-primary">{plate}</p>
-      <p className="max-w-sm text-sm text-text-secondary">
-        No sightings for this plate in the last 24 hours. Watch for it — every camera will check
-        future reads against it, and every past detection on file is checked right now too.
-      </p>
+      <p className="max-w-sm text-sm text-text-secondary">{t('findVehicle.noSightingsIn24h')}</p>
       <Button onClick={arm} disabled={busy}>
-        {busy ? 'Arming…' : 'Watch for this vehicle'}
+        {busy ? t('findVehicle.arming') : t('findVehicle.watchForVehicle')}
       </Button>
       {error && <p className="text-xs text-sev-critical">{error}</p>}
     </Card>
@@ -89,6 +88,7 @@ function ArmBoloPanel({ plate, onArmed }: { plate: string; onArmed: () => void }
 }
 
 function ExportReportButton({ plate }: { plate: string }) {
+  const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -106,7 +106,7 @@ function ExportReportButton({ plate }: { plate: string }) {
       link.remove()
       URL.revokeObjectURL(url)
     } catch {
-      setError('Export failed. Try again.')
+      setError(t('findVehicle.exportFailed'))
     } finally {
       setBusy(false)
     }
@@ -116,7 +116,7 @@ function ExportReportButton({ plate }: { plate: string }) {
     <div className="flex flex-col items-end gap-1">
       <Button size="sm" variant="secondary" onClick={download} disabled={busy}>
         <Download size={14} />
-        {busy ? 'Preparing…' : 'Export report'}
+        {busy ? t('findVehicle.preparingReport') : t('findVehicle.exportReport')}
       </Button>
       {error && <p className="text-xs text-sev-critical">{error}</p>}
     </div>
@@ -124,6 +124,7 @@ function ExportReportButton({ plate }: { plate: string }) {
 }
 
 export function FindVehicle() {
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const plateParam = searchParams.get('plate') ?? ''
   const [input, setInput] = useState(plateParam)
@@ -145,18 +146,24 @@ export function FindVehicle() {
   const replayTokenRef = useRef(0)
 
   useEffect(() => {
+    let cancelled = false
+    setInput(plateParam)
+    setRoute(null)
+    setError(null)
     if (!plateParam) {
-      setRoute(null)
+      setLoading(false)
       return
     }
     setLoading(true)
     setError(null)
     detectionsApi
       .vehicleRoute(plateParam)
-      .then(setRoute)
-      .catch((err) => setError(err instanceof ApiError ? String(err.detail) : 'Search failed.'))
-      .finally(() => setLoading(false))
-  }, [plateParam, refreshKey])
+      .then((result) => { if (!cancelled) setRoute(result) })
+      .catch((err) => { if (!cancelled) setError(err instanceof ApiError ? String(err.detail) : t('findVehicle.searchFailed')) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plateParam, refreshKey, t])
 
   // Cancel any in-flight replay if the operator starts a new search.
   useEffect(() => {
@@ -164,6 +171,7 @@ export function FindVehicle() {
     setReplaying(false)
     setActiveHopIndex(null)
     setVehiclePosition(null)
+    return () => { replayTokenRef.current += 1 }
   }, [plateParam])
 
   function handleSearch() {
@@ -227,7 +235,7 @@ export function FindVehicle() {
     id: `${p.camera_id}-${p.index}`,
     lat: p.location.lat,
     lon: p.location.lon,
-    color: 'oklch(0.68 0.16 245)',
+    color: '#087665',
     label: `${p.index + 1}. ${p.camera_name} · ${formatTime(p.observed_at)}`,
     number: p.index + 1,
     pulse: activeHopIndex === p.index,
@@ -241,48 +249,64 @@ export function FindVehicle() {
 
   if (!plateParam) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 p-8">
-        <h1 className="text-2xl font-semibold text-text-primary">Find a vehicle</h1>
-        <div className="flex w-full max-w-lg gap-2">
-          <Input
-            autoFocus
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="GJ 01 AB 1234"
-            className="plate-mono flex-1 text-center text-lg"
-          />
-          <Button onClick={handleSearch}>Search</Button>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <TopBar title={t('findVehicle.title')} subtitle={t('workspace.investigationDescription')} />
+        <div className="page-body">
+          <div className="investigation-start">
+            <form className="investigation-form" onSubmit={(e) => { e.preventDefault(); handleSearch() }}>
+              <Search size={32} strokeWidth={1.5} className="mb-8 text-accent" />
+              <h2 className="mb-3 text-2xl font-semibold tracking-tight">{t('workspace.startWithPlate')}</h2>
+              <p className="mb-8 max-w-lg text-sm leading-relaxed text-text-secondary">{t('findVehicle.searchesLast24h')}</p>
+              <label htmlFor="investigation-plate" className="mb-2 block text-sm font-medium">{t('workspace.plate')}</label>
+              <Input
+                id="investigation-plate"
+                required
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={t('findVehicle.platePlaceholder')}
+                className="plate-mono h-14 w-full text-lg uppercase"
+              />
+              <Button type="submit" className="mt-4" disabled={!input.trim()}>{t('findVehicle.search')}<ArrowRight size={17} /></Button>
+            </form>
+            <aside className="investigation-guide">
+              <ul>
+                <li><h3>{t('workspace.traceTitle')}</h3><p>{t('workspace.traceDescription')}</p></li>
+                <li><h3>{t('findVehicle.replayRoute')}</h3><p>{t('workspace.replayDescription')}</p></li>
+                <li><h3>{t('findVehicle.watchForVehicle')}</h3><p>{t('workspace.watchDescription')}</p></li>
+              </ul>
+            </aside>
+          </div>
         </div>
-        <p className="text-sm text-text-tertiary">Searches the last 24 hours across every camera.</p>
       </div>
     )
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex items-center gap-4 border-b border-border-subtle bg-bg-raised px-6 py-4">
+      <TopBar title={t('findVehicle.title')} subtitle={t('findVehicle.searchesLast24h')} />
+      <form onSubmit={(e) => { e.preventDefault(); handleSearch() }} className="page-toolbar">
         <button
+          type="button"
           onClick={() => setSearchParams({})}
-          className="text-sm text-text-tertiary hover:text-text-primary"
+          className="min-h-11 text-sm text-text-secondary hover:text-text-primary"
         >
-          ← New search
+          {t('findVehicle.newSearch')}
         </button>
-        <div className="flex flex-1 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <Input
+            aria-label={t('workspace.plate')}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="plate-mono max-w-xs"
+            className="plate-mono w-full max-w-xs"
           />
-          <Button size="sm" variant="secondary" onClick={handleSearch}>
-            Search
+          <Button type="submit" size="sm" variant="secondary">
+            {t('findVehicle.search')}
           </Button>
         </div>
-      </header>
+      </form>
 
-      {loading && <p className="p-6 text-sm text-text-tertiary">Searching…</p>}
-      {error && <p className="p-6 text-sm text-sev-critical">{error}</p>}
+      {loading && <p className="p-6 text-sm text-text-tertiary">{t('findVehicle.searching')}</p>}
+      {error && <div role="alert" className="page-body"><p className="mb-3 text-sev-critical">{error}</p><Button variant="secondary" onClick={() => setRefreshKey((k) => k + 1)}>{t('common.retry')}</Button></div>}
 
       {route && route.total_sightings === 0 && !loading && (
         <div className="flex flex-1 items-center justify-center p-8">
@@ -292,13 +316,15 @@ export function FindVehicle() {
 
       {route && route.total_sightings > 0 && (
         <>
-          <div className="flex items-center justify-between gap-4 border-b border-border-subtle bg-bg-raised px-6 py-3">
+          <div className="page-toolbar justify-between">
             <div>
               <p className="plate-mono text-xl font-semibold text-text-primary">{route.plate_normalised}</p>
               <p className="text-sm text-text-secondary">
-                {route.total_sightings} sighting{route.total_sightings === 1 ? '' : 's'} across{' '}
-                {new Set(route.points.map((p) => p.camera_id)).size} camera
-                {new Set(route.points.map((p) => p.camera_id)).size === 1 ? '' : 's'} ·{' '}
+                {t('findVehicle.summary', {
+                  sightings: t('findVehicle.sighting', { count: route.total_sightings }),
+                  cameras: t('findVehicle.camera', { count: new Set(route.points.map((p) => p.camera_id)).size }),
+                })}{' '}
+                ·{' '}
                 {route.first_seen_at && formatTime(route.first_seen_at)} →{' '}
                 {route.last_seen_at && formatTime(route.last_seen_at)}
               </p>
@@ -311,13 +337,13 @@ export function FindVehicle() {
                 disabled={locatedPoints.length < 2}
               >
                 {replaying ? <Pause size={14} /> : <Play size={14} />}
-                {replaying ? 'Stop' : 'Replay route'}
+                {replaying ? t('findVehicle.stop') : t('findVehicle.replayRoute')}
               </Button>
               <ExportReportButton plate={route.plate_normalised} />
             </div>
           </div>
-          <div className="relative flex min-h-0 flex-1">
-            <div className="relative flex-[1.4]">
+          <div className="investigation-results">
+            <div className="investigation-map">
               <MapView
                 markers={markers}
                 routeSegments={routeSegments}
@@ -325,9 +351,9 @@ export function FindVehicle() {
                 className="absolute inset-0"
               />
             </div>
-            <aside className="w-[360px] flex-shrink-0 overflow-y-auto border-l border-border-subtle bg-bg-raised p-4">
-              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-tertiary">
-                Timeline
+            <aside className="investigation-timeline">
+              <h2 className="mb-6 text-base font-semibold text-text-primary">
+                {t('findVehicle.timeline')}
               </h2>
               <ol className="flex flex-col gap-3">
                 {route.points.map((point, i) => (
@@ -355,7 +381,7 @@ export function FindVehicle() {
                       </div>
                       <p className="truncate text-sm text-text-secondary">{point.camera_name}</p>
                       {point.match_rung === 'ambiguity_class' && (
-                        <SeverityBadge severity="medium" label="Probable match" className="mt-1" />
+                        <SeverityBadge severity="medium" label={t('findVehicle.probableMatch')} className="mt-1" />
                       )}
                     </div>
                   </li>
