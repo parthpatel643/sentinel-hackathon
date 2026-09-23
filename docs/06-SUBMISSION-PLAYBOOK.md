@@ -39,33 +39,94 @@ Design rules: one idea per slide · every number sourced · no clip-art · scree
 
 ## 3. Demo video 1 — own feed (target 2:45)
 
+*Rewritten in M15 against the system as built. Every command below was run;
+every number is one this platform actually produced. The earlier draft of this
+section was written before implementation and referenced things that do not
+exist — see §4's note on the catalogue endpoint for the sharpest example.*
+
+**Before recording.** Clean desktop, notifications off, 1080p60. Start the
+stack and let the worker settle for a minute so the map is populated:
+
+```bash
+make up && make api          # :18000
+make web                     # :5173
+uv run python scripts/synthetic_grid.py all
+make worker                  # synthetic grid
+```
+
+Sign in as `admin@sentinel-platform.com` / `sentinel-admin-2026`.
+
 | Time | Beat | On screen |
 |---|---|---|
-| 0:00–0:15 | "This is Sentinel, running live on my machine. Nothing here is a mock-up." | Terminal: `docker compose ps` → all services healthy. Then the console. |
-| 0:15–0:40 | Onboard a feed | Camera wizard: pick location on map, paste the stream link, live preview appears, choose "Read number plates". Camera turns green on the map. |
-| 0:40–1:10 | Live ANPR | Live wall tile with plate boxes and read text overlaid; detections table filling in real time with PTS-accurate timestamps |
-| 1:10–1:35 | Arm the watchlist | Add a plate as "Stolen vehicle" with a case reference. Show it is armed. |
-| 1:35–2:05 | The alert | Vehicle reappears → chime, alert card with snapshot, plain-language match reason, confidence. Acknowledge it. |
-| 2:05–2:35 | Trace it | Find a Vehicle → route on map with numbered hops → Replay → evidence strip |
-| 2:35–2:45 | Close | Export the Movement Report; show the generated PDF |
+| 0:00–0:15 | "This is Sentinel, running on my machine. Nothing here is a mock-up." | Terminal: `make ps` → every service healthy. Cut to the console. |
+| 0:15–0:35 | The fleet is real | Overview: cameras on the map, the status strip reading *N live · 0 down*. Hover a marker — it names the camera and its state. |
+| 0:35–1:05 | Live ANPR | Live Wall, 2×2. Tiles are playing. Cut to the terminal running the worker: plate reads scrolling with confidence values. "Every timestamp comes from the stream's own clock, not when the packet arrived." |
+| 1:05–1:25 | Arm the watchlist | Find a Vehicle → search a plate the worker has just read → *Watch for this vehicle* → mark it **Stolen**, add a case reference. |
+| 1:25–1:55 | **The ambiguity moment** | Ingest a read of the same plate with OCR confusions (`8→B`, `0→O`, `5→S`). The alert still fires, tagged `ambiguity_class`. "An operator typed one plate. The camera read a different string. We still caught it." |
+| 1:55–2:25 | Trace it | Alerts → the hit → Find a Vehicle → timeline with per-sighting confidence, map framed on the sightings, *Replay route*. |
+| 2:25–2:45 | Close on evidence | *Export report* → the generated Movement Report PDF with its hash manifest. |
 
-Production notes: 1080p60 screen recording, clean desktop, no notifications, narrate calmly and slowly, no music, subtitles burned in (juries often watch muted). Show a terminal at least twice — it is the cheapest proof that a backend exists.
+**The ambiguity beat is the one to rehearse.** It is the single clearest
+demonstration that this is a real matching system rather than a string compare,
+and it takes one command:
+
+```bash
+uv run python - <<'EOF'
+import httpx, uuid
+from datetime import datetime, UTC
+from sentinel_core.config import Settings
+from sentinel_core.plates import normalise_plate, ambiguity_key
+s = Settings(); variant = 'GJ1B67OS'          # watchlist holds GJ186705
+httpx.post('http://localhost:18000/api/v1/detections',
+    json={'event_id': str(uuid.uuid4()), 'camera_id': 'dev-cam-01',
+          'observed_at': datetime.now(UTC).isoformat(), 'plate_text': variant,
+          'plate_normalised': normalise_plate(variant),
+          'plate_ambiguity_key': ambiguity_key(variant),
+          'plate_confidence': 0.68, 'frames_voted': 4, 'vehicle_class': 'truck',
+          'vehicle_colour': 'blue', 'pts_ms': 5678.0, 'node_id': 'demo',
+          'model_versions': {'demo': '1'}},
+    headers={'X-Service-Token': s.edge_service_token.get_secret_value()})
+EOF
+```
+
+Production notes: narrate calmly, no music, subtitles burned in (juries often
+watch muted). Show a terminal at least twice — it is the cheapest proof that a
+backend exists.
 
 ---
 
-## 4. Demo video 2 — government feed + report
+## 4. Demo video 2 — government feed + report (target 3:30)
 
-| Time | Beat |
-|---|---|
-| 0:00–0:20 | `GET /api/ingest` in the terminal → "we never hard-code camera IDs" → one click auto-onboards the whole catalogue |
-| 0:20–0:45 | All ~50 cameras appear on the GIS map with live health; health board shows measured vs declared fps, mixed H.264/H.265, active tiers |
-| 0:45–1:30 | Live wall across multiple departments; ANPR overlays on several feeds simultaneously |
-| 1:30–2:10 | Detections dashboard: thousands of reads from the overnight run, filterable by camera, time, plate |
-| 2:10–2:50 | Pick a plate seen on multiple cameras → route across the grid on the map + timeline |
-| 2:50–3:15 | Integrator Compliance panel — green ticks against the organisers' own checklist |
-| 3:15–3:30 | Export the evidence report; show the PDF with plates, timestamps, cameras and snapshots |
+> **Correction worth knowing before you record.** The integrator guide's generic
+> `GET /api/ingest` path **404s on our assigned deployment** — that guide is a
+> shared template with `<host>` placeholders, and this deployment only
+> implements `GET /cameras.json`, behind a session-cookie login. Saying
+> "/api/ingest" on camera would be saying something untrue about our own
+> integration. See `evidence/M4-GOV-CAMERA-GRID-INTEGRATION.md`.
 
-**Output report** (`govt-feed-evidence.pdf` + `.csv`) contains: run window, cameras processed, total detections, unique plates, per-detection rows (plate, confidence, camera ID, camera name, department, lat/lon, PTS, absolute timestamp, snapshot thumbnail), plus a summary of health events (reconnects, discontinuities) — because showing that you *noticed* the gateway's quirks is itself evidence of engineering quality.
+> **Pace the run.** The sandbox enforces an account-level viewing-time quota and
+> returns `403 watch time limit reached`, cutting every feed. Do not leave a
+> large run going before recording. Six cameras is a comfortable number.
+
+| Time | Beat | On screen |
+|---|---|---|
+| 0:00–0:25 | Discovery is not hard-coded | Terminal: authenticate, `GET cameras.json` → 30 cameras with real Gujarat names. Then one call to `POST /api/v1/cameras/discover` → **30 onboarded, 0 failed**. |
+| 0:25–0:50 | The grid on a map | Overview: real cameras plotted across Ahmedabad, Junagadh, Rajkot, Navsari. Note openly that 21 of 30 geocode from their names and the rest are deliberately left unplotted rather than guessed. |
+| 0:50–1:25 | Live government video, no credentials in the browser | Live Wall playing real traffic. Open devtools: the video URL is our own `localhost` relay path. "The camera's credentialed URL never reaches the browser." |
+| 1:25–2:00 | ANPR on real traffic | Worker terminal: reads scrolling from `cam01…cam06`. Detections table filling. Cite the measured run: **172 detections, 124 distinct plates in ~10 minutes across 6 cameras**. |
+| 2:00–2:25 | Beyond plates | Cameras table showing a camera flagged **`moved`** by tamper detection, and zone events — **186 intrusion + 22 wrong-way** on real footage. |
+| 2:25–2:50 | It survives the network | Run `uv run python scripts/chaos_drill.py --drill feed-loss` live. The camera drops, the platform notices, reconnects and recovers unattended. |
+| 2:50–3:10 | Compliance, checked not claimed | Admin → Integrator Compliance: green ticks. "These are assertions in a test suite, not a slide." |
+| 3:10–3:30 | The report | `scripts/evidence_report.py` → open `evidence/M14-EVIDENCE-RUN.md` and the CSV. End on the findings document: the quota, the double-connection issue, the accuracy number we do not claim. |
+
+**Ending on the findings document is a deliberate choice.** A jury that has sat
+through ten decks of unbroken success will remember the team that showed its
+own measured limitations — and it is the honest thing to do.
+
+**Output report** (`evidence/M14-EVIDENCE-RUN.md` + `m14-detections.csv`): run
+window, fleet composition, throughput, read-quality distribution, secondary
+analytics, resilience counters, ingest latency, and every detection row (plate,
+confidence, camera, class, colour). Generated by script, not by hand.
 
 ---
 
