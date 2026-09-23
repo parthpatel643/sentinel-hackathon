@@ -280,6 +280,81 @@ row_hash — an append-only hash chain, verifiable by a CLI command."
   scheduled background job — docs/01-ARCHITECTURE.md's "enforced by a
   scheduled job, with a visible countdown" is the fuller vision; this
   ships the enforcement mechanism and its audit trail, not the scheduler.
-- `pip-audit`/`npm audit`, SBOM generation, secret scanning and signed
-  media URLs (the remaining M12 delivery-plan bullet) are not yet built.
+
+## 5. Supply chain: dependency scanning, SBOM, secret scanning
+
+**What's real (all reproducible via `make audit` / `make sbom` /
+`make secrets-scan`, none of it a one-off manual check):**
+
+- **`pip-audit`** against the whole workspace's exported, pinned
+  dependency set (215 packages across every service/package):
+  **no known vulnerabilities.**
+- **`npm audit`** against the frontend's 518 total dependencies:
+  **0 vulnerabilities at every severity level.**
+- **CycloneDX SBOMs** for both the Python workspace and the frontend
+  (`make sbom`, using `cyclonedx-bom`/`@cyclonedx/cyclonedx-npm`) —
+  deliberately **not committed** (written to a gitignored `sbom/`
+  directory): an SBOM describes one specific build, and a stale
+  committed one silently describing an old build is worse than no SBOM
+  — the generation capability is what's real and reproducible, not a
+  point-in-time snapshot going stale in git history.
+- **`detect-secrets`** scanned across every source directory (excluding
+  `node_modules`/`.venv`/build caches). Findings reviewed by hand — all
+  17 hits are expected false positives, not real leaked secrets:
+  Alembic's own auto-generated revision-ID hex strings (flagged as
+  "high entropy," which is exactly what a revision ID is supposed to
+  look like), and documented dev-only default credentials/test fixture
+  values (e.g. `scripts/seed_admin_user.py`'s bootstrap password,
+  `sentinel_core.config`'s already-labelled `"dev-only-*"` defaults) —
+  every one of which this codebase already flags in its own docstrings
+  as insecure-by-design-for-local-dev, per the project's established
+  "compose components at call time from separate fields, never a
+  combined literal" secret-handling convention (see `sentinel_core
+  .config`'s `database_url`/`gov_stream_url` comments).
+- Container image scanning (docs/01-ARCHITECTURE.md §"Supply chain:
+  ...container image scanning") is not built — this deployment doesn't
+  build custom container images yet (core_api/edge_agent run as host
+  processes in this dev/demo setup, not containerized).
+
+## 6. Signed, time-limited media URLs
+
+**Decision: HMAC-signed URLs with a short expiry, not unauthenticated
+media routes.** `<video src>`/`<img src>` tags can't attach an
+`Authorization` header — the standard alternative is a URL whose query
+string itself proves authorization, for a short, explicit window.
+
+**What's real:**
+
+- `core_api/security/signed_urls.py`: `sign_media_path()` /
+  `verify_media_signature()` — `HMAC-SHA256(resource_path + ":" +
+  expires_at)`, keyed by a dedicated `media_url_signing_secret` (separate
+  from `jwt_secret`, so rotating one never affects the other).
+  Constant-time comparison (`hmac.compare_digest`) — a signature check
+  that leaks *how much* of the signature matched is a real, if narrow,
+  timing side channel. The signature covers the exact resource path, so a
+  signed URL minted for one detection's snapshot can't be replayed
+  against a different one.
+- `core_api/auth/dependencies.py`'s `current_user_or_signed_url` accepts
+  *either* a normal JWT *or* a valid, unexpired `?expires=&signature=`
+  pair — an invalid/expired signature is rejected outright (401) rather
+  than silently falling through to "not authenticated," which would let
+  an attacker distinguish "wrong signature" from "no credential at all."
+- Applied to the two media-serving routes that need to work embedded in
+  markup: `GET /api/v1/detections/{event_id}/snapshot` and
+  `GET /api/v1/evidence/clips/{clip_id}/video`. Each has a sibling
+  `.../snapshot-url` / `.../video-url` endpoint (a normal JWT-gated route)
+  that *mints* the signed URL — minting requires a real login; using the
+  minted URL doesn't.
+- The clip-video route moved out of `watchlist_router` into its own new
+  `routers/evidence.py`: `watchlist_router` blanket-applies
+  `Depends(current_user)` at `include_router()` time (every route on it
+  requires a JWT, full stop), which would have silently defeated the
+  signed-URL path before `current_user_or_signed_url`'s own logic ever
+  ran. Clip *metadata* (status, sha256, ...) stays on `watchlist_router`
+  unchanged; only the actual video bytes needed the different auth model.
+- **Verified live over real HTTP**: minted a signed snapshot URL, fetched
+  it with **no** `Authorization` header at all (200, real image bytes
+  returned); confirmed the same path with no signature and no auth is
+  rejected (401); confirmed a tampered/invalid signature is rejected
+  (401), not silently accepted.
 

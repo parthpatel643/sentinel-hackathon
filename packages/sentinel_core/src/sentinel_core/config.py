@@ -158,6 +158,19 @@ class Settings(BaseSettings):
         "genuinely came through the mTLS-terminating gateway.",
     )
 
+    # M12: signs time-limited media URLs (evidence clips, snapshots) so they
+    # can be embedded directly in a <video>/<img> tag — those elements can't
+    # attach an Authorization header, and a signed, expiring URL is the
+    # standard alternative to either making media routes unauthenticated or
+    # embedding a long-lived bearer token in markup. See
+    # core_api/security/signed_urls.py.
+    media_url_signing_secret: SecretStr = Field(
+        default=SecretStr("dev-only-media-url-signing-secret"),
+        description="HMAC key for signed, time-limited media URLs (evidence clips, "
+        "snapshots) — separate from jwt_secret so revoking/rotating one never affects "
+        "the other.",
+    )
+
     # --- Government test grid ("Sentinel Camera Grid") ---------------------
     # Per the integrator guide: HLS is served from a CDN host behind a portal
     # password; RTSP/WHEP carry media directly from a public IP (a CDN cannot

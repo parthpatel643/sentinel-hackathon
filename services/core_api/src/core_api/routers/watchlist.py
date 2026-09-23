@@ -4,19 +4,16 @@ call the "Find a Vehicle" screen's empty-result state offers)."""
 
 from __future__ import annotations
 
-import asyncio
-from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core_api.audit.service import record_audit_event
 from core_api.auth.dependencies import current_user
 from core_api.auth.service import TokenPayload
 from core_api.db.base import get_session, get_sessionmaker
-from core_api.db.models import Alert, EvidenceClip
+from core_api.db.models import Alert
 from core_api.evidence.schemas import EvidenceClipOut
 from core_api.evidence.service import get_clip_for_alert, request_seal_clip, seal_clip_task
 from core_api.watchlist.schemas import (
@@ -173,16 +170,3 @@ async def get_alert_clip_endpoint(
             status_code=404, detail="No clip has been requested for this alert yet."
         )
     return EvidenceClipOut.model_validate(clip)
-
-
-@router.get("/evidence/clips/{clip_id}/video")
-async def stream_clip_video_endpoint(
-    clip_id: UUID, session: AsyncSession = Depends(get_session)
-) -> FileResponse:
-    clip = await session.get(EvidenceClip, clip_id)
-    if clip is None or clip.status != "sealed" or not clip.file_path:
-        raise HTTPException(status_code=404, detail="This clip is not sealed yet.")
-    path = Path(clip.file_path)
-    if not await asyncio.to_thread(path.is_file):
-        raise HTTPException(status_code=404, detail="Sealed clip file is missing on disk.")
-    return FileResponse(path, media_type="video/mp4", filename=f"{clip_id}.mp4")

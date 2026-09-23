@@ -20,6 +20,7 @@ from core_api.registry.service import codecs_in_use
 from core_api.routers.admin import router as admin_router
 from core_api.routers.auth import router as auth_router
 from core_api.routers.detections import router as detections_router
+from core_api.routers.evidence import router as evidence_router
 from core_api.routers.field import router as field_router
 from core_api.routers.registry import router as registry_router
 from core_api.routers.watchlist import router as watchlist_router
@@ -61,6 +62,11 @@ def create_app() -> FastAPI:
     app.include_router(registry_router)
     app.include_router(detections_router)
     app.include_router(field_router)
+    # evidence_router (clip video streaming) is intentionally NOT under the
+    # blanket current_user dependency below — it has its own per-route auth
+    # that also accepts a signed URL (M12), which a blanket JWT requirement
+    # would short-circuit before that logic ever ran.
+    app.include_router(evidence_router)
     # watchlist_router has no machine-called endpoints (unlike registry/
     # detections, which mix in the edge worker's health/ingest calls) — every
     # route here is a human operator action, so it is gated once, here,

@@ -11,7 +11,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core_api.auth.dependencies import current_user, require_role, require_service_token
+from core_api.auth.dependencies import (
+    current_user,
+    current_user_or_signed_url,
+    require_role,
+    require_service_token,
+)
 from core_api.auth.service import TokenPayload
 from core_api.db.base import get_session
 from core_api.detections.schemas import DetectionIn, DetectionOut, VehicleRoute
@@ -21,9 +26,10 @@ from core_api.evidence.reveal import (
     resolve_original_path,
     resolve_snapshot_path,
 )
-from core_api.evidence.schemas import RevealFaceRequest
+from core_api.evidence.schemas import RevealFaceRequest, SignedMediaUrlOut
 from core_api.reports.service import build_movement_report_zip
 from core_api.security.mtls import edge_gateway_identity
+from core_api.security.signed_urls import sign_media_path
 from core_api.watchlist.schemas import AlertOut
 from core_api.watchlist.service import correlate_detection
 from sentinel_core.config import get_settings
@@ -107,15 +113,34 @@ async def movement_report_endpoint(
 async def detection_snapshot_endpoint(
     event_id: str,
     session: AsyncSession = Depends(get_session),
-    _user: TokenPayload = Depends(current_user),
+    _user: TokenPayload | None = Depends(current_user_or_signed_url),
 ) -> FileResponse:
     """The default, face-blurred-by-default snapshot (M12) — safe for any
-    authenticated user, no reveal workflow needed. See
-    core_api/evidence/reveal.py."""
+    authenticated user, no reveal workflow needed. Also accepts a signed,
+    time-limited URL (see /snapshot-url below) so this can be embedded
+    directly in an `<img src>`. See core_api/evidence/reveal.py."""
     path = await resolve_snapshot_path(session, event_id, get_settings())
     if path is None:
         raise HTTPException(status_code=404, detail="No snapshot on file for this detection.")
     return FileResponse(path, media_type="image/jpeg", filename=f"{event_id}.jpg")
+
+
+@router.get("/detections/{event_id}/snapshot-url", response_model=SignedMediaUrlOut)
+async def detection_snapshot_signed_url_endpoint(
+    event_id: str,
+    session: AsyncSession = Depends(get_session),
+    _user: TokenPayload = Depends(current_user),
+) -> SignedMediaUrlOut:
+    """Mints a signed, time-limited URL for the snapshot above — requires a
+    real login to mint (this endpoint itself is not signature-accessible),
+    but the minted URL works unauthenticated for its short lifetime,
+    exactly so it can be dropped straight into an `<img src>`."""
+    settings = get_settings()
+    if await resolve_snapshot_path(session, event_id, settings) is None:
+        raise HTTPException(status_code=404, detail="No snapshot on file for this detection.")
+    path = f"/api/v1/detections/{event_id}/snapshot"
+    query = sign_media_path(path, settings=settings)
+    return SignedMediaUrlOut(url=f"{path}?{query}")
 
 
 @router.post("/detections/{event_id}/reveal-face")

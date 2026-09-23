@@ -13,8 +13,11 @@ from core_api.db.models import AuditLogEntry
 
 async def test_the_first_row_chains_from_the_genesis_hash(db_session: AsyncSession) -> None:
     entry = await record_audit_event(
-        db_session, actor_email="admin@sentinel-platform.com", action="test_action",
-        resource_type="test", resource_id="res-1",
+        db_session,
+        actor_email="admin@sentinel-platform.com",
+        action="test_action",
+        resource_type="test",
+        resource_id="res-1",
     )
 
     assert entry.prev_hash == GENESIS_HASH

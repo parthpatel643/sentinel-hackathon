@@ -11,15 +11,17 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core_api.auth.service import InvalidTokenError, TokenPayload, decode_access_token
+from core_api.security.signed_urls import verify_media_signature
 from sentinel_core.config import get_settings
 
 __all__ = [
     "current_user",
     "current_user_or_service",
+    "current_user_or_signed_url",
     "require_role",
     "require_service_token",
 ]
@@ -77,4 +79,30 @@ async def current_user_or_service(
         if x_service_token != settings.edge_service_token.get_secret_value():
             raise HTTPException(status_code=401, detail="Invalid service token")
         return None
+    return await current_user(credentials)
+
+
+async def current_user_or_signed_url(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    expires: int | None = Query(default=None),
+    signature: str | None = Query(default=None),
+) -> TokenPayload | None:
+    """M12: media routes (evidence clip video, snapshots) that also need to
+    work embedded in a plain `<video src>`/`<img src>`, which can't attach
+    an `Authorization` header. A valid `?expires=&signature=` pair (minted
+    by `core_api/security/signed_urls.py`) is accepted in place of a JWT;
+    an invalid or expired one is rejected outright rather than silently
+    falling through to "not authenticated" (which would let an attacker
+    distinguish "wrong signature" from "no credential at all"). Returns
+    `None` for the signed-URL path, matching `current_user_or_service`'s
+    convention of `None` meaning "authorized, but not a specific user."
+    """
+    if expires is not None and signature is not None:
+        settings = get_settings()
+        if verify_media_signature(
+            request.url.path, expires=expires, signature=signature, settings=settings
+        ):
+            return None
+        raise HTTPException(status_code=401, detail="Invalid or expired signed URL")
     return await current_user(credentials)

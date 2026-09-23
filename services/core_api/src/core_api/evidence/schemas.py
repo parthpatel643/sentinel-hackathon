@@ -27,3 +27,10 @@ class RevealFaceRequest(BaseModel):
         min_length=5,
         description="Why this reveal is authorised — captured for audit, not just accepted.",
     )
+
+
+class SignedMediaUrlOut(BaseModel):
+    url: str = Field(
+        description="A path + signed, time-limited query string — safe to embed directly "
+        "in <img src>/<video src>, no Authorization header needed."
+    )

@@ -44,4 +44,3 @@ async def edge_gateway_identity(
     if x_edge_gateway_secret != settings.mtls_gateway_shared_secret.get_secret_value():
         return None
     return extract_cn(x_client_dn)
-

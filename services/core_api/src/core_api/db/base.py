@@ -110,4 +110,3 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
                 safe_value = ""
         await session.execute(text(f"SET LOCAL app.current_department_id = '{safe_value}'"))
         yield session
-

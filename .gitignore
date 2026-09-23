@@ -34,6 +34,11 @@ models/weights/
 # Local evidence output (benchmark CSVs are committed deliberately)
 evidence/runs/
 
+# SBOMs are regenerated per release with `make sbom` — always fresh, never
+# committed (a stale SBOM claiming to describe a build it doesn't is worse
+# than no SBOM at all).
+sbom/
+
 # Node
 node_modules/
 apps/*/dist/
