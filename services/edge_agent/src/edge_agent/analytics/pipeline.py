@@ -10,11 +10,13 @@ factory throughout this codebase.
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Protocol
 
 import numpy as np
 
 from edge_agent.analytics.colour import classify_vehicle_colour
+from edge_agent.analytics.frame_clock import FrameClockReader
 from edge_agent.analytics.plate_reader import PlateCandidate
 from edge_agent.analytics.tracker import SimpleTracker, TrackedVehicle
 from edge_agent.analytics.vehicle_detector import VehicleDetection
@@ -70,6 +72,7 @@ class AnprPipeline:
         tracker: SimpleTracker | None = None,
         roi_margin: float = 0.1,
         snapshot_writer: SnapshotWriterPort | None = None,
+        frame_clock: FrameClockReader | None = None,
     ) -> None:
         self._vehicle_detector = vehicle_detector
         self._plate_reader = plate_reader
@@ -78,6 +81,10 @@ class AnprPipeline:
         self._model_versions = model_versions
         self._roi_margin = roi_margin
         self._snapshot_writer = snapshot_writer
+        # Reads the camera's own burned-in clock. When it can, that becomes the
+        # event's observed_at — see _build_event.
+        self._frame_clock = frame_clock
+        self._camera_time: datetime | None = None
         self._voters: dict[int, PlateVoter] = {}
         self._last_emitted: dict[int, str] = {}
         # M13: the most recent frame's tracked vehicles, exposed for a
@@ -87,6 +94,11 @@ class AnprPipeline:
         self.last_tracked_vehicles: list[TrackedVehicle] = []
 
     def process_frame(self, frame: Frame[np.ndarray]) -> list[Event]:
+        # Once per frame, not once per event: several vehicles can be read
+        # from one frame and they all share the camera's clock.
+        if self._frame_clock is not None:
+            self._camera_time = self._frame_clock.read(frame.image, pts_ms=frame.timing.pts_ms)
+
         if frame.timing.is_discontinuity:
             # The scene just cut (a loop point in the test grid, or a real
             # camera reboot). A track surviving across it would silently
@@ -150,7 +162,13 @@ class AnprPipeline:
             camera_id=frame.camera_id,
             pts_ms=frame.timing.pts_ms,
             stream_epoch=frame.timing.stream_epoch,
-            observed_at=frame.observed_at,
+            # The camera's own burned-in time when it is readable, because
+            # that is when the scene happened; the PTS-derived time says when
+            # we processed it, which for looped recordings can be months
+            # later. Nothing is lost by preferring it — pts_ms and
+            # stream_epoch above still reconstruct the processing clock
+            # exactly.
+            observed_at=self._camera_time or frame.observed_at,
             payload=AnprPayload(
                 plate_text=voted.plate_text,
                 plate_normalised=voted.plate_normalised,

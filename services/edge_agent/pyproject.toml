@@ -13,6 +13,7 @@ dependencies = [
     "fast-alpr>=0.4",
     "fast-plate-ocr>=1.1",
     "open-image-models>=0.6",
+    "pytesseract>=0.3.13",
 ]
 
 [tool.uv.sources]

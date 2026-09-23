@@ -40,6 +40,7 @@ from typing import Any
 import httpx
 import numpy as np
 
+from edge_agent.analytics.frame_clock import FrameClockReader
 from edge_agent.analytics.pipeline import AnprPipeline
 from edge_agent.analytics.plate_reader import FastAlprPlateReader
 from edge_agent.analytics.snapshot_writer import SnapshotWriter
@@ -258,6 +259,11 @@ async def _run_camera(
             blurred_dir=Path(settings.snapshots_dir),
             originals_dir=Path(settings.snapshot_originals_dir),
         ),
+        # Prefer the camera's own burned-in clock for observed_at. The grid
+        # replays continuous recordings, so PTS-derived time says when we
+        # processed a frame, not when the scene happened — months apart in
+        # practice, and it is the scene's time that belongs in evidence.
+        frame_clock=FrameClockReader(),
     )
     zone_engine = await _load_zone_engine(client, camera_id)
 

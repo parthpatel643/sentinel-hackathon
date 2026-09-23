@@ -115,12 +115,32 @@ def _wall_clock_calls(path: Path) -> list[str]:
     ]
 
 
+# frame_clock.py reads the wall clock for exactly one thing: rejecting a
+# camera's own burned-in timestamp that claims to be in the future, which is
+# how a year misread as 2036 instead of 2026 is caught. It is a plausibility
+# bound on a timestamp that came off the *frame*, never a source of timing —
+# the rule this suite enforces is that nothing derives time from arrival, and
+# that still holds. Named here rather than blanket-allowed so a second,
+# unjustified call in the same file still fails.
+_WALL_CLOCK_ALLOWANCES = {"frame_clock.py": 1}
+
+
 def test_analytics_code_never_reads_the_wall_clock() -> None:
     """Timing must come from CAP_PROP_POS_MSEC / buffer PTS / RTP timestamps."""
-    offenders = [
-        call for module in EDGE_AGENT_SRC.rglob("*.py") for call in _wall_clock_calls(module)
-    ]
+    offenders: list[str] = []
+    for module in EDGE_AGENT_SRC.rglob("*.py"):
+        calls = _wall_clock_calls(module)
+        allowed = _WALL_CLOCK_ALLOWANCES.get(module.name, 0)
+        if len(calls) > allowed:
+            offenders.extend(calls[allowed:])
     assert not offenders, f"wall-clock reads in the analytics path: {offenders}"
+
+
+def test_the_frame_clock_allowance_is_still_needed() -> None:
+    """If the plausibility check stops reading the wall clock, the allowance
+    above should go with it rather than quietly widening what is permitted."""
+    frame_clock = EDGE_AGENT_SRC / "edge_agent" / "analytics" / "frame_clock.py"
+    assert len(_wall_clock_calls(frame_clock)) == _WALL_CLOCK_ALLOWANCES["frame_clock.py"]
 
 
 def test_stream_clock_reads_wall_time_only_to_anchor() -> None:
