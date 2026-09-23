@@ -8,12 +8,17 @@ that pipeline stage — this module tests the pure logic around it instead.
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
 
-from edge_agent.analytics.face_blur import blur_regions, ensure_model_downloaded
+from edge_agent.analytics.face_blur import (
+    _detector,
+    blur_regions,
+    ensure_model_downloaded,
+)
 
 
 def test_blur_regions_leaves_pixels_outside_every_box_untouched() -> None:
@@ -83,3 +88,40 @@ def test_ensure_model_downloaded_downloads_when_missing(tmp_path: Path) -> None:
     mock_download.assert_called_once()
     assert result == model_path
     assert model_path.exists()
+
+
+def test_each_thread_gets_its_own_detector() -> None:
+    """`FaceDetectorYN` keeps the input size from `setInputSize` as state that
+    the following `detect` validates against, so one shared instance cannot be
+    used from several threads — and it is: every camera pipeline runs
+    `process_frame`, snapshot writing included, in its own `asyncio.to_thread`
+    worker. Sharing one made two cameras of different resolutions interleave
+    `setInputSize` and `detect`, and OpenCV aborted the detection with
+    `buf.shape() == m.shape()`, which silently cost that event its snapshot.
+    """
+    created: list[object] = []
+
+    def _fake_create(*_args: object, **_kwargs: object) -> object:
+        instance = object()
+        created.append(instance)
+        return instance
+
+    seen: dict[int, object] = {}
+
+    def _use_detector() -> None:
+        seen[threading.get_ident()] = _detector("model.onnx")
+        # A second call on the same thread must reuse, not reload.
+        assert _detector("model.onnx") is seen[threading.get_ident()]
+
+    with (
+        patch("edge_agent.analytics.face_blur.ensure_model_downloaded", return_value=Path("m")),
+        patch("edge_agent.analytics.face_blur.cv2.FaceDetectorYN_create", _fake_create),
+    ):
+        threads = [threading.Thread(target=_use_detector) for _ in range(4)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+    assert len(seen) == 4, "expected one detector per thread"
+    assert len({id(d) for d in seen.values()}) == 4, "threads must not share a detector"

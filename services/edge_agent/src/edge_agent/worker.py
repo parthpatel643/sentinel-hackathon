@@ -166,6 +166,49 @@ async def _release_warmed_paths(settings: Settings) -> None:
     _WARMED_RELAY_PATHS.clear()
 
 
+async def _release_stale_relay_paths(settings: Settings, *, keep: set[str]) -> None:
+    """Release paths a *previous* run pinned open and never handed back.
+
+    Releasing on shutdown only works if there is a shutdown. A SIGKILL, a
+    crash, a closed terminal or a flat battery all leave the paths pinned,
+    and nothing in MediaMTX ever reconsiders: it goes on dialling those
+    cameras indefinitely, spending a metered quota on a worker that no longer
+    exists. Recovery cannot therefore depend on the dying process doing
+    anything, so the next run cleans up instead — by which time it knows
+    which paths are genuinely wanted and which are simply left over.
+
+    Paths this run is about to use are kept: they are re-pinned moments later
+    anyway, and releasing them first would drop a connection only to dial it
+    straight back.
+    """
+    base = settings.relay_api_url.rstrip("/")
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as relay_client:
+            response = await relay_client.get(f"{base}/v3/config/paths/list")
+            if response.status_code != 200:
+                return
+            stale = [
+                item["name"]
+                for item in response.json().get("items", [])
+                if item.get("sourceOnDemand") is False
+                and item["name"].startswith("ext/")
+                and item["name"] not in keep
+            ]
+            if not stale:
+                return
+            logger.warning(
+                "releasing %d relay path(s) left pinned open by a previous run: %s",
+                len(stale),
+                ", ".join(stale),
+            )
+            for path_name in stale:
+                await release_relay_path(
+                    path_name=path_name, settings=settings, client=relay_client
+                )
+    except httpx.HTTPError as exc:
+        logger.warning("could not reach the local relay to clean up stale paths: %s", exc)
+
+
 async def _register_camera(client: httpx.AsyncClient, descriptor: CameraDescriptor) -> None:
     """Idempotent: 409 (already onboarded from a previous run) is expected
     and not an error — this worker does not own onboarding, the registry
@@ -491,6 +534,10 @@ async def main() -> None:
             await _register_camera(client, descriptor)
 
         via_relay = not args.direct
+        if via_relay:
+            await _release_stale_relay_paths(
+                settings, keep={relay_path_for(d.camera_id, settings) for d in descriptors}
+            )
         logger.info(
             "starting %d camera pipeline(s) (source=%s, transport=%s) against %s",
             len(descriptors),
@@ -512,9 +559,13 @@ async def main() -> None:
             # interpreter down where it stands, and the `finally` below never
             # runs. The relay paths would then stay pinned open exactly as if
             # the release had never been written. Turning the signal into a
-            # cancellation lets the stack unwind normally instead.
+            # cancellation lets the stack unwind normally instead. SIGHUP is
+            # included because a worker started from a terminal receives it
+            # when that terminal goes away, which is how this leaked in
+            # practice; SIGKILL cannot be caught at all, which is why startup
+            # also sweeps up whatever a previous run left behind.
             loop = asyncio.get_running_loop()
-            for signame in (signal.SIGTERM, signal.SIGINT):
+            for signame in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
                 loop.add_signal_handler(signame, pipelines.cancel)
             try:
                 await pipelines

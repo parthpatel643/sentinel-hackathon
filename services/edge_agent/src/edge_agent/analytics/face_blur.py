@@ -24,8 +24,8 @@ Python package wrapping its download the way `open-image-models`/
 from __future__ import annotations
 
 import logging
+import threading
 import urllib.request
-from functools import lru_cache
 from pathlib import Path
 
 import cv2
@@ -56,13 +56,43 @@ def ensure_model_downloaded(model_path: Path = _DEFAULT_MODEL_PATH) -> Path:
     return model_path
 
 
-@lru_cache(maxsize=1)
+_detectors = threading.local()
+
+
 def _detector(model_path_str: str) -> cv2.FaceDetectorYN:
-    model_path = ensure_model_downloaded(Path(model_path_str))
-    # cv2's bundled type stubs don't yet know about OpenCV 5.0's
-    # FaceDetectorYN_create (a very recent addition) — real at runtime,
-    # verified against a live model load and detection, just untyped.
-    return cv2.FaceDetectorYN_create(str(model_path), "", (320, 320))  # type: ignore[attr-defined,no-any-return]
+    """One detector **per thread**, deliberately not one per process.
+
+    `FaceDetectorYN` carries mutable state: the input size set by
+    `setInputSize` is what the next `detect` call validates its buffer
+    against. A single shared instance is therefore not safe to use from more
+    than one thread, and this is called from several — each camera pipeline
+    runs `process_frame` in its own `asyncio.to_thread` worker, and snapshot
+    writing happens inside it.
+
+    Sharing one produced a genuine race: two cameras of different resolutions
+    would interleave `setInputSize` and `detect`, so a frame was measured
+    against another camera's dimensions and OpenCV aborted with
+    `buf.shape() == m.shape()`. Rare, silent and costly — the snapshot for
+    that detection was dropped, which on this path means the face blur did
+    not happen, so there was no evidence image to fall back to.
+
+    A lock would also fix it, at the cost of serialising every camera's
+    snapshot behind one detector. The models are small and already loaded per
+    process, so a handful of per-thread copies is the cheaper trade.
+    """
+    cached: dict[str, cv2.FaceDetectorYN] | None = getattr(_detectors, "by_model", None)
+    if cached is None:
+        cached = {}
+        _detectors.by_model = cached
+    detector = cached.get(model_path_str)
+    if detector is None:
+        model_path = ensure_model_downloaded(Path(model_path_str))
+        # cv2's bundled type stubs don't yet know about OpenCV 5.0's
+        # FaceDetectorYN_create (a very recent addition) — real at runtime,
+        # verified against a live model load and detection, just untyped.
+        detector = cv2.FaceDetectorYN_create(str(model_path), "", (320, 320))  # type: ignore[attr-defined]
+        cached[model_path_str] = detector
+    return detector
 
 
 def detect_faces(
