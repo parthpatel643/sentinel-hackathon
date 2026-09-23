@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test:ui": "playwright test",
+    "screenshots": "node scripts/capture_screenshots.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

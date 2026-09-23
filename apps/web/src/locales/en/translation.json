@@ -234,7 +234,10 @@
     "noSightingsIn24h": "No sightings for this plate in the last 24 hours. Watch for it — every camera will check future reads against it, and every past detection on file is checked right now too.",
     "watchForVehicle": "Watch for this vehicle",
     "arming": "Arming…",
-    "armError": "Could not arm the watchlist entry."
+    "armError": "Could not arm the watchlist entry.",
+    "replayUnavailable": "Route replay needs at least two sightings with a known location — only {{located}} of {{total}} here can be placed on the map.",
+    "unmappedSightings_one": "{{count}} of {{total}} sightings is not shown on the map: that camera has no recorded location.",
+    "unmappedSightings_other": "{{count}} of {{total}} sightings are not shown on the map: those cameras have no recorded location."
   },
   "alerts": {
     "shown": "{{count}} shown",

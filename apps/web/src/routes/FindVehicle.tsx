@@ -185,6 +185,8 @@ export function FindVehicle() {
       .map((p, i) => ({ ...p, index: i }))
       .filter((p): p is typeof p & { location: NonNullable<RoutePoint['location']> } => p.location !== null) ?? []
 
+  const unmappedCount = (route?.points.length ?? 0) - locatedPoints.length
+
   function playReplay() {
     if (locatedPoints.length < 2) return
     const token = ++replayTokenRef.current
@@ -335,6 +337,14 @@ export function FindVehicle() {
                 variant="secondary"
                 onClick={replaying ? stopReplay : playReplay}
                 disabled={locatedPoints.length < 2}
+                title={
+                  locatedPoints.length < 2
+                    ? t('findVehicle.replayUnavailable', {
+                        located: locatedPoints.length,
+                        total: route.points.length,
+                      })
+                    : undefined
+                }
               >
                 {replaying ? <Pause size={14} /> : <Play size={14} />}
                 {replaying ? t('findVehicle.stop') : t('findVehicle.replayRoute')}
@@ -342,12 +352,25 @@ export function FindVehicle() {
               <ExportReportButton plate={route.plate_normalised} />
             </div>
           </div>
+          {unmappedCount > 0 && (
+            // Say why the map shows fewer pins than the timeline does. Some
+            // government cameras have no resolvable location (their catalogue
+            // entry carries only a name), and silently dropping them from the
+            // map makes the platform look like it lost a sighting.
+            <p className="-mt-2 mb-4 text-sm text-text-tertiary">
+              {t('findVehicle.unmappedSightings', {
+                count: unmappedCount,
+                total: route.points.length,
+              })}
+            </p>
+          )}
           <div className="investigation-results">
             <div className="investigation-map">
               <MapView
                 markers={markers}
                 routeSegments={routeSegments}
                 vehiclePosition={vehiclePosition}
+                fitToMarkers
                 className="absolute inset-0"
               />
             </div>

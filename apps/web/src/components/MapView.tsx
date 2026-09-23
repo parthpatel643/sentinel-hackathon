@@ -1,6 +1,7 @@
 import type { Feature, FeatureCollection, LineString } from 'geojson'
 import {
   AttributionControl,
+  LngLatBounds,
   MapLibreMap,
   Marker,
   NavigationControl,
@@ -41,6 +42,11 @@ interface MapViewProps {
   vehiclePosition?: [number, number] | null
   /** The camera onboarding wizard's "click the map to place a pin" step. */
   onMapClick?: (lat: number, lon: number) => void
+  /** Frame the view on the markers instead of the default Gujarat-wide view.
+   * Opt-in: the Cameras and Overview maps deliberately keep a stable
+   * statewide frame, but a result set (a plate's sightings) is meaningless
+   * if the map is still looking somewhere else. */
+  fitToMarkers?: boolean
 }
 
 // OpenStreetMap's raw tile server: no API key, global coverage including
@@ -99,6 +105,7 @@ export function MapView({
   routeSegments = [],
   vehiclePosition = null,
   onMapClick,
+  fitToMarkers = false,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
@@ -224,6 +231,23 @@ export function MapView({
       }
     }
   }, [markers])
+
+  // Frame the view on the markers. A single sighting has no extent to fit,
+  // so it gets an explicit centre-and-zoom instead — fitBounds on a
+  // zero-area bounding box zooms to maximum and lands on an empty grey tile.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !fitToMarkers || markers.length === 0) return
+
+    if (markers.length === 1) {
+      map.easeTo({ center: [markers[0].lon, markers[0].lat], zoom: 13, duration: 600 })
+      return
+    }
+
+    const bounds = new LngLatBounds()
+    for (const marker of markers) bounds.extend([marker.lon, marker.lat])
+    map.fitBounds(bounds, { padding: 64, maxZoom: 14, duration: 600 })
+  }, [markers, fitToMarkers])
 
   // Route polyline (Find a Vehicle's replay map): a GeoJSON source split
   // into per-segment LineString features carrying a `confirmed` property,
