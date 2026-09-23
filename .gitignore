@@ -39,6 +39,12 @@ evidence/runs/
 # than no SBOM at all).
 sbom/
 
+# The submission PDF is generated from docs/ with `npm run docs:pdf`, for the
+# same reason as the SBOMs above: a committed PDF silently disagreeing with
+# the markdown it was built from is worse than no PDF. Regenerate it as the
+# last step before submitting.
+docs/Sentinel-Platform-HLD.pdf
+
 # Node
 node_modules/
 apps/*/dist/

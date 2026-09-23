@@ -203,4 +203,9 @@ cd apps/web
 npm run build         # tsc -b + vite build
 npm run test:ui       # 16 Playwright UI tests (i18n, themes, contrast, mobile)
 npm run screenshots   # regenerate docs/images from a live stack
+npm run docs:pdf      # build docs/Sentinel-Platform-HLD.pdf (61pp, gitignored)
 ```
+
+The submission PDF is deliberately not committed — a checked-in PDF that
+silently disagrees with the markdown it came from is worse than none, the same
+reasoning applied to SBOMs. Regenerate it as the last step before submitting.
