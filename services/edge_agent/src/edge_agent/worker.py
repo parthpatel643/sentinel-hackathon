@@ -41,6 +41,7 @@ import httpx
 
 from edge_agent.analytics.pipeline import AnprPipeline
 from edge_agent.analytics.plate_reader import FastAlprPlateReader
+from edge_agent.analytics.snapshot_writer import SnapshotWriter
 from edge_agent.analytics.vehicle_detector import VehicleDetector
 from edge_agent.pipeline.capture import CaptureConfig
 from edge_agent.pipeline.supervisor import CameraSupervisor
@@ -163,6 +164,7 @@ def _event_to_detection_payload(event: Event) -> dict[str, Any]:
         "observed_at": event.observed_at.isoformat(),
         "node_id": event.pipeline.node_id,
         "model_versions": event.pipeline.models,
+        "snapshot_uri": event.evidence.snapshot_uri,
     }
 
 
@@ -179,11 +181,16 @@ async def _run_camera(
         return
 
     supervisor = CameraSupervisor(config=CaptureConfig(camera_id=camera_id, url=url))
+    settings = get_settings()
     pipeline = AnprPipeline(
         vehicle_detector,
         plate_reader,
-        node_id=get_settings().node_id,
+        node_id=settings.node_id,
         model_versions=MODEL_VERSIONS,
+        snapshot_writer=SnapshotWriter(
+            blurred_dir=Path(settings.snapshots_dir),
+            originals_dir=Path(settings.snapshot_originals_dir),
+        ),
     )
 
     health_task = asyncio.create_task(_report_health(client, camera_id, supervisor))

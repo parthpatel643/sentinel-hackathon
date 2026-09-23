@@ -23,11 +23,12 @@ from sentinel_core.schemas import (
     BoundingBox,
     Event,
     EventType,
+    EvidenceRef,
     PipelineProvenance,
     VehicleAttributes,
 )
 
-__all__ = ["AnprPipeline", "PlateReaderPort", "VehicleDetectorPort"]
+__all__ = ["AnprPipeline", "PlateReaderPort", "SnapshotWriterPort", "VehicleDetectorPort"]
 
 
 class VehicleDetectorPort(Protocol):
@@ -36,6 +37,16 @@ class VehicleDetectorPort(Protocol):
 
 class PlateReaderPort(Protocol):
     def read(self, image: np.ndarray) -> list[PlateCandidate]: ...
+
+
+class SnapshotWriterPort(Protocol):
+    """M12: `edge_agent.analytics.snapshot_writer.SnapshotWriter` — writes a
+    face-blurred snapshot plus its unblurred original and returns the
+    `snapshot_uri` to attach to the event's evidence ref. Optional: a
+    pipeline with none configured simply emits events with no snapshot,
+    same as every event did before M12."""
+
+    def write(self, event_id: str, frame_image: np.ndarray) -> str: ...
 
 
 class AnprPipeline:
@@ -54,6 +65,7 @@ class AnprPipeline:
         model_versions: dict[str, str],
         tracker: SimpleTracker | None = None,
         roi_margin: float = 0.1,
+        snapshot_writer: SnapshotWriterPort | None = None,
     ) -> None:
         self._vehicle_detector = vehicle_detector
         self._plate_reader = plate_reader
@@ -61,6 +73,7 @@ class AnprPipeline:
         self._node_id = node_id
         self._model_versions = model_versions
         self._roi_margin = roi_margin
+        self._snapshot_writer = snapshot_writer
         self._voters: dict[int, PlateVoter] = {}
         self._last_emitted: dict[int, str] = {}
 
@@ -122,7 +135,7 @@ class AnprPipeline:
         self, frame: Frame[np.ndarray], tracked: TrackedVehicle, voted: VotedPlate
     ) -> Event:
         x1, y1, x2, y2 = tracked.detection.bbox_xyxy
-        return Event(
+        event = Event(
             type=EventType.ANPR_PLATE_READ,
             camera_id=frame.camera_id,
             pts_ms=frame.timing.pts_ms,
@@ -144,6 +157,17 @@ class AnprPipeline:
             ),
             pipeline=PipelineProvenance(node_id=self._node_id, models=self._model_versions),
         )
+        if self._snapshot_writer is not None:
+            # M12: a face-blurred-by-default snapshot of the *full frame*
+            # (not just the plate ROI) — bystanders elsewhere in shot get
+            # the same default privacy protection as the vehicle's own
+            # occupants. See snapshot_writer.py/face_blur.py.
+            snapshot_uri = self._snapshot_writer.write(event.event_id, frame.image)
+            if snapshot_uri:
+                event = event.model_copy(
+                    update={"evidence": EvidenceRef(snapshot_uri=snapshot_uri)}
+                )
+        return event
 
     def _prune_stale_voters(self) -> None:
         """Drop vote history for tracks the tracker has aged out — otherwise

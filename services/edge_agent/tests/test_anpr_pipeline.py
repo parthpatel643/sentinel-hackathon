@@ -199,3 +199,64 @@ def test_stale_voter_state_is_pruned_after_a_track_ages_out() -> None:
     pipeline.process_frame(_frame(120.0))  # exceeds max_age=1 with no re-match
 
     assert len(pipeline._voters) == 0
+
+
+def test_with_no_snapshot_writer_configured_evidence_has_no_snapshot() -> None:
+    """The pre-M12 default: nothing breaks for a pipeline that doesn't
+    configure a snapshot_writer at all."""
+    detector = FakeVehicleDetector([[_car()]])
+    reader = FakePlateReader([[_plate("GJ01AB1234")]])
+    pipeline = AnprPipeline(detector, reader, node_id="n", model_versions={})
+
+    events = pipeline.process_frame(_frame(40.0))
+
+    assert events[0].evidence.snapshot_uri is None
+
+
+def test_a_configured_snapshot_writer_is_called_and_its_uri_attached() -> None:
+    """M12: proves the pipeline wires a snapshot_writer's return value onto
+    the event's evidence ref, whatever that writer actually does — the
+    real face-blurring/dual-write logic is snapshot_writer.py's own
+    responsibility, tested in test_snapshot_writer.py."""
+
+    class FakeSnapshotWriter:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, np.ndarray]] = []
+
+        def write(self, event_id: str, frame_image: np.ndarray) -> str:
+            self.calls.append((event_id, frame_image))
+            return f"snapshot://{event_id}"
+
+    writer = FakeSnapshotWriter()
+    detector = FakeVehicleDetector([[_car()]])
+    reader = FakePlateReader([[_plate("GJ01AB1234")]])
+    pipeline = AnprPipeline(
+        detector, reader, node_id="n", model_versions={}, snapshot_writer=writer
+    )
+
+    events = pipeline.process_frame(_frame(40.0))
+
+    assert len(writer.calls) == 1
+    called_event_id, _called_frame = writer.calls[0]
+    assert called_event_id == events[0].event_id
+    assert events[0].evidence.snapshot_uri == f"snapshot://{events[0].event_id}"
+
+
+def test_a_snapshot_writer_returning_empty_string_leaves_no_snapshot_uri() -> None:
+    """SnapshotWriter.write() returns "" on a face-blur failure
+    (test_snapshot_writer.py) — the pipeline must not turn that into a
+    literal "snapshot://" URI."""
+
+    class FailingSnapshotWriter:
+        def write(self, event_id: str, frame_image: np.ndarray) -> str:
+            return ""
+
+    detector = FakeVehicleDetector([[_car()]])
+    reader = FakePlateReader([[_plate("GJ01AB1234")]])
+    pipeline = AnprPipeline(
+        detector, reader, node_id="n", model_versions={}, snapshot_writer=FailingSnapshotWriter()
+    )
+
+    events = pipeline.process_frame(_frame(40.0))
+
+    assert events[0].evidence.snapshot_uri is None

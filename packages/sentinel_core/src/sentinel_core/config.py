@@ -102,6 +102,22 @@ class Settings(BaseSettings):
         "only path entry that exists in mediamtx.yml's config today.",
     )
 
+    # --- Face-blurred snapshots (M12) ---------------------------------------
+    # Same shared-host-path reasoning as recordings_dir above: the edge
+    # worker (writer) and core_api (reader, for both the default blurred
+    # snapshot and the reveal-on-authorisation original) are both host
+    # processes in this dev deployment, so a plain shared directory is
+    # sufficient — no object-store round trip needed for a same-host demo.
+    snapshots_dir: str = Field(
+        default="./data/snapshots",
+        description="Face-blurred snapshots — the default, served-by-core_api version.",
+    )
+    snapshot_originals_dir: str = Field(
+        default="./data/snapshot_originals",
+        description="Unblurred originals — never served directly; only the reveal-on-"
+        "authorisation endpoint (core_api/evidence/reveal.py) reads from here.",
+    )
+
     # --- Field PWA (M10) -----------------------------------------------------
     field_reports_dir: str = Field(
         default="./data/field_reports",

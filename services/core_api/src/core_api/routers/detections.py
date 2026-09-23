@@ -7,19 +7,26 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core_api.auth.dependencies import current_user, require_service_token
+from core_api.auth.dependencies import current_user, require_role, require_service_token
 from core_api.auth.service import TokenPayload
 from core_api.db.base import get_session
 from core_api.detections.schemas import DetectionIn, DetectionOut, VehicleRoute
 from core_api.detections.service import get_vehicle_route, ingest_detection, search_detections
+from core_api.evidence.reveal import (
+    record_reveal_audit,
+    resolve_original_path,
+    resolve_snapshot_path,
+)
+from core_api.evidence.schemas import RevealFaceRequest
 from core_api.reports.service import build_movement_report_zip
 from core_api.security.mtls import edge_gateway_identity
 from core_api.watchlist.schemas import AlertOut
 from core_api.watchlist.service import correlate_detection
+from sentinel_core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -94,3 +101,39 @@ async def movement_report_endpoint(
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/detections/{event_id}/snapshot")
+async def detection_snapshot_endpoint(
+    event_id: str,
+    session: AsyncSession = Depends(get_session),
+    _user: TokenPayload = Depends(current_user),
+) -> FileResponse:
+    """The default, face-blurred-by-default snapshot (M12) — safe for any
+    authenticated user, no reveal workflow needed. See
+    core_api/evidence/reveal.py."""
+    path = await resolve_snapshot_path(session, event_id, get_settings())
+    if path is None:
+        raise HTTPException(status_code=404, detail="No snapshot on file for this detection.")
+    return FileResponse(path, media_type="image/jpeg", filename=f"{event_id}.jpg")
+
+
+@router.post("/detections/{event_id}/reveal-face")
+async def reveal_face_endpoint(
+    event_id: str,
+    payload: RevealFaceRequest,
+    session: AsyncSession = Depends(get_session),
+    admin: TokenPayload = Depends(require_role("admin")),
+) -> Response:
+    """Reveal-on-authorisation with reason capture (docs/05-DELIVERY-PLAN.md
+    M12) — admin-only (no separate "supervisor" role exists yet, a
+    documented scoping choice, not an oversight), and a reason is
+    mandatory, not optional. Returns the unblurred original directly;
+    every call is logged with the actor, the reason and a timestamp (see
+    core_api/evidence/reveal.py's docstring for where this audit trail
+    permanently lives once the hash-chained audit log milestone exists)."""
+    path = await resolve_original_path(session, event_id, get_settings())
+    if path is None:
+        raise HTTPException(status_code=404, detail="No snapshot on file for this detection.")
+    record_reveal_audit(event_id=event_id, actor_email=admin.email, reason=payload.reason)
+    return FileResponse(path, media_type="image/jpeg", filename=f"{event_id}-unblurred.jpg")

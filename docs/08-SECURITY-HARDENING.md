@@ -146,3 +146,75 @@ RLS mean anything therefore required a second, deliberately weaker role.
   endpoint's token issuance, not the RLS/tenancy machinery downstream of
   it, which only cares that a JWT carries a role and a department.
 
+## 3. Edge-side default face blurring + reveal-on-authorisation
+
+**Decision: blur by default at the edge, keep the unblurred original in a
+separate directory only an explicit, reason-captured reveal can reach.**
+Every ANPR event's snapshot is face-blurred before it ever leaves the edge
+node — there is no "unblurred by default" code path to accidentally hit.
+
+**What's real:**
+
+- `services/edge_agent/.../analytics/face_blur.py` — real face detection
+  via OpenCV's YuNet (`cv2.FaceDetectorYN`), not a stub. **Discovered
+  while building this**: the originally-planned classic Haar cascade
+  (`cv2.CascadeClassifier`) doesn't exist at all in this repo's pinned
+  `opencv-python-headless==5.0.0.93` — OpenCV 5.0 removed the entire
+  legacy objdetect Haar API. YuNet (a small ~230KB ONNX DNN detector from
+  the official OpenCV Zoo) is the modern replacement, downloaded once and
+  cached on first use (same policy as models/README.md's other model
+  weights — this one just doesn't have a wrapping Python package doing
+  the download for it yet, so `ensure_model_downloaded()` does it
+  directly). Runs over the **full frame**, not just the vehicle's
+  bounding box — bystanders elsewhere in shot get the same default
+  protection as the vehicle's own occupants.
+- `services/edge_agent/.../analytics/snapshot_writer.py` — writes both
+  artefacts every event needs: the blurred version (what `snapshot_uri`
+  refers to, what core_api serves by default) and the true unblurred
+  original, to two separate directories. **A blur failure never falls
+  back to saving the unblurred frame as the "safe" default** — it writes
+  nothing at all and the event still gets emitted with no snapshot,
+  logged as an error. Verified: a real face (a public-domain test
+  portrait) is genuinely, visibly blurred beyond recognition by this
+  pipeline — not merely "a box is drawn," pixels are actually destroyed
+  (Gaussian blur strong enough that re-running the detector on the
+  blurred output finds nothing).
+- `AnprPipeline` gained an optional `snapshot_writer` port (the same
+  fake-able-port pattern as its vehicle detector/plate reader); wired into
+  `edge_agent.worker`'s real camera loop, and `event.evidence.snapshot_uri`
+  now actually flows through to `DetectionIn` (previously a schema field
+  that existed end-to-end in the wire types but nothing ever populated —
+  discovered while building this).
+- `core_api`: `GET /api/v1/detections/{event_id}/snapshot` serves the
+  blurred file to any authenticated user (no reveal needed — it's already
+  the safe default). `POST /api/v1/detections/{event_id}/reveal-face`
+  is **admin-only** (no separate "supervisor" role exists yet — a
+  documented scoping choice) and requires a `reason` (min 5 characters,
+  rejected with 422 otherwise) before it will even look at the unblurred
+  original; every call is logged (actor, reason, timestamp) — genuinely
+  reaching stdout thanks to the `configure_logging()` fix in section 1
+  above. `Detection.snapshot_uri` is an opaque `snapshot://<event_id>`
+  marker, never a raw filesystem path — core_api resolves both the
+  blurred and original file locations from `event_id` by its own
+  configured directory convention, so nothing on the wire ever leaks a
+  host path.
+- **Verified end-to-end over real HTTP**: created a detection with a
+  snapshot, confirmed `GET .../snapshot` returns the blurred file (200);
+  confirmed `POST .../reveal-face` with an empty reason is rejected
+  (422) and with a real reason returns the genuinely different unblurred
+  file (200) while logging the audit line; confirmed an `operator`-role
+  account can view the blurred snapshot but is rejected (403) from
+  reveal, while `admin` can do both.
+
+**Honest gap:** live, fully organic verification (a real synthetic-grid
+vehicle triggering ANPR, the pipeline blurring its actual captured frame,
+the resulting event flowing all the way to a browser) was not completed
+in this sandbox — ANPR vote-resolution didn't complete within several
+minutes of runtime here (confirmed this is pre-existing sandbox timing,
+not a regression: reproduced identically on the pre-M12 code). Every
+individual link in the chain was independently verified instead: real
+face detection/blur against a real photo, `SnapshotWriter` writing both
+files against the real model with no crash, the pipeline wiring via unit
+tests with a fake writer, and the full core_api HTTP surface (serve +
+reveal + role gate) against manually-seeded detection rows.
+
