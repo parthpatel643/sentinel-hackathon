@@ -151,9 +151,8 @@ worker reports them.
 ### Verifying it works
 
 ```bash
+make doctor                                               # walks the whole chain
 curl -s localhost:18000/api/v1/health                     # {"status":"ok",...}
-docker exec sentinel-postgres psql -U sentinel -d sentinel \
-  -t -A -c 'SELECT count(*) FROM detections;'             # climbs as the worker runs
 ```
 
 In the console: **Live Wall** shows the cameras, and **Find a Vehicle** finds a
@@ -300,6 +299,25 @@ uv run --package core_api uvicorn core_api.app:app --port 18000
 ---
 
 ## Troubleshooting
+
+**Start here: `make doctor`.** Live preview depends on a chain — Docker,
+Postgres, the relay, the API, credentials, an onboarded camera, the model, a
+running worker, a registered relay path, then HLS. A break anywhere shows up in
+the browser as the same thing: a tile that says "Connecting…". `make doctor`
+walks that chain in order, stops at the first break, and prints the remedy.
+Add `GOV=1` to include the government credentials and quota.
+
+```bash
+make doctor           # local stack
+make doctor GOV=1     # also check the government grid
+```
+
+**`make up` fails to pull an image.** The compose stack starts only what is
+needed; the object store is opt-in precisely because `docker compose up` aborts
+the entire command when any single image cannot be pulled, and an optional
+service would otherwise take Postgres and the relay down with it. If some other
+image fails, the stack genuinely cannot start — check network access, and note
+that a registry being down is not something this repository can work around.
 
 **`no vehicle model at .../models/weights/yolo11n.onnx`.** Expected on a fresh
 clone — the weights are gitignored. Run the export in

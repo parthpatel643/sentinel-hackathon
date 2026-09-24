@@ -17,8 +17,9 @@ install: ## Install all workspace dependencies
 
 up: ## Start the local infrastructure stack
 	$(COMPOSE) up -d
-	@echo "postgres :15432  valkey :16379  nats :14222  minio :19000 (console :19001)"
+	@echo "postgres :15432  valkey :16379  nats :14222"
 	@echo "relay    rtsp :8554  hls :8888  whep :8889  api :9997"
+	@echo "(object store is opt-in: add --profile object-store)"
 
 down: ## Stop the stack (volumes are preserved)
 	$(COMPOSE) down
@@ -46,6 +47,9 @@ worker: ## Run an edge worker (SOURCE=gov CAMERAS=cam06,cam30 STRIDE=3 for the r
 
 deck: ## Build the submission deck (docs/Sentinel-Platform-Deck.pptx)
 	NODE_PATH=$$(npm root -g) node scripts/build_deck.mjs
+
+doctor: ## Diagnose why the camera feed is not coming (--gov for the real grid)
+	uv run python scripts/diagnose.py $(if $(GOV),--gov,)
 
 seed: ## Create the default operator login
 	uv run --package core_api python scripts/seed_admin_user.py

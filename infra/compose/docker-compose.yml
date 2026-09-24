@@ -57,7 +57,21 @@ services:
       timeout: 3s
       retries: 20
 
+  # Object storage for evidence at scale (docs/04-SCALE-PLAN.md). Nothing in
+  # the codebase reads or writes it yet — sealed clips live on the filesystem
+  # under `recordings_dir`, shared with the relay by bind mount — so it is
+  # behind a profile and does not start by default.
+  #
+  # That is not tidiness. `docker compose up` aborts the whole command when any
+  # one image cannot be pulled, and MinIO's public images have stopped being
+  # anonymously pullable (both quay.io and docker.io now answer 401). Left in
+  # the default set, an object store nothing uses takes Postgres and the media
+  # relay down with it, and the symptom is "no camera feed" — a very long way
+  # from the cause.
+  #
+  #     docker compose -f infra/compose/docker-compose.yml --profile object-store up -d
   minio:
+    profiles: ["object-store"]
     image: quay.io/minio/minio:latest
     container_name: sentinel-minio
     command: ["server", "/data", "--console-address", ":9001"]
