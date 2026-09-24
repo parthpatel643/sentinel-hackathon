@@ -131,3 +131,66 @@ def test_backoff_bounds_match_the_organisers_own_numbers() -> None:
     config = SupervisorConfig()
     assert config.initial_backoff_s == 2.0
     assert config.max_backoff_s == 30.0
+
+
+async def test_the_source_is_reasserted_before_each_retry() -> None:
+    """A camera consumed through the local relay depends on a relay path that
+    exists only in MediaMTX's memory — it is registered over the API, not
+    written to its config. Restarting the relay therefore drops every path at
+    once, and without this hook each camera retries forever against a path
+    that is gone, recoverable only by restarting the whole worker.
+
+    Observed in practice: bringing the compose stack back up left one camera
+    permanently `down` while its pipeline dutifully reconnected.
+    """
+    source = FakeVideoSource(should_fail_open=True)
+    reasserts = 0
+
+    async def _reassert() -> None:
+        nonlocal reasserts
+        reasserts += 1
+
+    supervisor = CameraSupervisor(
+        config=CaptureConfig(camera_id="cam-relay", url="rtsp://x"),
+        supervisor_config=_FAST_BACKOFF,
+        capture_factory=_capture_factory(source),
+        on_reconnect=_reassert,
+    )
+
+    async def run_briefly() -> None:
+        async for _ in supervisor.frames():
+            pass  # pragma: no cover - never reached; camera never opens
+
+    task = asyncio.create_task(run_briefly())
+    await asyncio.sleep(0.1)
+    supervisor.stop()
+    await asyncio.wait_for(task, timeout=1.0)
+
+    assert reasserts > 0, "every retry must re-assert what the source depends on"
+
+
+async def test_the_first_connection_does_not_reassert() -> None:
+    """Only *re*-connections need it. The caller has already resolved the
+    source to get the URL it passed in, so doing it again immediately would be
+    a redundant round-trip on every camera at startup."""
+    source = FakeVideoSource(frames=[FakeFrame(pts_ms=i * 40.0) for i in range(1, 4)])
+    called = False
+
+    async def _reassert() -> None:
+        nonlocal called
+        called = True
+
+    supervisor = CameraSupervisor(
+        config=CaptureConfig(camera_id="cam-first", url="rtsp://x"),
+        supervisor_config=_FAST_BACKOFF,
+        capture_factory=_capture_factory(source),
+        on_reconnect=_reassert,
+    )
+
+    received = 0
+    async for _ in supervisor.frames():
+        received += 1
+        if received == 2:
+            supervisor.stop()
+
+    assert not called

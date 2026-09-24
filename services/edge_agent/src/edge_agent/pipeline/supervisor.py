@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import random
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -44,6 +44,15 @@ class CameraSupervisor:
     config: CaptureConfig
     supervisor_config: SupervisorConfig = field(default_factory=SupervisorConfig)
     capture_factory: Callable[[CaptureConfig], RtspCapture] = field(default=RtspCapture)
+    # Called before each reconnect attempt, when there is anything the source
+    # needs in place before it can be opened at all. For a camera consumed
+    # through the local relay that is the relay path itself: it is registered
+    # over MediaMTX's API rather than written into its config file, so a relay
+    # restart silently drops every path and each camera then retries forever
+    # against a path that no longer exists. Re-asserting it here means the
+    # existing backoff loop repairs that, instead of needing the whole worker
+    # restarted.
+    on_reconnect: Callable[[], Awaitable[None]] | None = None
 
     status: CameraStatus = field(default=CameraStatus.UNKNOWN, init=False)
     reconnects: int = field(default=0, init=False)
@@ -62,6 +71,8 @@ class CameraSupervisor:
         while not self._stop_requested:
             if not connected:
                 self.status = CameraStatus.CONNECTING
+                if self.reconnects and self.on_reconnect is not None:
+                    await self.on_reconnect()
                 opened = await asyncio.to_thread(self._capture.open)
                 if not opened:
                     self.reconnects += 1

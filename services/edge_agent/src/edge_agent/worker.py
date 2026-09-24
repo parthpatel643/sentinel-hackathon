@@ -141,8 +141,9 @@ async def _resolve_capture_url(
             path_name,
         )
         return url
-    logger.info("%s: consuming via local relay path %s", descriptor.camera_id, path_name)
-    _WARMED_RELAY_PATHS.add(path_name)
+    if path_name not in _WARMED_RELAY_PATHS:
+        logger.info("%s: consuming via local relay path %s", descriptor.camera_id, path_name)
+        _WARMED_RELAY_PATHS.add(path_name)
     return relay_rtsp_url(path_name, settings)
 
 
@@ -319,7 +320,17 @@ async def _run_camera(
         logger.warning("skipping %s: no rtsp profile in the catalogue", camera_id)
         return
 
-    supervisor = CameraSupervisor(config=CaptureConfig(camera_id=camera_id, url=url))
+    # Re-assert the relay path before each retry. MediaMTX holds API-added
+    # paths in memory only, so restarting the relay drops all of them and the
+    # camera would otherwise retry forever against a path that no longer
+    # exists — recoverable only by restarting the whole worker.
+    async def _reassert_source() -> None:
+        await _resolve_capture_url(descriptor, settings, via_relay=via_relay)
+
+    supervisor = CameraSupervisor(
+        config=CaptureConfig(camera_id=camera_id, url=url),
+        on_reconnect=_reassert_source if via_relay else None,
+    )
     tamper_detector = TamperDetector()
     pipeline = AnprPipeline(
         vehicle_detector,
