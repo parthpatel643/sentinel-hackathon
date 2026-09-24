@@ -309,6 +309,12 @@ A camera the worker has marked `down` reports itself unavailable with a reason
 rather than serving a URL that will not play, so the tile should tell you which
 of these it is.
 
+**A camera stays `down` and the relay logs `path 'ext/…' is not configured`.**
+The relay was restarted (`make up` is enough) and lost its paths, which live in
+memory rather than its config file. The worker re-asserts them on its next
+reconnect, so this repairs itself within a retry cycle — under a minute. If it
+persists beyond that, the worker is not running.
+
 **`403 watch time limit reached`.** Quota. Stop the worker entirely and wait
 15–20 minutes. Reducing the camera count is not enough; consumption must reach
 zero.
