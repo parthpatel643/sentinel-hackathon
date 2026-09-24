@@ -290,3 +290,36 @@ def test_vehicle_colour_is_classified_from_the_vehicles_own_bounding_box() -> No
     events = pipeline.process_frame(frame)
 
     assert events[0].payload.vehicle.colour == "red"  # type: ignore[union-attr]
+
+
+def test_a_small_vehicle_roi_is_widened_with_real_pixels() -> None:
+    """The plate detector resizes whatever it is handed to its own input
+    size, so a tight crop of a distant motorcycle is upscaled several times
+    over before anything reads it — and interpolation cannot invent the
+    strokes that separate a J from a 3. Taking more of the surrounding frame
+    costs nothing (it is still one inference) and hands the detector pixels
+    the sensor actually recorded.
+    """
+    pipeline = AnprPipeline(
+        FakeVehicleDetector([]), FakePlateReader([]), node_id="n", model_versions={}
+    )
+    image = np.zeros((1080, 1920, 3), dtype=np.uint8)
+
+    roi = pipeline._crop_roi(image, (900.0, 500.0, 1040.0, 730.0))  # 140x230, a far motorbike
+
+    assert roi.shape[0] >= 640 and roi.shape[1] >= 640
+    # Still a view of the frame, not an upscaled copy of the crop.
+    assert roi.base is image or roi.base is not None
+
+
+def test_a_large_vehicle_roi_is_left_alone() -> None:
+    """A vehicle already bigger than the detector's input needs no help, and
+    widening it would only dilute the plate with irrelevant scene."""
+    pipeline = AnprPipeline(
+        FakeVehicleDetector([]), FakePlateReader([]), node_id="n", model_versions={}
+    )
+    image = np.zeros((1080, 1920, 3), dtype=np.uint8)
+
+    roi = pipeline._crop_roi(image, (100.0, 100.0, 900.0, 800.0))  # 800x700
+
+    assert roi.shape[1] < 1000  # grew only by the configured margin

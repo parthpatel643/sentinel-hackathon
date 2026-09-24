@@ -73,6 +73,14 @@ async def test_create_watchlist_entry_normalises_and_keys_the_plate(
 
 
 async def test_list_watchlist_entries_defaults_to_active_only(db_session: AsyncSession) -> None:
+    """Asserted over this test's own two entries rather than the whole table.
+
+    The dev database is shared with real use, so a watchlist added by hand
+    while demonstrating the system would otherwise fail a test that has
+    nothing to do with it — the same fragility already fixed for the audit
+    log and retention. What matters here is that `active_only` includes and
+    excludes the right one, which holds whatever else is on the list.
+    """
     active = await create_watchlist_entry(
         db_session, WatchlistEntryCreate(plate="GJ01AB1234", entry_type="stolen")
     )
@@ -82,11 +90,12 @@ async def test_list_watchlist_entries_defaults_to_active_only(db_session: AsyncS
     inactive.active = False
     await db_session.flush()
 
-    entries = await list_watchlist_entries(db_session)
-    assert {e.id for e in entries} == {active.id}
+    mine = {active.id, inactive.id}
+    entries = {e.id for e in await list_watchlist_entries(db_session)} & mine
+    assert entries == {active.id}
 
-    all_entries = await list_watchlist_entries(db_session, active_only=False)
-    assert {e.id for e in all_entries} == {active.id, inactive.id}
+    all_entries = {e.id for e in await list_watchlist_entries(db_session, active_only=False)} & mine
+    assert all_entries == mine
 
 
 async def test_correlate_detection_creates_an_alert_for_a_matching_watchlist_entry(

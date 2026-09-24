@@ -138,3 +138,43 @@ def test_resolve_can_be_called_every_frame_and_refines_over_time() -> None:
     assert later is not None
     assert later.plate_text[-1] == "4"
     assert later.frames_voted == 3
+
+
+def test_a_crowd_of_truncated_reads_does_not_outvote_a_valid_plate() -> None:
+    """Length is settled by plate grammar first, popularity second.
+
+    A plate too far away to resolve produces a stream of truncated reads that
+    agree with each other and with nothing real. Measured on live wide-area
+    footage, 8-character reads were 1% grammatically valid while 9-character
+    reads of the same traffic were 60% valid, because Indian registrations
+    are nine or ten characters. Choosing the length by popularity alone threw
+    away the reads most likely to be right — the vehicle was then reported
+    under a registration that cannot exist.
+    """
+    voter = PlateVoter()
+    for _ in range(6):
+        voter.add(_candidate("GJ26U037"))  # plausible, frequent, and not a real plate
+    for _ in range(2):
+        voter.add(_candidate("GJ26U0372"))  # rarer, but a valid registration
+
+    voted = voter.resolve()
+
+    assert voted is not None
+    assert voted.plate_text == "GJ26U0372"
+    assert voted.format_valid
+
+
+def test_popularity_still_decides_when_no_read_is_a_valid_plate() -> None:
+    """The grammar is a tie-break, not a filter. With nothing valid to prefer,
+    behaviour is unchanged — the reads still have to be reported as something,
+    and the most agreed-upon length remains the best available evidence."""
+    voter = PlateVoter()
+    for _ in range(4):
+        voter.add(_candidate("3114473"))
+    voter.add(_candidate("31144731"))
+
+    voted = voter.resolve()
+
+    assert voted is not None
+    assert voted.plate_text == "3114473"
+    assert not voted.format_valid

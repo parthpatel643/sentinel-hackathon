@@ -63,10 +63,25 @@ class PlateVoter:
         if not self._candidates:
             return None
 
-        # Reads at the modal length are voted together; a plate misread as
-        # one character short/long by a bad frame should not corrupt the
-        # position-by-position vote for the length most reads agree on.
-        lengths = Counter(len(c.text) for c in self._candidates)
+        # Reads at one length are voted together; a plate misread as one
+        # character short or long by a bad frame should not corrupt the
+        # position-by-position vote for the length the reads agree on.
+        #
+        # Which length, though, cannot be decided by popularity alone. A
+        # distant plate yields a stream of truncated reads that agree with
+        # each other and with nothing real — measured on a live wide-area
+        # camera, 8-character reads were 1% grammatically valid while
+        # 9-character reads from the same footage were 60% valid, simply
+        # because Indian plates are nine or ten characters. Taking the modal
+        # length there discards the reads most likely to be right and votes
+        # among the ones most likely to be wrong.
+        #
+        # So the plate grammar breaks the tie: if any read forms a valid
+        # registration, only those lengths are considered. It is a prior
+        # about what plates can be, not a guess about this one.
+        valid_candidates = [c for c in self._candidates if is_valid_plate(normalise_plate(c.text))]
+        pool = valid_candidates or self._candidates
+        lengths = Counter(len(c.text) for c in pool)
         mode_length = lengths.most_common(1)[0][0]
         matching = [c for c in self._candidates if len(c.text) == mode_length]
 

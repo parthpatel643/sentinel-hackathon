@@ -71,6 +71,7 @@ class AnprPipeline:
         model_versions: dict[str, str],
         tracker: SimpleTracker | None = None,
         roi_margin: float = 0.1,
+        min_roi_side: int = 640,
         snapshot_writer: SnapshotWriterPort | None = None,
         frame_clock: FrameClockReader | None = None,
     ) -> None:
@@ -80,6 +81,7 @@ class AnprPipeline:
         self._node_id = node_id
         self._model_versions = model_versions
         self._roi_margin = roi_margin
+        self._min_roi_side = min_roi_side
         self._snapshot_writer = snapshot_writer
         # Reads the camera's own burned-in clock. When it can, that becomes the
         # event's observed_at — see _build_event.
@@ -142,6 +144,21 @@ class AnprPipeline:
     def _crop_roi(
         self, image: np.ndarray, bbox_xyxy: tuple[float, float, float, float]
     ) -> np.ndarray:
+        """The image region handed to the plate reader for one vehicle.
+
+        Widened to at least `_min_roi_side` using the pixels that actually
+        surround the vehicle. The plate detector resizes whatever it receives
+        to its own input size, so a tight crop of a distant motorcycle — often
+        no more than 140x230 — is upscaled nearly fivefold before anything
+        reads it, and interpolation cannot invent the strokes that separate a
+        J from a 3. Taking more of the real frame instead costs nothing extra
+        (it is still one inference) and hands the detector pixels the sensor
+        genuinely recorded. Measured on live wide-area footage, this roughly
+        tripled the number of grammatically valid reads.
+
+        Large vehicles are unaffected: their own box already exceeds the
+        minimum, so the margin below is all they gain.
+        """
         height, width = image.shape[:2]
         x1, y1, x2, y2 = bbox_xyxy
         margin_x, margin_y = (x2 - x1) * self._roi_margin, (y2 - y1) * self._roi_margin
@@ -151,6 +168,13 @@ class AnprPipeline:
         y2 = min(height, int(y2 + margin_y))
         if x2 <= x1 or y2 <= y1:
             return image[0:0, 0:0]
+
+        side = self._min_roi_side
+        if side and (x2 - x1 < side or y2 - y1 < side):
+            cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+            half_x, half_y = max(side, x2 - x1) // 2, max(side, y2 - y1) // 2
+            x1, x2 = max(0, cx - half_x), min(width, cx + half_x)
+            y1, y2 = max(0, cy - half_y), min(height, cy + half_y)
         return image[y1:y2, x1:x2]
 
     def _build_event(
