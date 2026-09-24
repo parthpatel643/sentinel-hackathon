@@ -310,6 +310,7 @@ async def _run_camera(
     plate_reader: FastAlprPlateReader,
     *,
     via_relay: bool = True,
+    frame_stride: int = 1,
 ) -> None:
     camera_id = descriptor.camera_id
     settings = get_settings()
@@ -341,11 +342,23 @@ async def _run_camera(
         _report_health(client, camera_id, supervisor, tamper_detector)
     )
     try:
+        frame_index = 0
         async for frame in supervisor.frames():
             # M13: cheap enough to run on every frame (grayscale + Laplacian
             # + a mean) — no second inference engine, unlike the ANPR
             # pipeline's own per-frame cost.
             await asyncio.to_thread(tamper_detector.update, frame.image)
+            frame_index += 1
+            # Tamper detection above still sees every frame; only the
+            # expensive half is strided. A discontinuity is never skipped —
+            # the pipeline resets its tracker and vote history on one, and
+            # dropping that would silently merge two unrelated scenes.
+            if (
+                frame_stride > 1
+                and not frame.timing.is_discontinuity
+                and frame_index % frame_stride != 0
+            ):
+                continue
             events = await asyncio.to_thread(pipeline.process_frame, frame)
             for event in events:
                 payload = event.payload
@@ -472,6 +485,16 @@ def _parse_args() -> argparse.Namespace:
         "Opens one gateway connection per consumer rather than per camera, so a camera that "
         "is also being previewed costs two — only use this to isolate a relay problem.",
     )
+    parser.add_argument(
+        "--frame-stride",
+        type=int,
+        default=1,
+        help="run ANPR on every Nth frame instead of every one (default 1: every frame). "
+        "Vehicle detection and plate OCR are the dominant cost here — four 1080p cameras at "
+        "25fps saturate an 8-core machine, which starves the relay's HLS muxer and stalls "
+        "live preview. A vehicle stays in shot for many frames, so a stride of 2-3 keeps "
+        "several reads per vehicle while cutting the inference load proportionally.",
+    )
     return parser.parse_args()
 
 
@@ -539,17 +562,23 @@ async def main() -> None:
                 settings, keep={relay_path_for(d.camera_id, settings) for d in descriptors}
             )
         logger.info(
-            "starting %d camera pipeline(s) (source=%s, transport=%s) against %s",
+            "starting %d camera pipeline(s) (source=%s, transport=%s, stride=%d) against %s",
             len(descriptors),
             args.source,
             "local relay" if via_relay else "direct to camera",
+            args.frame_stride,
             api_base_url,
         )
         try:
             pipelines = asyncio.gather(
                 *(
                     _run_camera(
-                        client, descriptor, vehicle_detector, plate_reader, via_relay=via_relay
+                        client,
+                        descriptor,
+                        vehicle_detector,
+                        plate_reader,
+                        via_relay=via_relay,
+                        frame_stride=args.frame_stride,
                     )
                     for descriptor in descriptors
                 )
