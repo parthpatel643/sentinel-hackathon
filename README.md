@@ -19,7 +19,7 @@ documented path to ~80,000 cameras.
 > for the current interaction design. Regenerate live-data screenshots with
 > `npm run screenshots` from `apps/web` using a working operator account.
 
-> **Status:** M0–M13 complete. Running against the **real government camera
+> **Status:** M0–M15 complete. Running against the **real government camera
 > grid** — 30 cameras onboarded from the live catalogue, continuous ANPR,
 > watchlist correlation, zone rules and tamper detection all verified on real
 > traffic footage. See [evidence/](evidence) for measured results, including the
@@ -28,6 +28,11 @@ documented path to ~80,000 cameras.
 ---
 
 ## Five-minute quickstart
+
+**New to this repository? Read [GETTING-STARTED.md](GETTING-STARTED.md)** — it
+covers prerequisites, the real-grid setup, how to pace load against the
+organisers' viewing quota, and every failure mode hit while setting this up on a
+fresh machine. The summary below assumes the tooling is already in place.
 
 Needs Docker, [uv](https://docs.astral.sh/uv/), Node 20+, and ffmpeg
 (`brew install ffmpeg`).
@@ -61,12 +66,18 @@ then:
 uv run python scripts/verify_gov_catalogue.py    # validate the live catalogue
 curl -X POST localhost:18000/api/v1/cameras/discover \
      -H "Authorization: Bearer $TOKEN"           # onboard all 30 cameras
-make worker SOURCE=gov                           # analyse them
+
+# analyse a couple of them - see the pacing note below before raising this
+make worker SOURCE=gov CAMERAS=cam06,cam30 STRIDE=3
 ```
 
-> The government sandbox enforces an account-level viewing-time quota. Pace the
-> camera count and run length, or it returns `403 watch time limit reached` and
-> cuts the feeds. See
+> The government sandbox enforces an account-level viewing-time quota. Four
+> cameras exhaust it in under an hour, after which it returns `403 watch time
+> limit reached` and cuts every feed until consumption stops entirely for
+> 15-20 minutes. Analysing four 1080p streams at full frame rate also
+> saturates an 8-core laptop and stalls live preview - `--frame-stride 3`
+> cuts that load by roughly four-fifths. See
+> [GETTING-STARTED.md](GETTING-STARTED.md) and
 > [the evidence-run findings](evidence/M14-EVIDENCE-RUN-FINDINGS.md).
 
 Host ports are deliberately non-default (`15432`, `16379`, `14222`, `19000`) so

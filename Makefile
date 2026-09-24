@@ -38,8 +38,11 @@ api: ## Run the core API with reload
 web: ## Run the operator console (Vite dev server)
 	cd apps/web && npm run dev
 
-worker: ## Run an edge worker against the synthetic grid (SOURCE=gov for the real grid)
-	uv run --package edge-agent python -m edge_agent.worker --source $(or $(SOURCE),synthetic)
+worker: ## Run an edge worker (SOURCE=gov CAMERAS=cam06,cam30 STRIDE=3 for the real grid)
+	uv run --package edge-agent python -m edge_agent.worker \
+	  --source $(or $(SOURCE),synthetic) \
+	  $(if $(CAMERAS),--cameras $(CAMERAS),) \
+	  $(if $(STRIDE),--frame-stride $(STRIDE),)
 
 deck: ## Build the submission deck (docs/Sentinel-Platform-Deck.pptx)
 	NODE_PATH=$$(npm root -g) node scripts/build_deck.mjs
