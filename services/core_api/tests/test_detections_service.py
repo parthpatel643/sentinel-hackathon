@@ -156,3 +156,49 @@ async def test_vehicle_route_is_empty_for_a_plate_never_seen(db_session: AsyncSe
     assert route.total_sightings == 0
     assert route.points == []
     assert route.first_seen_at is None
+
+
+async def test_a_route_is_found_even_when_the_camera_clock_is_badly_wrong(
+    db_session: AsyncSession,
+) -> None:
+    """The search window is measured against our own clock, not the camera's.
+
+    `observed_at` carries the time burned into the frame, which is the scene's
+    time and belongs in evidence — but it is only as good as the camera that
+    produced it. Government feeds replay archived footage and report dates
+    months old; a camera with a mis-set clock does the same, and that is
+    routine across a large estate. Window on that and the vehicle silently
+    becomes unfindable precisely because one camera was wrong, which is the
+    opposite of what an operator asking "seen in the last 24 hours" wants.
+    """
+    await upsert_camera(
+        db_session,
+        camera_id="det-cam-01",
+        name="Clock Drift Camera",
+        driver_id="rtsp",
+        department_name=None,
+        site_name=None,
+        location=GeoPointOut(lat=23.0225, lon=72.5714),
+        tier="a_continuous",
+        status="live",
+        source="manual",
+        attributes={},
+        profiles=[],
+    )
+    # Ingested now; the frame claims it happened three months ago.
+    await ingest_detection(
+        db_session,
+        _detection_in(
+            event_id="01JEVTCLOCKDRIFT000000001",
+            plate_text="GJ09ZZ9911",
+            plate_normalised="GJ09ZZ9911",
+            plate_ambiguity_key=ambiguity_key("GJ09ZZ9911"),
+            observed_at=ANCHOR - timedelta(days=90),
+        ),
+    )
+
+    route = await get_vehicle_route(db_session, "GJ09ZZ9911")
+
+    assert len(route.points) == 1, "a stale camera clock must not hide a fresh sighting"
+    # The evidence timestamp itself is left exactly as the camera reported it.
+    assert route.points[0].observed_at == ANCHOR - timedelta(days=90)

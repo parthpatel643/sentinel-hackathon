@@ -56,6 +56,14 @@ class DetectionOut(BaseModel):
     vehicle_colour: str | None
     vehicle_track_id: str | None
     observed_at: datetime
+    ingested_at: datetime = Field(
+        validation_alias="created_at",
+        description=(
+            "When this detection reached us. Distinct from `observed_at`, which is the "
+            "scene's own time as reported by the camera and is only as reliable as that "
+            "camera's clock. Use this one to decide whether a read is *recent*."
+        ),
+    )
     snapshot_uri: str | None
     node_id: str
 

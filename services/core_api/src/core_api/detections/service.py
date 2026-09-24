@@ -92,10 +92,20 @@ async def get_vehicle_route(
     normalised = normalise_plate(plate_query)
     since = datetime.now(UTC) - window
 
+    # The window is bounded by when *we* recorded the sighting, not by the
+    # timestamp burned into the frame. Those are different clocks and only
+    # one of them is ours: `observed_at` is the scene's own time, which is
+    # what belongs in evidence, but it is only as trustworthy as the camera
+    # that produced it. A camera with a mis-set clock — routine in a large
+    # estate, and the reason time sync matters here at all — would otherwise
+    # drop out of "seen in the last 24 hours" entirely, making a vehicle
+    # unfindable precisely because one camera was wrong. Ordering stays on
+    # `observed_at`: a route is a journey through the scene, so it must be
+    # told in the scene's order.
     exact_query = (
         select(Detection, Camera)
         .join(Camera, Camera.camera_id == Detection.camera_id)
-        .where(Detection.plate_normalised == normalised, Detection.observed_at >= since)
+        .where(Detection.plate_normalised == normalised, Detection.created_at >= since)
         .order_by(Detection.observed_at.asc())
     )
     rows = (await session.execute(exact_query)).all()
@@ -106,7 +116,7 @@ async def get_vehicle_route(
         fallback_query = (
             select(Detection, Camera)
             .join(Camera, Camera.camera_id == Detection.camera_id)
-            .where(Detection.plate_ambiguity_key == ambiguity, Detection.observed_at >= since)
+            .where(Detection.plate_ambiguity_key == ambiguity, Detection.created_at >= since)
             .order_by(Detection.observed_at.asc())
         )
         rows = (await session.execute(fallback_query)).all()

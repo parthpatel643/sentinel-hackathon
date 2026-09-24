@@ -207,6 +207,13 @@ export interface Detection {
   vehicle_class: string | null
   vehicle_track_id: string | null
   observed_at: string
+  /**
+   * When we recorded the detection, as opposed to `observed_at`, which is the
+   * scene's own time taken from the camera's burned-in clock. The two can be
+   * months apart — the government feeds replay archived footage — and only
+   * this one is measured against our clock, so recency must be judged by it.
+   */
+  ingested_at: string
   snapshot_uri: string | null
   node_id: string
 }
