@@ -164,12 +164,25 @@ async def check_cameras_onboarded(settings: Settings, client: httpx.AsyncClient)
     # machine-to-machine service token the worker uses for ingest.
     email = os.environ.get("SENTINEL_ADMIN_EMAIL", "admin@sentinel-platform.com")
     password = os.environ.get("SENTINEL_ADMIN_PASSWORD", "sentinel-admin-2026")
-    try:
-        login = await client.post(
-            f"{base}/api/v1/auth/login", json={"email": email, "password": password}
-        )
-    except httpx.HTTPError as exc:
-        return _fail(f"could not reach the login endpoint: {type(exc).__name__}", "Is the API up?")
+    # Retried once because the first request after Postgres restarts spends the
+    # connection pool's now-dead connection and fails, while the next one
+    # reconnects — a diagnostic that reports that single 500 as a broken login
+    # sends you looking at credentials when nothing is wrong with them.
+    login = None
+    for attempt in range(2):
+        try:
+            login = await client.post(
+                f"{base}/api/v1/auth/login", json={"email": email, "password": password}
+            )
+        except httpx.HTTPError as exc:
+            return _fail(
+                f"could not reach the login endpoint: {type(exc).__name__}", "Is the API up?"
+            )
+        if login.status_code == 200:
+            break
+        if attempt == 0:
+            await asyncio.sleep(1.0)
+    assert login is not None
     if login.status_code != 200:
         return _warn(
             f"could not log in as {email} (HTTP {login.status_code})",
