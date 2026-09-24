@@ -19,13 +19,18 @@ and container downloads.
 |---|---|---|---|
 | **Docker** | any recent | Postgres/PostGIS, Valkey, NATS, MinIO, media relay | [Docker Desktop](https://docker.com) or [OrbStack](https://orbstack.dev) |
 | **uv** | 0.5+ | Python toolchain and workspace manager | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
-| **Python** | **3.13+** | enforced by `pyproject.toml` | `uv python install 3.13` |
+| **Python** | **3.13+** | enforced by `pyproject.toml` | handled by `uv` — see below |
 | **Node** | 20+ | operator console (Vite + React) | `brew install node` |
 | **ffmpeg** | 6+ | RTSP capture and evidence clips | `brew install ffmpeg` |
 | **tesseract** | 5+ | *optional* — reads the camera's burned-in clock | `brew install tesseract` |
 
 You do **not** need a GPU. The ANPR models run on CPU — CoreML on Apple
 silicon, ONNX elsewhere.
+
+You also do not need to install Python 3.13 yourself. `uv` reads the version
+from `pyproject.toml` and downloads a matching interpreter into the project's
+own environment, so a machine whose system `python3` is much older is fine —
+verified here on a host still running 3.9.
 
 > **On tesseract being optional.** Without it, detections fall back to
 > stamping the time *we processed* the frame. That is fine for a local demo,
@@ -124,6 +129,14 @@ This publishes a local RTSP grid of mixed codecs and resolutions — deliberatel
 messy, because a fleet that is uniformly H.264 1080p is not a fleet anyone
 actually has.
 
+> **Expect zero plate reads from the synthetic grid.** The streams are ffmpeg
+> `testsrc` patterns — a moving gradient with a scrolling timestamp, and no
+> vehicles in them at all. Cameras will go `live` at 25fps and health will
+> report normally, but the detections table stays empty, and that is correct
+> rather than broken. The synthetic grid exists to exercise capture,
+> reconnection, PTS handling and mixed codecs without touching the
+> organisers' gateway. For actual plate reads you need the real grid, below.
+
 Then three processes, one per terminal:
 
 ```bash
@@ -195,6 +208,11 @@ Four cameras exhaust it in **under an hour**; it then returns `403 watch time
 limit reached` on the catalogue and `401` on RTSP, and every feed dies. It
 recovers after roughly 15–20 minutes of *zero* consumption — so stop the
 worker, do not just reduce it. Two cameras roughly doubles the window.
+
+The quota belongs to the **account, not the machine**. Two laptops running
+workers against the same credentials draw from one budget and will exhaust it
+twice as fast, each looking as though the other is not there. Stop the worker
+on the old machine before starting one somewhere else.
 
 **Your own hardware.** Measured on an 8-core laptop: four 1080p cameras at full
 frame rate put the worker at ~540% CPU and load average ~46, which starves the
