@@ -59,7 +59,7 @@ const SCRIPT = {
     step: 'Step 03 — Investigation',
     head: 'A registration goes in',
     detail: 'The same question an officer actually asks: where has this vehicle been?',
-    hold: 4,
+    hold: 5.5,
   },
   trail: {
     step: 'Step 04 — The answer',
@@ -172,7 +172,10 @@ function cardClip(png, seconds, name) {
 
 /** Crossfade a list of clips into one timeline. */
 function crossfade(clips, out) {
-  const XF = 0.5
+  // Short. Half a second of dissolve between two unrelated screens shows both
+  // at once — the empty state ghosting through the results — which reads as a
+  // rendering fault rather than an edit.
+  const XF = 0.35
   const inputs = clips.flatMap((c) => ['-i', c.file])
   let filter = ''
   let prev = '[0:v]'
@@ -218,7 +221,7 @@ async function main() {
   crossfade(clips, out)
   rmSync(WORK, { recursive: true, force: true })
 
-  const total = clips.reduce((s, c) => s + c.dur, 0) - 0.5 * (clips.length - 1)
+  const total = clips.reduce((s, c) => s + c.dur, 0) - 0.35 * (clips.length - 1)
   console.log(`\n${out}  (~${total.toFixed(0)}s)`)
 }
 

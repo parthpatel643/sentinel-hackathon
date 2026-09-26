@@ -90,12 +90,21 @@ async function main() {
     await page.waitForTimeout(9000) // let HLS actually start before the beat counts
   })
 
-  await beat('search', 4000, async () => {
+  await beat('search', 7000, async () => {
     await page.goto(`${BASE}/find-a-vehicle`, { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('input', { timeout: 30000 })
     await page.waitForTimeout(2000)
-    const field = await page.$('input[type="text"], input:not([type]):not([type="hidden"])')
-    if (field) await field.type(PLATE, { delay: 85 })
+    // The page's own search field, not the global command bar at the top.
+    // Both accept a plate and both work, but typing into the labelled field
+    // is what the beat is claiming happens.
+    const field =
+      (await page.$('form input[type="text"]')) ??
+      (await page.$('form input:not([type]):not([type="hidden"])')) ??
+      (await page.$('input[type="text"]'))
+    if (field) {
+      await field.click()
+      await field.type(PLATE, { delay: 85 })
+    }
   })
 
   await beat('trail', 15000, async () => {
