@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "demo:record": "node scripts/record_demo.mjs",
     "demo:build": "node scripts/build_demo.mjs",
-    "demo": "npm run demo:record && npm run demo:build"
+    "demo": "npm run demo:record && npm run demo:build",
+    "docs:diagram": "node scripts/build_workflow_diagram_pdf.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",
@@ -40,6 +41,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "marked": "^18.0.14",
+    "mermaid": "^12.0.0",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",

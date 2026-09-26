@@ -5,7 +5,10 @@
  * would land a reviewer in the middle of a set that cross-references itself
  * constantly, so this stitches the documents together in reading order,
  * rewrites the inter-document links into internal anchors, and prints the
- * result through Chromium.
+ * result through Chromium. Mermaid diagrams are rendered to real SVG
+ * in-page (see lib/mermaid_pdf.mjs) rather than left as fenced code text —
+ * a printed diagram that is actually its own source code is not a fallback,
+ * it is the diagram missing.
  *
  * Usage:
  *   npm run docs:pdf            (from apps/web)
@@ -19,6 +22,12 @@ import { marked } from 'marked'
 import { readFile, mkdir } from 'node:fs/promises'
 import { dirname, resolve, basename } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import {
+  extractMermaidBlocks,
+  placeMermaidTargets,
+  renderMermaidDiagrams,
+  MERMAID_CSS,
+} from './lib/mermaid_pdf.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = resolve(HERE, '..', '..', '..')
@@ -77,10 +86,16 @@ const CSS = `
   .toc h2 { border: none; }
   .toc ol { padding-left: 18pt; }
   .toc li { margin: 3pt 0; }
+  ${MERMAID_CSS}
 `
 
 async function main() {
   marked.setOptions({ gfm: true, breaks: false })
+
+  // Shared across every document: each diagram's raw source is pushed here
+  // in reading order, so `mmd-<n>` ids stay stable and unique across the
+  // whole 10-document set rather than resetting per file.
+  const mermaidSources = []
 
   const parts = []
   for (const file of DOCUMENTS) {
@@ -94,8 +109,10 @@ async function main() {
     // Repo-relative links (../packages/..., ../evidence/...) cannot resolve
     // inside a PDF at all; keep the link text, drop the dead target.
     md = md.replace(/\[([^\]]+)\]\(\.\.\/[^)]+\)/g, '`$1`')
+    // Pulled out before marked ever sees it — see lib/mermaid_pdf.mjs for why.
+    md = extractMermaidBlocks(md, mermaidSources)
 
-    parts.push(`<section class="doc" id="${slug(file)}">${marked.parse(md)}</section>`)
+    parts.push(`<section class="doc" id="${slug(file)}">${placeMermaidTargets(marked.parse(md))}</section>`)
   }
 
   const toc = DOCUMENTS.map((f) => {
@@ -122,6 +139,7 @@ ${parts.join('\n')}
   // would leave them pointing at about:blank.
   await page.setContent(html, { waitUntil: 'load' })
   await page.waitForTimeout(1500)
+  await renderMermaidDiagrams(page, mermaidSources)
   await mkdir(dirname(OUT), { recursive: true })
   await page.pdf({
     path: OUT,

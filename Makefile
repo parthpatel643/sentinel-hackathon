@@ -48,6 +48,12 @@ worker: ## Run an edge worker (SOURCE=gov CAMERAS=cam06,cam30 STRIDE=3 for the r
 deck: ## Build the submission deck (docs/Sentinel-Platform-Deck.pptx)
 	NODE_PATH=$$(npm root -g) node scripts/build_deck.mjs
 
+hld: ## Build the HLD PDF from docs/ (docs/Sentinel-Platform-HLD.pdf)
+	cd apps/web && npm run docs:pdf
+
+workflow-diagram: ## Build the Workflow/Integration Diagram PDF (docs/Sentinel-Platform-Workflow-Integration-Diagram.pdf)
+	cd apps/web && npm run docs:diagram
+
 doctor: ## Diagnose why the camera feed is not coming (--gov for the real grid)
 	uv run python scripts/diagnose.py $(if $(GOV),--gov,)
 

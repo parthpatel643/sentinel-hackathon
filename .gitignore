@@ -39,11 +39,13 @@ evidence/runs/
 # than no SBOM at all).
 sbom/
 
-# docs/Sentinel-Platform-HLD.pdf and docs/Sentinel-Platform-Deck.pptx are
-# committed as submission deliverables (regenerate with `npm run docs:pdf`
-# and `make deck` respectively before committing an update, for the same
-# reason the SBOMs above are regenerated on demand: a stale copy silently
-# disagreeing with the docs/ it was built from is worse than no copy).
+# docs/Sentinel-Platform-HLD.pdf, docs/Sentinel-Platform-Deck.pptx and
+# docs/Sentinel-Platform-Workflow-Integration-Diagram.pdf are committed as
+# submission deliverables (regenerate with `make hld`, `make deck` and
+# `make workflow-diagram` respectively before committing an update, for the
+# same reason the SBOMs above are regenerated on demand: a stale copy
+# silently disagreeing with the docs/ it was built from is worse than no
+# copy).
 # deck-qa.pdf is a scratch QA render, never a deliverable, and stays ignored.
 docs/deck-qa.pdf
 
