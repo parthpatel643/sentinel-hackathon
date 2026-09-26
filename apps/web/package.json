@@ -10,7 +10,8 @@
     "test:ui": "playwright test",
     "screenshots": "node scripts/capture_screenshots.mjs",
     "docs:pdf": "node scripts/build_docs_pdf.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "demo:record": "node scripts/record_demo.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",
