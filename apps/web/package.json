@@ -11,7 +11,9 @@
     "screenshots": "node scripts/capture_screenshots.mjs",
     "docs:pdf": "node scripts/build_docs_pdf.mjs",
     "preview": "vite preview",
-    "demo:record": "node scripts/record_demo.mjs"
+    "demo:record": "node scripts/record_demo.mjs",
+    "demo:build": "node scripts/build_demo.mjs",
+    "demo": "npm run demo:record && npm run demo:build"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",

@@ -1,0 +1,128 @@
+<!doctype html>
+<!--
+  Title, caption and closing cards for the demo video.
+
+  Rendered in the browser and composited by ffmpeg rather than drawn with
+  ffmpeg's own text filter — this build has no libfreetype, and more to the
+  point, cards built here inherit the product's actual palette and typeface
+  instead of approximating them. A demo whose titles do not match the product
+  looks assembled; one whose titles are the product looks designed.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;600;800&display=swap');
+
+  :root {
+    --bg: #101725;
+    --raised: #182235;
+    --text: #edf3f7;
+    --muted: #b2bed2;
+    --accent: #a4bfff;
+    --ok: #4ade80;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1440px; height: 900px; font-family: 'Public Sans', system-ui, sans-serif; }
+
+  .card {
+    width: 1440px; height: 900px; display: none;
+    flex-direction: column; justify-content: center;
+    padding: 0 130px; background: var(--bg); color: var(--text);
+    position: relative; overflow: hidden;
+  }
+  .card.show { display: flex; }
+
+  /* A single wide sweep of light from the upper left. Keeps the flat fill
+     from reading as a slide, without becoming decoration in its own right. */
+  .card::before {
+    content: ''; position: absolute; inset: -40% -10% auto -30%; height: 150%;
+    background: radial-gradient(60% 55% at 22% 30%, rgba(164,191,255,.17), transparent 68%);
+    pointer-events: none;
+  }
+  .card > * { position: relative; }
+
+  .eyebrow {
+    font-size: 19px; font-weight: 600; letter-spacing: .32em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 34px;
+  }
+  h1 { font-size: 104px; font-weight: 800; letter-spacing: -.035em; line-height: .98; }
+  h1 .thin { font-weight: 300; color: var(--muted); display: block; font-size: 58px;
+             letter-spacing: -.015em; margin-top: 22px; }
+  .rule { width: 96px; height: 5px; background: var(--accent); margin: 44px 0 34px; border-radius: 3px; }
+  .sub { font-size: 27px; font-weight: 300; color: var(--muted); line-height: 1.5; max-width: 900px; }
+
+  /* Lower third. Transparent so it composites over live footage. */
+  .lower {
+    width: 1440px; height: 900px; display: none;
+    background: transparent; position: relative;
+  }
+  .lower.show { display: block; }
+  .lower .bar {
+    position: absolute; left: 96px; bottom: 92px; max-width: 1000px;
+    background: rgba(16,23,37,.93); border-left: 5px solid var(--accent);
+    padding: 26px 40px 28px; border-radius: 4px;
+    box-shadow: 0 26px 70px rgba(0,0,0,.5);
+  }
+  .lower .step {
+    font-size: 15px; font-weight: 700; letter-spacing: .28em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 12px;
+  }
+  .lower .headline { font-size: 40px; font-weight: 700; color: var(--text); letter-spacing: -.02em; }
+  .lower .detail { font-size: 22px; font-weight: 300; color: var(--muted); margin-top: 11px; }
+
+  /* Closing metrics */
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 60px; margin-top: 66px; }
+  .metric .n { font-size: 78px; font-weight: 800; letter-spacing: -.04em; color: var(--text); }
+  .metric .n small { font-size: 34px; font-weight: 600; color: var(--accent); }
+  .metric .l { font-size: 19px; font-weight: 300; color: var(--muted); margin-top: 10px; line-height: 1.35; }
+  .footnote {
+    margin-top: 74px; font-size: 20px; font-weight: 300; color: var(--muted);
+    border-top: 1px solid rgba(178,190,210,.22); padding-top: 26px; max-width: 1020px; line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="title">
+  <div class="eyebrow">Gujarat Police Innovation Challenge 2026</div>
+  <h1>Sentinel<span class="thin">Unified CCTV integration &amp; AI video analytics</span></h1>
+  <div class="rule"></div>
+  <div class="sub">Running against the live government camera grid — not a simulation.</div>
+</div>
+
+<div class="lower" id="cap"><div class="bar">
+  <div class="step" id="cap-step"></div>
+  <div class="headline" id="cap-head"></div>
+  <div class="detail" id="cap-detail"></div>
+</div></div>
+
+<div class="card" id="end">
+  <div class="eyebrow">Measured, not claimed</div>
+  <h1 style="font-size:74px">This run<span class="thin" style="font-size:40px">Every number below came from the session you just watched</span></h1>
+  <div class="metrics">
+    <div class="metric"><div class="n" id="m1">30</div><div class="l" id="l1">cameras onboarded from the live catalogue</div></div>
+    <div class="metric"><div class="n" id="m2">0</div><div class="l" id="l2">plate reads on real traffic</div></div>
+    <div class="metric"><div class="n" id="m3">0</div><div class="l" id="l3">distinct registrations recovered</div></div>
+  </div>
+  <div class="footnote" id="foot"></div>
+</div>
+
+<script>
+  const q = new URLSearchParams(location.search)
+  const show = (id) => { document.getElementById(id).classList.add('show') }
+  const set = (id, v) => { if (v !== null) document.getElementById(id).textContent = v }
+  const which = q.get('card')
+  if (which === 'caption') {
+    set('cap-step', q.get('step')); set('cap-head', q.get('head')); set('cap-detail', q.get('detail'))
+    show('cap')
+  } else if (which === 'end') {
+    set('m2', q.get('reads')); set('m3', q.get('plates')); set('foot', q.get('foot'))
+    show('end')
+  } else {
+    show('title')
+  }
+</script>
+</body>
+</html>
