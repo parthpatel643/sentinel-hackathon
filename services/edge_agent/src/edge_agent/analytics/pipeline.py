@@ -34,6 +34,11 @@ from sentinel_core.schemas import (
 
 logger = logging.getLogger(__name__)
 
+# Shortest read worth storing. Indian plate grammar admits nothing below
+# eight characters, and the matching ladder reaches two edits, so six is the
+# shortest read that could still resolve to a real registration.
+MIN_REPORTABLE_PLATE_CHARS = 6
+
 __all__ = ["AnprPipeline", "PlateReaderPort", "SnapshotWriterPort", "VehicleDetectorPort"]
 
 
@@ -134,6 +139,18 @@ class AnprPipeline:
 
         voted = voter.resolve()
         if voted is None:
+            return None
+        if len(voted.plate_normalised) < MIN_REPORTABLE_PLATE_CHARS:
+            # A read this short cannot be evidence of anything. The shortest
+            # registration Indian plate grammar admits is eight characters,
+            # and the matching ladder's furthest rung is an edit distance of
+            # two, so a read below six could not reach a real plate even
+            # fuzzily — while "1" or "111" matches everything and nothing.
+            #
+            # Left unchecked these were 28% of all stored detections on a live
+            # camera, and they are not merely wasted rows: two cameras both
+            # reading "1" looks exactly like one vehicle seen in two places,
+            # which is the single claim this system exists to make truthfully.
             return None
         if self._last_emitted.get(tracked.track_id) == voted.plate_text:
             return None  # unchanged since the last emission for this track

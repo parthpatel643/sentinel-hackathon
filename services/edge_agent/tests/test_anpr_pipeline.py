@@ -12,7 +12,7 @@ from edge_agent.analytics.pipeline import AnprPipeline
 from edge_agent.analytics.plate_reader import PlateCandidate
 from edge_agent.analytics.vehicle_detector import VehicleDetection
 from sentinel_core.clock import Frame, FrameTiming
-from sentinel_core.schemas import EventType
+from sentinel_core.schemas import AnprPayload, EventType
 
 ANCHOR = datetime(2026, 9, 22, 9, 0, 0, tzinfo=UTC)
 
@@ -88,7 +88,9 @@ def test_first_resolution_emits_exactly_one_event() -> None:
         events.extend(pipeline.process_frame(_frame(pts)))
 
     assert len(events) == 1
-    assert events[0].payload.plate_text == "GJ01AB1234"  # type: ignore[union-attr]
+    payload = events[0].payload
+    assert isinstance(payload, AnprPayload)
+    assert payload.plate_text == "GJ01AB1234"
 
 
 def test_no_vehicles_detected_yields_no_events() -> None:
@@ -323,3 +325,55 @@ def test_a_large_vehicle_roi_is_left_alone() -> None:
     roi = pipeline._crop_roi(image, (100.0, 100.0, 900.0, 800.0))  # 800x700
 
     assert roi.shape[1] < 1000  # grew only by the configured margin
+
+
+def test_a_read_too_short_to_be_a_plate_is_not_reported() -> None:
+    """Fragments like "1" or "111" are not weak evidence, they are no
+    evidence. Indian plate grammar admits nothing shorter than eight
+    characters and the matching ladder reaches two edits, so a read below six
+    could not resolve to a real registration however it were matched.
+
+    They were 28% of stored detections on a live camera, and the cost is not
+    just noise: two cameras both reading "1" is indistinguishable from one
+    vehicle seen in two places, which would put a fabricated journey in front
+    of an operator.
+    """
+    detection = VehicleDetection(
+        bbox_xyxy=(10.0, 10.0, 90.0, 90.0), vehicle_class="car", confidence=0.9
+    )
+    pipeline = AnprPipeline(
+        FakeVehicleDetector([[detection]]),
+        FakePlateReader(
+            [[PlateCandidate(text="1", char_confidences=(0.9,), bbox_xyxy=(0, 0, 5, 5))]]
+        ),
+        node_id="n",
+        model_versions={},
+    )
+
+    assert pipeline.process_frame(_frame(0.0)) == []
+
+
+def test_a_full_length_plate_is_still_reported() -> None:
+    """The guard must not swallow real reads — the same path with a genuine
+    registration still emits."""
+    detection = VehicleDetection(
+        bbox_xyxy=(10.0, 10.0, 90.0, 90.0), vehicle_class="car", confidence=0.9
+    )
+    plate = PlateCandidate(
+        text="GJ01AB1234",
+        char_confidences=tuple(0.9 for _ in "GJ01AB1234"),
+        bbox_xyxy=(0, 0, 5, 5),
+    )
+    pipeline = AnprPipeline(
+        FakeVehicleDetector([[detection]]),
+        FakePlateReader([[plate]]),
+        node_id="n",
+        model_versions={},
+    )
+
+    events = pipeline.process_frame(_frame(0.0))
+
+    assert len(events) == 1
+    payload = events[0].payload
+    assert isinstance(payload, AnprPayload)
+    assert payload.plate_text == "GJ01AB1234"
