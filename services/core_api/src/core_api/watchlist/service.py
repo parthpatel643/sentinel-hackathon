@@ -119,19 +119,32 @@ async def _upsert_alert(
     confidence: float,
     observed_at: datetime,
 ) -> Alert:
+    # The window is checked on both sides: a sighting merges into an open
+    # alert only if it falls within the dedup window of that alert's span.
+    # Checking only `last_seen_at` let an older sighting (retro-scan, a
+    # delayed upload) fold into an alert from hours later.
     existing = (
-        await session.execute(
-            select(Alert).where(
-                Alert.watchlist_entry_id == entry.id,
-                Alert.camera_id == camera_id,
-                Alert.status.not_in(TERMINAL_STATUSES),
-                Alert.last_seen_at >= observed_at - ALERT_DEDUP_WINDOW,
+        (
+            await session.execute(
+                select(Alert)
+                .where(
+                    Alert.watchlist_entry_id == entry.id,
+                    Alert.camera_id == camera_id,
+                    Alert.status.not_in(TERMINAL_STATUSES),
+                    Alert.last_seen_at >= observed_at - ALERT_DEDUP_WINDOW,
+                    Alert.first_seen_at <= observed_at + ALERT_DEDUP_WINDOW,
+                )
+                .order_by(Alert.last_seen_at.desc())
+                .limit(1)
             )
         )
-    ).scalar_one_or_none()
+        .scalars()
+        .first()
+    )
 
     if existing is not None:
         existing.sighting_count += 1
+        existing.first_seen_at = min(existing.first_seen_at, observed_at)
         existing.last_seen_at = max(existing.last_seen_at, observed_at)
         existing.match_confidence = max(existing.match_confidence, confidence)
         existing.priority_score = _priority_score(entry.priority, existing.match_confidence, rung)
@@ -183,29 +196,33 @@ async def retro_scan(session: AsyncSession, entry: WatchlistEntry) -> list[Alert
     """The other half of the BOLO moment: a newly armed entry is checked
     against every detection already on file, not just future ones."""
     result = await session.execute(
-        select(Detection).where(
+        select(Detection)
+        .where(
             (Detection.plate_normalised == entry.plate_normalised)
             | (Detection.plate_ambiguity_key == entry.plate_ambiguity_key)
         )
+        # In the scene's order, so sightings merge into alerts exactly as
+        # they would have had the entry been armed before they happened.
+        .order_by(Detection.observed_at.asc(), Detection.event_id.asc())
     )
-    alerts = []
+    alerts: dict[uuid.UUID, Alert] = {}
     for detection in result.scalars().all():
         rung = (
             "exact" if detection.plate_normalised == entry.plate_normalised else "ambiguity_class"
         )
-        alerts.append(
-            await _upsert_alert(
-                session,
-                entry=entry,
-                camera_id=detection.camera_id,
-                detection_event_id=detection.event_id,
-                plate_text=detection.plate_text,
-                rung=rung,
-                confidence=detection.plate_confidence,
-                observed_at=detection.observed_at,
-            )
+        alert = await _upsert_alert(
+            session,
+            entry=entry,
+            camera_id=detection.camera_id,
+            detection_event_id=detection.event_id,
+            plate_text=detection.plate_text,
+            rung=rung,
+            confidence=detection.plate_confidence,
+            observed_at=detection.observed_at,
         )
-    return alerts
+        alerts[alert.id] = alert
+    # One entry per alert, however many sightings merged into it.
+    return list(alerts.values())
 
 
 async def list_alerts(

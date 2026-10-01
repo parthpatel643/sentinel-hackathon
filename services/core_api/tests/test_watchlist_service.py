@@ -285,3 +285,32 @@ async def test_update_watchlist_entry_returns_none_for_an_unknown_id(
     import uuid
 
     assert await update_watchlist_entry(db_session, uuid.uuid4(), active=False) is None
+
+
+async def test_retro_scan_merges_in_scene_order_and_counts_each_alert_once(
+    db_session: AsyncSession,
+) -> None:
+    """Sightings ingested out of order must group exactly as they would have
+    live: two passes 40 minutes apart are two alerts, not one, and an alert
+    built from three sightings is one alert."""
+    await _make_camera(db_session)
+    offsets = [40, 0, 41, 1]  # minutes after ANCHOR, deliberately out of order
+    for i, minutes in enumerate(offsets):
+        await ingest_detection(
+            db_session,
+            _detection_in(
+                event_id=f"01JRETRO00000000000000000{i}",
+                observed_at=ANCHOR + timedelta(minutes=minutes),
+            ),
+        )
+    entry = await create_watchlist_entry(
+        db_session, WatchlistEntryCreate(plate="GJ01AB1234", entry_type="bolo", priority="high")
+    )
+
+    alerts = await retro_scan(db_session, entry)
+
+    spans = sorted((a.first_seen_at, a.last_seen_at, a.sighting_count) for a in alerts)
+    assert spans == [
+        (ANCHOR, ANCHOR + timedelta(minutes=1), 2),
+        (ANCHOR + timedelta(minutes=40), ANCHOR + timedelta(minutes=41), 2),
+    ]
