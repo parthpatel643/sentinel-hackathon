@@ -155,7 +155,7 @@ Reviewers should not have to guess which parts are load-bearing.
 | Coarse-make (manufacturer/model) | **Out of scope.** Needs a different trained classifier; not attempted. |
 | Face recognition | **Excluded by decision** — see [00-SOLUTION-PLAN](docs/00-SOLUTION-PLAN.md). |
 | mTLS, RBAC/ABAC, Postgres RLS, audit chain | Real and verified, including detecting tampering of the audit chain itself. |
-| Government registry integrations (VAHAN/SARTHI/eGujCop/AFIS) | Real client, retry, circuit-breaker and audit code against **built-in mock transports** — no real credentials exist to hold. |
+| Government registry integrations (VAHAN/SARTHI/eGujCop/AFIS/NAFIS) | Real client, retry, circuit-breaker and audit code against **built-in mock transports** — no real credentials exist to hold. A rejected credential raises; it never reads as "no record". |
 | 80,000-camera scale | **Arithmetic, not a deployment.** See [04-SCALE-PLAN](docs/04-SCALE-PLAN.md). |
 
 ---

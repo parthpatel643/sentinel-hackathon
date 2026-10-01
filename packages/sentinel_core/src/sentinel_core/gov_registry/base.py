@@ -35,6 +35,16 @@ class RegistryError(Exception):
     errors."""
 
 
+class RegistryAuthError(RegistryError):
+    """The government system refused our credential. Raised, never read as
+    "no record": an expired key must not look like a clean vehicle."""
+
+
+def reject_auth_failure(status_code: int, provider_id: str) -> None:
+    if status_code in (401, 403):
+        raise RegistryAuthError(f"{provider_id} rejected the credential (HTTP {status_code})")
+
+
 class OperationNotSupportedError(RegistryError):
     """Raised when a provider is asked for a lookup outside its domain
     (e.g. VAHAN doesn't do licence lookups — that's SARTHI's job)."""

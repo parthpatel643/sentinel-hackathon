@@ -26,6 +26,7 @@ from sentinel_core.gov_registry.base import (
     PersonRecord,
     RegistryAuditEvent,
     VehicleRecord,
+    reject_auth_failure,
 )
 from sentinel_core.gov_registry.resilience import CircuitBreaker, RateLimiter, with_retry
 
@@ -127,6 +128,8 @@ class VahanProvider:
                 )
 
         resp = await with_retry(_call, circuit_breaker=self._circuit_breaker)
+
+        reject_auth_failure(resp.status_code, self.provider_id)
         record = VehicleRecord(**resp.json()) if resp.status_code == 200 else None
         self._audit("lookup_vehicle", {"plate": plate}, record, time.monotonic() - started)
         return record

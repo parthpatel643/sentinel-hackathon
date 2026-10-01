@@ -251,7 +251,7 @@ The problem statement explicitly asks what is needed for feasibility. This is th
 | Nodal officer, escalation contact | Onboarding and incident routing |
 | Data-sensitivity classification, access policy | RBAC scoping, retention and masking defaults |
 
-**Assumptions stated openly** (each with a mitigation, because a jury trusts stated assumptions far more than confident silence): GSWAN or equivalent connectivity is available to district headquarters; departments will permit read-only access to existing streams; a state data centre and DR site are available; VAHAN/SARTHI/eGujCop/AFIS integration will be granted through documented APIs; private camera onboarding will be governed by a consent and policy framework issued by the Home Department.
+**Assumptions stated openly** (each with a mitigation, because a jury trusts stated assumptions far more than confident silence): GSWAN or equivalent connectivity is available to district headquarters; departments will permit read-only access to existing streams; a state data centre and DR site are available; VAHAN/SARTHI/eGujCop/AFIS/NAFIS integration will be granted through documented APIs; private camera onboarding will be governed by a consent and policy framework issued by the Home Department.
 
 ---
 

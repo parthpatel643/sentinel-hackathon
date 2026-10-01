@@ -24,6 +24,7 @@ from sentinel_core.gov_registry.base import (
     PersonRecord,
     RegistryAuditEvent,
     VehicleRecord,
+    reject_auth_failure,
 )
 from sentinel_core.gov_registry.resilience import CircuitBreaker, RateLimiter, with_retry
 
@@ -137,6 +138,8 @@ class EGujCopProvider:
                 )
 
         resp = await with_retry(_call, circuit_breaker=self._circuit_breaker)
+
+        reject_auth_failure(resp.status_code, self.provider_id)
         records = [PersonRecord(**m) for m in resp.json().get("matches", [])]
         self._audit(
             "lookup_person",
@@ -167,6 +170,8 @@ class EGujCopProvider:
                 )
 
         resp = await with_retry(_call, circuit_breaker=self._circuit_breaker)
+
+        reject_auth_failure(resp.status_code, self.provider_id)
         result = AlertPushResult(**resp.json())
         self._audit(
             "push_alert",

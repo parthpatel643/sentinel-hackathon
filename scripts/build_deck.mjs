@@ -252,7 +252,7 @@ function bullets(s, items, { x, y, w, h, size = 12.5, color = TEXT }) {
       'ONVIF + RTSP driver SDK, with a conformance suite',
       'Four vendor shims: Hikvision, Dahua, Milestone, Genetec',
       'Catalogue re-read every run — the camera set can change',
-      'VAHAN / SARTHI / eGujCop / AFIS registry clients',
+      'VAHAN / SARTHI / eGujCop / AFIS / NAFIS clients',
     ],
     { x: M + 4.6, y: 2.2, w: CONTENT_W - 4.6, h: 2.1 },
   )

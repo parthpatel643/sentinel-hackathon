@@ -24,6 +24,7 @@ from core_api.db.models import AuditLogEntry, Detection, EvidenceClip
 from sentinel_core.gov_registry import (
     AfisProvider,
     EGujCopProvider,
+    NafisProvider,
     PersonQuery,
     RegistryError,
     SarthiProvider,
@@ -197,6 +198,13 @@ async def check_integration_statuses() -> list[IntegrationStatusOut]:
             "Fingerprint/identity cross-reference",
             "lookup_person(photo_hash='sha256:af1s0001')",
             lambda: AfisProvider().lookup_person(PersonQuery(photo_hash="sha256:af1s0001")),
+        ),
+        (
+            "nafis",
+            "NAFIS",
+            "National (NCRB) fingerprint/identity cross-reference",
+            "lookup_person(photo_hash='sha256:nf150003')",
+            lambda: NafisProvider().lookup_person(PersonQuery(photo_hash="sha256:nf150003")),
         ),
     ]
 

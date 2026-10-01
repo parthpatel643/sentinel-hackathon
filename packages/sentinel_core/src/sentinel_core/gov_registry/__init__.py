@@ -1,9 +1,9 @@
 """Government integration gateway — docs/01-ARCHITECTURE.md §6.4's
-`ExternalRegistry` port and its four provider implementations. See
+`ExternalRegistry` port and its five provider implementations. See
 gov_registry/base.py for the port and gov_registry/resilience.py for the
 retry/circuit-breaker/rate-limit machinery every provider shares."""
 
-from sentinel_core.gov_registry.afis import AfisProvider
+from sentinel_core.gov_registry.afis import AfisProvider, NafisProvider
 from sentinel_core.gov_registry.base import (
     AlertPushResult,
     ExternalRegistry,
@@ -12,6 +12,7 @@ from sentinel_core.gov_registry.base import (
     PersonQuery,
     PersonRecord,
     RegistryAuditEvent,
+    RegistryAuthError,
     RegistryError,
     VehicleRecord,
 )
@@ -25,10 +26,12 @@ __all__ = [
     "EGujCopProvider",
     "ExternalRegistry",
     "LicenceRecord",
+    "NafisProvider",
     "OperationNotSupportedError",
     "PersonQuery",
     "PersonRecord",
     "RegistryAuditEvent",
+    "RegistryAuthError",
     "RegistryError",
     "SarthiProvider",
     "VahanProvider",

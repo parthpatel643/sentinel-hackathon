@@ -101,7 +101,7 @@ Both are answered in **week 1**, before a single screen is designed. Everything 
 ### M11 · Federation adapters + government integration stubs — days 55–59
 - ONVIF driver (discovery, media profiles, PTZ, events); driver conformance suite
 - Vendor shims (Milestone/Genetec/Hikvision/Dahua) against mock servers, with the plugin SDK documented
-- `ExternalRegistry` providers for VAHAN/SARTHI/eGujCop/AFIS with conformant mocks and published contracts
+- `ExternalRegistry` providers for VAHAN/SARTHI/eGujCop/AFIS/NAFIS with conformant mocks and published contracts
 - **Exit:** "onboarding department 27 is a driver, not a release" — demonstrated, not asserted
 
 ### M12 · Security, privacy, hardening — days 60–63

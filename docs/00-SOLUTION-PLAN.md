@@ -39,7 +39,7 @@ This is not judged as a hackathon demo. It is judged as a **procurement shortlis
 | 7 | Submission Completeness | "Is everything accessible and consistent?" | Submission playbook with link-verification in incognito, consistent naming across PPT/HLD/videos/repo |
 
 **Bonus magnets we deliberately build** (the official bonus list, one-to-one):
-cross-camera vehicle re-identification + GIS route reconstruction · working alert prioritisation with triage workflow · analytics beyond ANPR (vehicle class/colour, person, intrusion/loitering, camera-tamper) · low-bandwidth metadata-only degradation mode · privacy masking, hash-chained audit trail, RBAC/ABAC · camera health & ops dashboard · integration-ready REST APIs with contract stubs for VAHAN / SARTHI / eGujCop / AFIS.
+cross-camera vehicle re-identification + GIS route reconstruction · working alert prioritisation with triage workflow · analytics beyond ANPR (vehicle class/colour, person, intrusion/loitering, camera-tamper) · low-bandwidth metadata-only degradation mode · privacy masking, hash-chained audit trail, RBAC/ABAC · camera health & ops dashboard · integration-ready REST APIs with contract stubs for VAHAN / SARTHI / eGujCop / AFIS / NAFIS.
 
 ### 1.1 The three moments that win the room
 
@@ -221,7 +221,7 @@ These are scored directly via the official pre-submission checklist, and most fa
 - Alert prioritisation/scoring, dedupe, escalation rules
 - Low-bandwidth degradation mode (metadata-only, snapshot downscale, store-and-forward)
 - Privacy: bystander/face blurring by default, reveal-on-authorisation with reason capture
-- Mock-but-contract-real VAHAN/SARTHI/eGujCop/AFIS connectors behind a provider interface
+- Mock-but-contract-real VAHAN/SARTHI/eGujCop/AFIS/NAFIS connectors behind a provider interface
 - Field PWA with push alerts and offline queue
 
 ### Could

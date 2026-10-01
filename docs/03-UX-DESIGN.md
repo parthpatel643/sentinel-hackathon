@@ -257,7 +257,7 @@ Quieter visual tone (light theme default), denser tables, built for correctness 
 - **Watchlists** — list management, bulk import, each entry carrying type, priority, purpose, validity window, requesting officer and case reference. Expired entries visibly fade and stop matching automatically.
 - **Retention & privacy policies** — per-data-class retention sliders with a plain-language consequence preview ("Event clips will be deleted after 30 days. About 1.2 TB affected.") and default-blur settings.
 - **Audit log** — filterable, exportable, with a **"Verify integrity"** button that recomputes the hash chain and shows a green seal. Demonstrating a tamper-evident audit trail live is a quiet showstopper.
-- **Integrations** — VAHAN / SARTHI / eGujCop / AFIS connector cards with status, last sync, request volume and a test-connection button.
+- **Integrations** — VAHAN / SARTHI / eGujCop / AFIS / NAFIS connector cards with status, last sync, request volume and a test-connection button.
 
 ---
 

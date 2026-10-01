@@ -80,7 +80,7 @@ async def integrations_endpoint(
     _admin: TokenPayload = Depends(require_role("admin")),
 ) -> list[IntegrationStatusOut]:
     """Drives a real representative lookup against each ExternalRegistry
-    provider (VAHAN/SARTHI/eGujCop/AFIS — docs/01-ARCHITECTURE.md §6.4) and
+    provider (VAHAN/SARTHI/eGujCop/AFIS/NAFIS — docs/01-ARCHITECTURE.md §6.4) and
     reports whether it genuinely round-tripped, so the Admin Portal's
     Integrations tab can say "Connected (mock)" honestly."""
     return await check_integration_statuses()

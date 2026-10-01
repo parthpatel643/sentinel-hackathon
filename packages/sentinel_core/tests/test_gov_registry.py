@@ -1,4 +1,4 @@
-"""Tests for the ExternalRegistry providers (VAHAN/SARTHI/eGujCop/AFIS) —
+"""Tests for the ExternalRegistry providers (VAHAN/SARTHI/eGujCop/AFIS/NAFIS) —
 each provider's happy path, its `OperationNotSupportedError` boundaries, PII
 redaction, and the shared resilience primitives (rate limiter, circuit
 breaker, retry). Self-contained per this repo's pytest-collision lesson —
@@ -6,14 +6,18 @@ no shared fixtures package."""
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+
 import httpx
 import pytest
 
 from sentinel_core.gov_registry import (
     AfisProvider,
     EGujCopProvider,
+    NafisProvider,
     OperationNotSupportedError,
     PersonQuery,
+    RegistryAuthError,
     SarthiProvider,
     VahanProvider,
 )
@@ -170,6 +174,54 @@ async def test_afis_does_not_support_alerts_vehicles_or_licences() -> None:
 
     with pytest.raises(OperationNotSupportedError):
         await provider.push_alert(case_reference="x", summary="y")
+
+
+# --- NAFIS ---------------------------------------------------------------------
+
+
+async def test_nafis_finds_an_offender_the_state_afis_has_no_record_of() -> None:
+    probe = PersonQuery(photo_hash="sha256:nf150003")
+
+    assert await AfisProvider().lookup_person(probe) == []
+    matches = await NafisProvider().lookup_person(probe)
+
+    assert len(matches) == 1
+    assert matches[0].source == "nafis"
+    assert matches[0].person_id.startswith("NFN-")
+
+
+async def test_nafis_rejects_the_state_afis_credential() -> None:
+    provider = NafisProvider(api_key="mock-afis-key")
+
+    with pytest.raises(RegistryAuthError):
+        await provider.lookup_person(PersonQuery(photo_hash="sha256:nf150003"))
+
+
+async def test_nafis_names_itself_in_unsupported_operations() -> None:
+    with pytest.raises(OperationNotSupportedError, match="NAFIS"):
+        await NafisProvider().lookup_vehicle("GJ01AB1234")
+
+
+@pytest.mark.parametrize(
+    ("provider", "call"),
+    [
+        (VahanProvider(api_key="expired"), lambda p: p.lookup_vehicle("GJ01AB1234")),
+        (SarthiProvider(api_key="expired"), lambda p: p.lookup_licence("GJ0120190001234")),
+        (
+            EGujCopProvider(api_key="expired"),
+            lambda p: p.lookup_person(PersonQuery(full_name="Suresh Chauhan")),
+        ),
+        (
+            AfisProvider(api_key="expired"),
+            lambda p: p.lookup_person(PersonQuery(photo_hash="sha256:af1s0001")),
+        ),
+    ],
+)
+async def test_a_rejected_credential_raises_rather_than_reading_as_no_record(
+    provider: object, call: Callable[[object], Awaitable[object]]
+) -> None:
+    with pytest.raises(RegistryAuthError):
+        await call(provider)
 
 
 # --- Resilience primitives -----------------------------------------------------

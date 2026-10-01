@@ -126,7 +126,7 @@ async def test_check_integration_statuses_reports_all_four_providers_connected()
     statuses = await check_integration_statuses()
 
     provider_ids = {s.provider_id for s in statuses}
-    assert provider_ids == {"vahan", "sarthi", "egujcop", "afis"}
+    assert provider_ids == {"vahan", "sarthi", "egujcop", "afis", "nafis"}
     assert all(s.mode == "mock" for s in statuses)
     assert all(s.connected for s in statuses)
     assert all(s.sample_latency_ms is not None and s.sample_latency_ms >= 0 for s in statuses)
