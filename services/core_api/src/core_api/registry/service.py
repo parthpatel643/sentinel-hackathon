@@ -35,7 +35,7 @@ from core_api.registry.schemas import (
     StreamProfileOut,
 )
 from sentinel_core.camera_names import format_camera_name
-from sentinel_core.config import Settings
+from sentinel_core.config import Settings, get_settings
 from sentinel_core.relay import (
     ensure_relay_path,
     is_relay_hosted,
@@ -350,6 +350,23 @@ async def list_departments(session: AsyncSession) -> list[DepartmentOut]:
     ]
 
 
+STALE = "stale"
+_HEARTBEAT_STATUSES = {"live", "degraded", "connecting"}
+
+
+def effective_status(camera: Camera, *, now: datetime, stale_after_s: float) -> str:
+    """The status to show: what the worker last reported, unless it has gone
+    quiet. A worker that crashed, lost the network or was stopped leaves its
+    last 'live' in the row forever; past the threshold that claim is stale."""
+    if (
+        camera.status in _HEARTBEAT_STATUSES
+        and camera.last_seen_at is not None
+        and (now - camera.last_seen_at).total_seconds() > stale_after_s
+    ):
+        return STALE
+    return camera.status
+
+
 def camera_to_out(camera: Camera, *, reveal_credentials: bool = False) -> CameraOut:
     """Stream URLs leave with their userinfo masked unless the caller is the
     edge worker's service-token manifest: a gov-catalogue RTSP/WHEP URL embeds
@@ -372,13 +389,17 @@ def camera_to_out(camera: Camera, *, reveal_credentials: bool = False) -> Camera
         site_name=camera.site.name if camera.site else None,
         location=location_out(camera.location),
         tier=camera.tier,
-        status=camera.status,
+        status=effective_status(
+            camera, now=datetime.now(UTC), stale_after_s=get_settings().camera_stale_after_s
+        ),
         last_seen_at=camera.last_seen_at,
         measured_fps=camera.measured_fps,
         declared_fps=camera.declared_fps,
         reconnects=camera.reconnects,
         discontinuities=camera.discontinuities,
         tamper_status=camera.tamper_status,
+        analysed_fps=camera.analysed_fps,
+        analysis_lag_s=camera.analysis_lag_s,
         source=camera.source,
         attributes=camera.attributes,
         profiles=profiles,
@@ -399,7 +420,12 @@ async def update_camera_health(
         return None
 
     camera.status = update.status
-    camera.last_seen_at = datetime.now(UTC)
+    now = datetime.now(UTC)
+    camera.last_seen_at = now
+    if update.analysed_fps is not None:
+        camera.analysed_fps = update.analysed_fps
+    if update.stream_position_at is not None:
+        camera.analysis_lag_s = max(0.0, (now - update.stream_position_at).total_seconds())
     if update.measured_fps is not None:
         camera.measured_fps = update.measured_fps
     if update.declared_fps is not None:

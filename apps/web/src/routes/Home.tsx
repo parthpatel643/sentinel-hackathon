@@ -15,7 +15,7 @@ import { Button } from '../components/ui/Button'
 import type { Alert, Camera, CameraStatus, Detection } from '../lib/types'
 import './command-overview.css'
 
-const STATUSES: CameraStatus[] = ['live', 'degraded', 'down', 'connecting', 'unknown']
+const STATUSES: CameraStatus[] = ['live', 'degraded', 'down', 'stale', 'connecting', 'unknown']
 
 function ActivityEntry({ item, cameraName }: { item: Alert | Detection; cameraName?: string }) {
   const { t, i18n } = useTranslation()

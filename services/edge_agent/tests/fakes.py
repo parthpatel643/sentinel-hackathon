@@ -46,13 +46,23 @@ class FakeVideoSource:
     def open_if_permitted(self) -> None:
         self._opened = not self.should_fail_open
 
+    retrieves: int = field(default=0, init=False)
+    """How many frames were converted to images — skip-decode assertions."""
+
     def read(self) -> tuple[bool, np.ndarray | None]:
-        if self._index >= len(self.frames):
+        if not self.grab():
             return False, None
+        return self.retrieve()
+
+    def grab(self) -> bool:
+        if self._index >= len(self.frames):
+            return False
         frame = self.frames[self._index]
         self._index += 1
-        if not frame.ok:
-            return False, None
+        return frame.ok
+
+    def retrieve(self) -> tuple[bool, np.ndarray | None]:
+        self.retrieves += 1
         image = np.zeros((self.height, self.width, 3), dtype=np.uint8)
         return True, image
 

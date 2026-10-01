@@ -218,3 +218,72 @@ async def test_stop_wakes_a_camera_sleeping_in_maximum_backoff() -> None:
 
     async with asyncio.timeout(1.0):
         await task
+
+
+async def test_skipped_frames_are_timed_but_never_converted_to_images() -> None:
+    source = FakeVideoSource(frames=[FakeFrame(pts_ms=i * 40.0) for i in range(1, 21)])
+    supervisor = CameraSupervisor(
+        config=CaptureConfig(camera_id="cam-skip", url="rtsp://x"),
+        supervisor_config=_FAST_BACKOFF,
+        capture_factory=_capture_factory(source),
+        decode_policy=lambda timing: timing.seq % 5 == 0,
+    )
+
+    frames = await _collect(supervisor, count=4)
+
+    assert [f.timing.seq for f in frames] == [0, 5, 10, 15]
+    assert source.retrieves == 4
+
+
+async def test_loop_cuts_are_decoded_even_when_the_policy_declines() -> None:
+    """The pipeline resets its tracker on a discontinuity; skipping that
+    frame would merge two unrelated scenes."""
+    pts = [5000.0, 5040.0, 5080.0, 40.0, 80.0]  # PTS jumps back 5 s: a loop cut
+    source = FakeVideoSource(frames=[FakeFrame(pts_ms=p) for p in pts])
+    supervisor = CameraSupervisor(
+        config=CaptureConfig(camera_id="cam-loop", url="rtsp://x"),
+        supervisor_config=_FAST_BACKOFF,
+        capture_factory=_capture_factory(source),
+        decode_policy=lambda _timing: False,
+    )
+
+    collected = await _collect(supervisor, count=1)
+
+    assert collected[0].timing.is_discontinuity
+
+
+async def test_repeated_open_failures_rotate_to_the_hls_fallback() -> None:
+    """The integrator guide: if RTSP's port is blocked, use HLS."""
+    opened: list[str] = []
+    healthy = FakeVideoSource(frames=[FakeFrame(pts_ms=i * 40.0) for i in range(1, 6)])
+    healthy.open_if_permitted()
+    dead = FakeVideoSource(should_fail_open=True)
+
+    def factory(config: CaptureConfig) -> RtspCapture:
+        def backend(url: str) -> FakeVideoSource:
+            opened.append(url)
+            return healthy if url.startswith("http") else dead
+
+        return RtspCapture(config=config, backend_factory=backend)
+
+    supervisor = CameraSupervisor(
+        config=CaptureConfig(
+            camera_id="cam-blocked",
+            url="rtsp://blocked/stream",
+            fallback_urls=("http://cam/live/index.m3u8",),
+        ),
+        supervisor_config=SupervisorConfig(
+            initial_backoff_s=0.001,
+            max_backoff_s=0.001,
+            backoff_jitter=0.0,
+            fallback_after_failures=3,
+        ),
+        capture_factory=factory,
+    )
+
+    frames = await _collect(supervisor, count=2)
+
+    assert len(frames) == 2
+    assert opened[:3] == ["rtsp://blocked/stream"] * 3
+    assert opened[3] == "http://cam/live/index.m3u8"
+    assert supervisor.on_fallback

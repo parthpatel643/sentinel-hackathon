@@ -1,5 +1,7 @@
 export const readinessCopy = {
   en: {
+    analysedRate: 'ANPR {{fps}} fps',
+    lagBehind: '{{seconds}} s behind live',
     searchWindow: 'Search window',
     window24: 'Last 24 hours',
     window48: 'Last 48 hours',
@@ -63,6 +65,8 @@ export const readinessCopy = {
     basemapOffline: 'Map tiles are unavailable. Camera positions and routes are still accurate.',
   },
   hi: {
+    analysedRate: 'ANPR {{fps}} fps',
+    lagBehind: 'लाइव से {{seconds}} से. पीछे',
     searchWindow: 'खोज अवधि',
     window24: 'पिछले 24 घंटे',
     window48: 'पिछले 48 घंटे',
@@ -126,6 +130,8 @@ export const readinessCopy = {
     basemapOffline: 'मानचित्र टाइलें उपलब्ध नहीं हैं। कैमरा स्थान और मार्ग फिर भी सटीक हैं।',
   },
   gu: {
+    analysedRate: 'ANPR {{fps}} fps',
+    lagBehind: 'લાઇવથી {{seconds}} સે. પાછળ',
     searchWindow: 'શોધ અવધિ',
     window24: 'છેલ્લા 24 કલાક',
     window48: 'છેલ્લા 48 કલાક',

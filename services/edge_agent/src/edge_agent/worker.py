@@ -53,6 +53,7 @@ import numpy as np
 from edge_agent.analytics.frame_clock import FrameClockReader
 from edge_agent.analytics.pipeline import AnprPipeline
 from edge_agent.analytics.plate_reader import FastAlprPlateReader
+from edge_agent.analytics.scheduler import AnalysisScheduler, SchedulerConfig
 from edge_agent.analytics.snapshot_writer import SnapshotWriter
 from edge_agent.analytics.tamper import TamperDetector
 from edge_agent.analytics.vehicle_detector import VehicleDetector
@@ -60,7 +61,7 @@ from edge_agent.analytics.zone_rules import Zone, ZoneRuleEngine
 from edge_agent.fleet import CameraFleet
 from edge_agent.pipeline.capture import CaptureConfig
 from edge_agent.pipeline.supervisor import CameraSupervisor
-from sentinel_core.clock import Frame
+from sentinel_core.clock import Frame, FrameTiming
 from sentinel_core.config import Settings, get_settings
 from sentinel_core.gov_catalogue import GovCatalogueClient
 from sentinel_core.relay import (
@@ -113,7 +114,7 @@ def _load_synthetic_descriptors() -> list[CameraDescriptor]:
 
 def _descriptor_from_registry(raw: dict[str, Any]) -> CameraDescriptor | None:
     """A registry camera (the `/api/v1/edge/cameras` shape) as something this
-    worker can open, or None when there is nothing to analyse: no RTSP
+    worker can open, or None when there is nothing to analyse: no RTSP or HLS
     profile, or a camera deliberately kept metadata-only."""
     try:
         tier = AnalyticsTier(raw.get("tier") or AnalyticsTier.B_SAMPLED)
@@ -137,7 +138,7 @@ def _descriptor_from_registry(raw: dict[str, Any]) -> CameraDescriptor | None:
                 declared_fps=profile.get("declared_fps"),
             )
         )
-    if not any(p.protocol is StreamProtocol.RTSP for p in profiles):
+    if not any(p.protocol in (StreamProtocol.RTSP, StreamProtocol.HLS) for p in profiles):
         return None
     location = raw.get("location")
     return CameraDescriptor(
@@ -338,15 +339,51 @@ async def _register_camera(client: httpx.AsyncClient, descriptor: CameraDescript
         response.raise_for_status()
 
 
+class _LoadMeter:
+    """Analysis load in stream time: frames analysed per stream-second, and
+    how far into the stream the worker has read. Both come from PTS, so this
+    needs no wall clock (tests/test_compliance.py); the API compares the
+    stream position with its own clock to report how far behind live the
+    analysis is running."""
+
+    def __init__(self) -> None:
+        self.latest: FrameTiming | None = None
+        self._analysed = 0
+        self._window_start_pts: float | None = None
+
+    def saw(self, timing: FrameTiming) -> None:
+        if self.latest is not None and timing.seq < self.latest.seq:
+            self._window_start_pts = None  # a new connection restarts PTS
+        self.latest = timing
+        if self._window_start_pts is None:
+            self._window_start_pts = timing.pts_ms
+            self._analysed = 0
+
+    def analysed(self) -> None:
+        self._analysed += 1
+
+    def take_analysed_fps(self) -> float | None:
+        if self.latest is None or self._window_start_pts is None:
+            return None
+        span_s = (self.latest.pts_ms - self._window_start_pts) / 1000.0
+        if span_s <= 0:
+            return None
+        rate = self._analysed / span_s
+        self._window_start_pts = self.latest.pts_ms
+        self._analysed = 0
+        return round(rate, 2)
+
+
 async def _report_health(
     client: httpx.AsyncClient,
     camera_id: str,
     supervisor: CameraSupervisor,
     tamper_detector: TamperDetector | None = None,
+    load: _LoadMeter | None = None,
 ) -> None:
     while True:
         await asyncio.sleep(HEALTH_REPORT_INTERVAL_S)
-        payload = {
+        payload: dict[str, Any] = {
             "status": supervisor.status.value,
             "measured_fps": supervisor.measured_fps,
             "declared_fps": supervisor.declared_fps,
@@ -354,6 +391,10 @@ async def _report_health(
             "discontinuities": supervisor.discontinuities,
             "tamper_status": tamper_detector.current_status if tamper_detector else None,
         }
+        if load is not None:
+            payload["analysed_fps"] = load.take_analysed_fps()
+            if load.latest is not None:
+                payload["stream_position_at"] = load.latest.observed_at.isoformat()
         try:
             response = await client.patch(f"/api/v1/cameras/{camera_id}/health", json=payload)
             response.raise_for_status()
@@ -404,14 +445,19 @@ async def _run_camera(
     plate_reader: FastAlprPlateReader,
     *,
     via_relay: bool = True,
-    frame_stride: int = 1,
+    scheduler_config: SchedulerConfig | None = None,
     stop: asyncio.Event | None = None,
 ) -> None:
     camera_id = descriptor.camera_id
     settings = get_settings()
-    url = await _resolve_capture_url(descriptor, settings, via_relay=via_relay)
-    if url is None:
-        logger.warning("skipping %s: no rtsp profile in the catalogue", camera_id)
+    rtsp_url = await _resolve_capture_url(descriptor, settings, via_relay=via_relay)
+    hls_profile = descriptor.profile_for(StreamProtocol.HLS)
+    hls_url = hls_profile.url if hls_profile else None
+    # RTSP first (via the relay); HLS is the integrator guide's fallback for a
+    # network that blocks RTSP's port, and the only option for an HLS-only feed.
+    candidates = [u for u in (rtsp_url, hls_url) if u]
+    if not candidates:
+        logger.warning("skipping %s: no rtsp or hls profile on file", camera_id)
         return
 
     # Re-assert the relay path before each retry. MediaMTX holds API-added
@@ -421,10 +467,15 @@ async def _run_camera(
     async def _reassert_source() -> None:
         await _resolve_capture_url(descriptor, settings, via_relay=via_relay)
 
+    scheduler = AnalysisScheduler(descriptor.tier, scheduler_config or SchedulerConfig())
     supervisor = CameraSupervisor(
-        config=CaptureConfig(camera_id=camera_id, url=url),
-        on_reconnect=_reassert_source if via_relay else None,
+        config=CaptureConfig(
+            camera_id=camera_id, url=candidates[0], fallback_urls=tuple(candidates[1:])
+        ),
+        on_reconnect=_reassert_source if via_relay and rtsp_url else None,
+        decode_policy=scheduler.should_decode,
     )
+    load = _LoadMeter()
     tamper_detector = TamperDetector()
     pipeline = AnprPipeline(
         vehicle_detector,
@@ -444,27 +495,21 @@ async def _run_camera(
     zone_engine = await _load_zone_engine(client, camera_id)
 
     health_task = asyncio.create_task(
-        _report_health(client, camera_id, supervisor, tamper_detector)
+        _report_health(client, camera_id, supervisor, tamper_detector, load)
     )
     stop_watch = asyncio.create_task(_stop_when_set(stop, supervisor)) if stop else None
     try:
-        frame_index = 0
         async for frame in supervisor.frames():
-            # M13: cheap enough to run on every frame (grayscale + Laplacian
-            # + a mean) — no second inference engine, unlike the ANPR
-            # pipeline's own per-frame cost.
+            load.saw(frame.timing)
+            # M13: cheap (grayscale + Laplacian + a mean), so it runs on every
+            # frame the scheduler decodes — no second inference engine.
             await asyncio.to_thread(tamper_detector.update, frame.image)
-            frame_index += 1
-            # Tamper detection above still sees every frame; only the
-            # expensive half is strided. A discontinuity is never skipped —
-            # the pipeline resets its tracker and vote history on one, and
-            # dropping that would silently merge two unrelated scenes.
-            if (
-                frame_stride > 1
-                and not frame.timing.is_discontinuity
-                and frame_index % frame_stride != 0
-            ):
+            # The scheduler already chose which frames to decode (tier and
+            # PTS pacing; loop cuts always). Motion-gated cameras also skip
+            # analysis while the scene is still.
+            if not frame.timing.is_discontinuity and not scheduler.should_analyse(frame):
                 continue
+            load.analysed()
             events = await asyncio.to_thread(pipeline.process_frame, frame)
             for event in events:
                 payload = event.payload
@@ -604,6 +649,13 @@ def _parse_args() -> argparse.Namespace:
         "(e.g. cam01,cam04).",
     )
     parser.add_argument(
+        "--sampled-fps",
+        type=float,
+        default=SchedulerConfig().sampled_fps,
+        help="analysis rate for b_sampled cameras (and c_motion_gated ones while there is "
+        "motion), paced by stream timestamps. Lower it to fit more cameras on one machine.",
+    )
+    parser.add_argument(
         "--department",
         type=str,
         default=None,
@@ -628,11 +680,10 @@ def _parse_args() -> argparse.Namespace:
         "--frame-stride",
         type=int,
         default=1,
-        help="run ANPR on every Nth frame instead of every one (default 1: every frame). "
-        "Vehicle detection and plate OCR are the dominant cost here — four 1080p cameras at "
-        "25fps saturate an 8-core machine, which starves the relay's HLS muxer and stalls "
-        "live preview. A vehicle stays in shot for many frames, so a stride of 2-3 keeps "
-        "several reads per vehicle while cutting the inference load proportionally.",
+        help="a_continuous cameras: run ANPR on every Nth frame (default 1: every frame). "
+        "Other tiers are paced by --sampled-fps instead. Vehicle detection and plate OCR are "
+        "the dominant cost — four 1080p cameras at 25fps saturate an 8-core machine, which "
+        "starves the relay's HLS muxer and stalls live preview.",
     )
     return parser.parse_args()
 
@@ -744,11 +795,13 @@ async def main() -> None:
                 settings, keep={relay_path_for(d.camera_id, settings) for d in descriptors}
             )
         logger.info(
-            "starting %d camera pipeline(s) (source=%s, transport=%s, stride=%d%s) against %s",
+            "starting %d camera pipeline(s) (source=%s, transport=%s, continuous stride=%d, "
+            "sampled %.1f fps%s) against %s",
             len(descriptors),
             args.source,
             "local relay" if via_relay else "direct to camera",
             args.frame_stride,
+            args.sampled_fps,
             f", registry re-read every {args.resync_interval:.0f}s" if watch_registry else "",
             api_base_url,
         )
@@ -758,6 +811,8 @@ async def main() -> None:
                 "device discovery) and they will be picked up on the next re-read"
             )
 
+        scheduler_config = SchedulerConfig(stride=args.frame_stride, sampled_fps=args.sampled_fps)
+
         async def _run(descriptor: CameraDescriptor, stop: asyncio.Event) -> None:
             await _run_camera(
                 client,
@@ -765,7 +820,7 @@ async def main() -> None:
                 vehicle_detector,
                 plate_reader,
                 via_relay=via_relay,
-                frame_stride=args.frame_stride,
+                scheduler_config=scheduler_config,
                 stop=stop,
             )
 

@@ -44,6 +44,7 @@ const STATUS_TO_SEVERITY: Record<string, Severity> = {
   degraded: 'high',
   down: 'critical',
   unknown: 'low',
+  stale: 'high',
 }
 
 export function statusToSeverity(status: string): Severity {

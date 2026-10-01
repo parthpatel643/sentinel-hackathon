@@ -74,7 +74,10 @@ async def ingest_detection(session: AsyncSession, payload: DetectionIn) -> Detec
     await session.execute(
         update(Camera)
         .where(Camera.camera_id == payload.camera_id)
-        .values(status="live", last_seen_at=payload.observed_at)
+        # Our receipt time, not the frame's: observed_at is the scene's own
+        # clock, which on replayed or mis-set cameras is days or months old
+        # and would make a working camera look stale.
+        .values(status="live", last_seen_at=datetime.now(UTC))
     )
 
     await session.flush()

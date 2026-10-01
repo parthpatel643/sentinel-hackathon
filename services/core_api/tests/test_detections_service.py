@@ -58,16 +58,21 @@ async def _make_camera(session: AsyncSession, camera_id: str = "det-cam-01") -> 
 
 
 async def test_ingest_detection_persists_and_marks_camera_live(db_session: AsyncSession) -> None:
+    """Liveness is our receipt time, not the frame's: replayed footage burns
+    in a months-old clock, and using it would make a working camera stale."""
     await _make_camera(db_session)
-    detection = await ingest_detection(db_session, _detection_in())
+    months_ago = ANCHOR - timedelta(days=100)
+    detection = await ingest_detection(db_session, _detection_in(observed_at=months_ago))
 
     assert detection.id is not None
     assert detection.plate_normalised == "GJ01AB1234"
+    assert detection.observed_at == months_ago
 
     camera = await get_camera(db_session, "det-cam-01")
     assert camera is not None
     assert camera.status == "live"
-    assert camera.last_seen_at == ANCHOR
+    assert camera.last_seen_at is not None
+    assert datetime.now(UTC) - camera.last_seen_at < timedelta(minutes=1)
 
 
 async def test_search_detections_filters_by_plate(db_session: AsyncSession) -> None:

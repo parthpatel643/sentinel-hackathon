@@ -18,6 +18,10 @@ import { cameraLabel, cameraLabelWithLocality, cameraStatusColor, hasCurrentFram
 import type { Camera } from '../lib/types'
 import './monitoring-workspace.css'
 
+/** Analysis this far behind live means the machine cannot keep up with this
+ * camera's tier: lower the sampled rate or move the camera to another worker. */
+const LAG_WARNING_S = 5
+
 function fpsLabel(camera: Camera): string {
   if (!hasCurrentFrameRate(camera)) return '—'
   const declared = camera.declared_fps != null ? `/${camera.declared_fps.toFixed(0)}` : ''
@@ -103,7 +107,7 @@ export function Cameras() {
         <Button onClick={() => openOnboarding('location')}><Plus size={16} />{t('cameras.addCamera')}</Button>
       </div>
       <div className="registry-health" role="group" aria-label={t('workspace.allStatuses')}>
-        {['all', 'live', 'degraded', 'down', 'connecting', 'unknown'].map((value) => (
+        {['all', 'live', 'degraded', 'down', 'stale', 'connecting', 'unknown'].map((value) => (
           <button key={value} aria-label={t(`monitoring:${value === 'all' ? 'all' : value}Cameras`)} aria-pressed={status === value} onClick={() => setStatus(value)}>
             <span>{value === 'all' ? t('monitoring:allCameras') : t(`cameraStatus.${value}`)}</span>
             <strong>{cameras ? (value === 'all' ? cameras.length : cameras.filter((camera) => camera.status === value).length) : '—'}</strong>
@@ -119,7 +123,7 @@ export function Cameras() {
         </select>
         <select aria-label={t('workspace.allStatuses')} value={status} onChange={(e) => setStatus(e.target.value)} className="h-11 rounded-md border border-border-strong bg-bg-inset px-3 text-sm">
           <option value="all">{t('workspace.allStatuses')}</option>
-          {['live', 'connecting', 'degraded', 'down', 'unknown'].map((value) => <option key={value} value={value}>{t(`cameraStatus.${value}`)}</option>)}
+          {['live', 'connecting', 'degraded', 'down', 'stale', 'unknown'].map((value) => <option key={value} value={value}>{t(`cameraStatus.${value}`)}</option>)}
         </select>
         <div className="registry-view-switch">
           <Button aria-pressed={view === 'table'} size="sm" variant={view === 'table' ? 'primary' : 'secondary'} onClick={() => setView('table')}><List size={15} />{t('cameras.table')}</Button>
@@ -187,7 +191,17 @@ export function Cameras() {
                       <td className="px-4 py-2.5">
                         <SeverityBadge severity={statusToSeverity(camera.status)} label={t(`cameraStatus.${camera.status}`)} />
                       </td>
-                      <td className="px-4 py-2.5 plate-mono text-text-secondary">{fpsLabel(camera)}</td>
+                      <td className="px-4 py-2.5 plate-mono text-text-secondary">
+                        {fpsLabel(camera)}
+                        {camera.analysed_fps != null && hasCurrentFrameRate(camera) && (
+                          <div className="text-xs text-text-tertiary">
+                            {tr('analysedRate', { fps: camera.analysed_fps.toFixed(1) })}
+                            {camera.analysis_lag_s != null && camera.analysis_lag_s >= LAG_WARNING_S && (
+                              <span className="text-sev-high"> · {tr('lagBehind', { seconds: Math.round(camera.analysis_lag_s) })}</span>
+                            )}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-4 py-2.5 text-text-secondary">{camera.reconnects}</td>
                       <td className="px-4 py-2.5">
                         {camera.tamper_status ? (

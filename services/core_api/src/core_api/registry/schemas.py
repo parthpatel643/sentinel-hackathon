@@ -114,13 +114,22 @@ class CameraOut(BaseModel):
     site_name: str | None
     location: GeoPointOut | None
     tier: str
-    status: str
+    status: str = Field(
+        description="unknown | connecting | live | degraded | down | stale — 'stale' when "
+        "a worker reported on this camera but has not for camera_stale_after_s"
+    )
     last_seen_at: datetime | None
     measured_fps: float | None = None
     declared_fps: float | None = None
     reconnects: int = 0
     discontinuities: int = 0
     tamper_status: str | None = None
+    analysed_fps: float | None = Field(
+        default=None, description="Frames per stream-second run through ANPR (tier-scheduled)"
+    )
+    analysis_lag_s: float | None = Field(
+        default=None, description="How far behind live analysis was at the last heartbeat"
+    )
     source: str
     attributes: dict[str, str]
     profiles: list[StreamProfileOut]
@@ -134,6 +143,13 @@ class CameraHealthUpdate(BaseModel):
     these same fields."""
 
     status: str = Field(description="connecting | live | degraded | down")
+    analysed_fps: float | None = None
+    stream_position_at: datetime | None = Field(
+        default=None,
+        description="Stream time of the latest frame the worker has read (connection epoch "
+        "+ PTS). The API turns it into analysis lag against its own clock; the worker never "
+        "reads a wall clock for timing.",
+    )
     measured_fps: float | None = None
     declared_fps: float | None = None
     reconnects: int | None = None

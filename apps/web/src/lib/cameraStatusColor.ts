@@ -24,6 +24,8 @@ export const CAMERA_STATUS_COLOR: Record<CameraStatus, string> = {
   degraded: 'oklch(0.79 0.17 70)',
   down: 'oklch(0.68 0.20 25)',
   unknown: 'oklch(0.72 0.03 250)',
+  // Reported live once, silent since: its worker stopped or lost the network.
+  stale: 'oklch(0.72 0.12 300)',
 }
 
 export function cameraStatusColor(status: string): string {

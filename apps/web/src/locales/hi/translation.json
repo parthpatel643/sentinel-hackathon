@@ -100,7 +100,8 @@
     "connecting": "कनेक्ट हो रहा है",
     "degraded": "कमज़ोर",
     "down": "बंद",
-    "unknown": "अज्ञात"
+    "unknown": "अज्ञात",
+    "stale": "रिपोर्ट बंद"
   },
   "tamperStatus": {
     "ok": "ठीक",

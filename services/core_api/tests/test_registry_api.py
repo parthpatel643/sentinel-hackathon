@@ -304,3 +304,34 @@ async def test_a_device_answering_with_html_is_a_clear_502(
     response = await client.post("/api/v1/cameras/discover-device", json=_discovery_body())
 
     assert response.status_code == 502
+
+
+async def test_heartbeat_reports_analysis_lag_and_silence_turns_live_into_stale(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import update
+
+    from core_api.db.models import Camera
+
+    await _create_camera(client)
+    behind = datetime.now(UTC) - timedelta(seconds=12)
+    beat = await client.patch(
+        "/api/v1/cameras/fin-cam-01/health",
+        headers=_service_headers(),
+        json={"status": "live", "analysed_fps": 8.1, "stream_position_at": behind.isoformat()},
+    )
+    assert beat.status_code == 200, beat.text
+    camera = beat.json()
+    assert camera["status"] == "live"
+    assert camera["analysed_fps"] == 8.1
+    assert 11.0 <= camera["analysis_lag_s"] <= 20.0
+
+    # The worker dies: no more heartbeats.
+    await db_session.execute(
+        update(Camera)
+        .where(Camera.camera_id == "fin-cam-01")
+        .values(last_seen_at=datetime.now(UTC) - timedelta(minutes=2))
+    )
+    assert (await client.get("/api/v1/cameras/fin-cam-01")).json()["status"] == "stale"

@@ -118,7 +118,7 @@ export interface StreamProfile {
   url: string
 }
 
-export type CameraStatus = 'unknown' | 'connecting' | 'live' | 'degraded' | 'down'
+export type CameraStatus = 'unknown' | 'connecting' | 'live' | 'degraded' | 'down' | 'stale'
 export type CameraTier = 'a_continuous' | 'b_sampled' | 'c_event' | string
 
 export interface Camera {
@@ -136,6 +136,10 @@ export interface Camera {
   status: CameraStatus
   last_seen_at: string | null
   measured_fps: number | null
+  /** Frames per stream-second run through ANPR, as the camera's tier schedules it. */
+  analysed_fps?: number | null
+  /** How far behind live the worker's analysis was at its last heartbeat. */
+  analysis_lag_s?: number | null
   declared_fps: number | null
   reconnects: number
   discontinuities: number

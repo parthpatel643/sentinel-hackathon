@@ -100,7 +100,8 @@
     "connecting": "Connecting",
     "degraded": "Degraded",
     "down": "Down",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "stale": "Stale"
   },
   "tamperStatus": {
     "ok": "OK",

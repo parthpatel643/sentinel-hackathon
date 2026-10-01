@@ -109,6 +109,14 @@ class Camera(Base):
         comment="M13 secondary analytics — 'ok' | 'covered' | 'blurred' | 'moved' | null "
         "(never reported yet). See edge_agent.analytics.tamper."
     )
+    analysed_fps: Mapped[float | None] = mapped_column(
+        comment="Frames per stream-second run through ANPR, as scheduled by the "
+        "camera's tier (edge_agent.analytics.scheduler)."
+    )
+    analysis_lag_s: Mapped[float | None] = mapped_column(
+        comment="How far behind live the worker's analysis was at the last heartbeat: "
+        "receipt time minus the stream position of the latest frame."
+    )
 
     source: Mapped[str] = mapped_column(
         default="manual", comment="gov_catalogue | manual | bulk_csv | api"
@@ -421,4 +429,12 @@ class ZoneEvent(Base):
     dwell_time_s: Mapped[float | None]
     heading_deg: Mapped[float | None]
     observed_at: Mapped[datetime]
+    status: Mapped[str] = mapped_column(
+        default="new",
+        server_default="new",
+        index=True,
+        comment="new | acknowledged | resolved | false_positive",
+    )
+    resolved_by: Mapped[str | None]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())

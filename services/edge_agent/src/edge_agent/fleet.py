@@ -35,9 +35,12 @@ RunCamera = Callable[[CameraDescriptor, asyncio.Event], Coroutine[Any, Any, None
 OnRemoved = Callable[[CameraDescriptor], Awaitable[None]]
 
 
-def _stream_identity(descriptor: CameraDescriptor) -> str | None:
-    profile = descriptor.profile_for(StreamProtocol.RTSP)
-    return profile.url if profile else None
+def _stream_identity(descriptor: CameraDescriptor) -> tuple[str | None, ...]:
+    """What a running pipeline was opened with: its streams and its tier.
+    A change to any of them needs a restart to take effect."""
+    rtsp = descriptor.profile_for(StreamProtocol.RTSP)
+    hls = descriptor.profile_for(StreamProtocol.HLS)
+    return (rtsp.url if rtsp else None, hls.url if hls else None, descriptor.tier.value)
 
 
 @dataclass(slots=True)
@@ -87,7 +90,7 @@ class CameraFleet:
                 removed.append(running)
                 changes.stopped.append(camera_id)
             elif _stream_identity(target) != _stream_identity(running.descriptor):
-                logger.info("%s: stream URL changed — restarting its pipeline", camera_id)
+                logger.info("%s: stream or tier changed — restarting its pipeline", camera_id)
                 stopping.append(self._running.pop(camera_id))
                 changes.restarted.append(camera_id)
             elif running.task.done():

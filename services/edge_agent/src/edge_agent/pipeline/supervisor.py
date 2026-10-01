@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import random
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
@@ -17,10 +18,23 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from edge_agent.pipeline.capture import CaptureConfig, RtspCapture
-from sentinel_core.clock import Frame
+from sentinel_core.clock import Frame, FrameTiming
 from sentinel_core.schemas import CameraStatus
 
 __all__ = ["CameraSupervisor", "SupervisorConfig"]
+
+logger = logging.getLogger(__name__)
+
+# Frames grabbed per worker-thread hop while the scheduler skips them: enough
+# to make skipping cheap, few enough that a stop is still noticed promptly.
+_MAX_GRABS_PER_HOP = 64
+
+
+class _Skipped:
+    """Frames were read and timed, none was selected for analysis."""
+
+
+_SKIPPED = _Skipped()
 
 
 @dataclass(slots=True)
@@ -35,6 +49,10 @@ class SupervisorConfig:
     """Trips the circuit breaker: a handful of dropped frames is normal
     (inter-frame gaps are explicitly not disconnects); a sustained run of
     failures means the connection is actually gone."""
+    fallback_after_failures: int = 3
+    """Consecutive failed opens on one URL before trying the next candidate
+    (CaptureConfig.fallback_urls) — long enough not to abandon RTSP over one
+    slow connect, short enough that a blocked port reaches HLS in seconds."""
 
 
 @dataclass(slots=True)
@@ -54,6 +72,11 @@ class CameraSupervisor:
     # existing backoff loop repairs that, instead of needing the whole worker
     # restarted.
     on_reconnect: Callable[[], Awaitable[None]] | None = None
+    # Decides, from a frame's timing alone, whether it is worth turning into
+    # an image. Frames it declines are grabbed and timed but never converted
+    # — see RtspCapture.grab. None decodes every frame. Loop cuts are always
+    # decoded: the pipeline resets its tracker on them.
+    decode_policy: Callable[[FrameTiming], bool] | None = None
 
     status: CameraStatus = field(default=CameraStatus.UNKNOWN, init=False)
     reconnects: int = field(default=0, init=False)
@@ -63,9 +86,50 @@ class CameraSupervisor:
     # of sleep on exactly the cameras most likely to be stopped (a wrong URL
     # or password leaves a camera at maximum backoff).
     _stop_event: asyncio.Event = field(default_factory=asyncio.Event, init=False)
+    _url_index: int = field(default=0, init=False)
+    _open_failures_on_url: int = field(default=0, init=False)
 
     def __post_init__(self) -> None:
         self._capture = self.capture_factory(self.config)
+
+    @property
+    def _urls(self) -> list[str]:
+        return [self.config.url, *self.config.fallback_urls]
+
+    @property
+    def active_url(self) -> str:
+        return self._urls[self._url_index]
+
+    @property
+    def on_fallback(self) -> bool:
+        return self._url_index > 0
+
+    def _note_open_failure(self) -> None:
+        self._open_failures_on_url += 1
+        if (
+            len(self._urls) > 1
+            and self._open_failures_on_url >= self.supervisor_config.fallback_after_failures
+        ):
+            self._url_index = (self._url_index + 1) % len(self._urls)
+            self._open_failures_on_url = 0
+            logger.warning(
+                "%s: switching to %s after repeated failed opens",
+                self.config.camera_id,
+                "fallback stream" if self.on_fallback else "primary stream",
+            )
+
+    def _advance(self) -> Frame[np.ndarray] | _Skipped | None:
+        """Runs in a worker thread: the next frame worth yielding, None on a
+        read failure, or _SKIPPED when only skipped frames were read."""
+        if self.decode_policy is None:
+            return self._capture.read()
+        for _ in range(_MAX_GRABS_PER_HOP):
+            timing = self._capture.grab()
+            if timing is None:
+                return None
+            if timing.is_discontinuity or self.decode_policy(timing):
+                return self._capture.retrieve(timing)
+        return _SKIPPED
 
     async def frames(self) -> AsyncIterator[Frame[np.ndarray]]:
         """Yield frames forever, reconnecting internally, until stop()."""
@@ -78,8 +142,9 @@ class CameraSupervisor:
                 self.status = CameraStatus.CONNECTING
                 if self.reconnects and self.on_reconnect is not None:
                     await self.on_reconnect()
-                opened = await asyncio.to_thread(self._capture.open)
+                opened = await asyncio.to_thread(self._capture.open, self.active_url)
                 if not opened:
+                    self._note_open_failure()
                     self.reconnects += 1
                     self.status = CameraStatus.DOWN
                     await self._sleep_with_jitter(backoff)
@@ -87,12 +152,16 @@ class CameraSupervisor:
                     continue
 
                 self.status = CameraStatus.LIVE
+                self._open_failures_on_url = 0
                 backoff = self.supervisor_config.initial_backoff_s  # reset after success
                 consecutive_failures = 0
                 connected = True
                 continue  # re-check stop_requested before the first read
 
-            frame = await asyncio.to_thread(self._capture.read)
+            frame = await asyncio.to_thread(self._advance)
+            if isinstance(frame, _Skipped):
+                consecutive_failures = 0
+                continue
             if frame is None:
                 consecutive_failures += 1
                 if consecutive_failures >= self.supervisor_config.max_consecutive_read_failures:
@@ -103,6 +172,10 @@ class CameraSupervisor:
                     self._capture.close()
                     connected = False
                     self.reconnects += 1
+                    # A connection that worked and then died says nothing
+                    # about whether the primary is blocked; prefer it again.
+                    self._url_index = 0
+                    self._open_failures_on_url = 0
                 continue
 
             consecutive_failures = 0

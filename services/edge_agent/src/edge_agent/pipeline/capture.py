@@ -17,7 +17,7 @@ from typing import Protocol
 import cv2
 import numpy as np
 
-from sentinel_core.clock import Frame, StreamClock
+from sentinel_core.clock import Frame, FrameTiming, StreamClock
 
 __all__ = ["CaptureConfig", "RtspCapture", "VideoSource", "force_rtsp_tcp_transport"]
 
@@ -55,6 +55,8 @@ class VideoSource(Protocol):
 
     def isOpened(self) -> bool: ...  # noqa: N802 - matches cv2's naming
     def read(self) -> tuple[bool, np.ndarray | None]: ...
+    def grab(self) -> bool: ...
+    def retrieve(self) -> tuple[bool, np.ndarray | None]: ...
     def get(self, prop_id: int) -> float: ...
     def set(self, prop_id: int, value: float) -> bool: ...
     def release(self) -> None: ...
@@ -68,6 +70,10 @@ def _default_backend_factory(url: str) -> VideoSource:
 class CaptureConfig:
     camera_id: str
     url: str
+    fallback_urls: tuple[str, ...] = ()
+    """Tried in order when `url` keeps failing to open — in practice the
+    camera's HLS endpoint, the integrator guide's prescribed fallback for a
+    network that blocks RTSP's port. See CameraSupervisor."""
     hw_acceleration: bool = True
     """Best-effort request for CAP_PROP_HW_ACCELERATION=ANY (VideoToolbox on
     Apple Silicon, NVDEC/QuickSync elsewhere). Decode still proceeds in
@@ -97,6 +103,9 @@ class RtspCapture:
 
     config: CaptureConfig
     backend_factory: Callable[[str], VideoSource] = field(default=_default_backend_factory)
+    active_url: str | None = field(default=None, init=False)
+    """The URL the current connection was opened on — the primary RTSP one,
+    or an HLS fallback (see CameraSupervisor)."""
     stats: CaptureStats = field(default_factory=CaptureStats)
     _source: VideoSource | None = field(default=None, init=False)
     _clock: StreamClock = field(init=False)
@@ -105,14 +114,16 @@ class RtspCapture:
     def __post_init__(self) -> None:
         self._clock = StreamClock(self.config.camera_id)
 
-    def open(self) -> bool:
-        source = self.backend_factory(self.config.url)
+    def open(self, url: str | None = None) -> bool:
+        url = url or self.config.url
+        source = self.backend_factory(url)
         if self.config.hw_acceleration:
             with contextlib.suppress(cv2.error):  # backend-dependent; best-effort only
                 source.set(cv2.CAP_PROP_HW_ACCELERATION, cv2.VIDEO_ACCELERATION_ANY)
         if not source.isOpened():
             return False
         self._source = source
+        self.active_url = url
         # Metadata only — never used for timing. See declared_fps property.
         fps = source.get(cv2.CAP_PROP_FPS)
         self._declared_fps = fps if fps > 0 else None
@@ -144,6 +155,39 @@ class RtspCapture:
         if timing.is_discontinuity:
             self.stats.discontinuities += 1
 
+        height, width = image.shape[:2]
+        return Frame(timing=timing, image=image, width=width, height=height)
+
+    def grab(self) -> FrameTiming | None:
+        """Advance one frame and time it, without converting it to an image.
+
+        The cheap half of `read()`: the frame is demuxed and decoded but never
+        colour-converted or copied, and the StreamClock still observes its PTS
+        — gap, loop-cut and measured-rate detection depend on seeing every
+        frame, analysed or not. Follow with `retrieve()` for the frames the
+        scheduler wants analysed. None on a transient failure, as `read()`.
+        """
+        if self._source is None:
+            raise RuntimeError(f"{self.config.camera_id}: grab() before open()")
+        if not self._source.grab():
+            self.stats.read_failures += 1
+            return None
+        timing = self._clock.observe(self._source.get(cv2.CAP_PROP_POS_MSEC))
+        self.stats.frames_read += 1
+        if timing.is_gap:
+            self.stats.gaps += 1
+        if timing.is_discontinuity:
+            self.stats.discontinuities += 1
+        return timing
+
+    def retrieve(self, timing: FrameTiming) -> Frame[np.ndarray] | None:
+        """The image for the frame just grabbed."""
+        if self._source is None:
+            raise RuntimeError(f"{self.config.camera_id}: retrieve() before open()")
+        ok, image = self._source.retrieve()
+        if not ok or image is None:
+            self.stats.read_failures += 1
+            return None
         height, width = image.shape[:2]
         return Frame(timing=timing, image=image, width=width, height=height)
 

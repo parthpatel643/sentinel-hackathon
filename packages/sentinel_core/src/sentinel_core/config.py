@@ -140,6 +140,12 @@ class Settings(BaseSettings):
         "set SENTINEL_JWT_SECRET in production.",
     )
     jwt_algorithm: str = "HS256"
+    camera_stale_after_s: float = Field(
+        default=30.0,
+        description="A camera whose worker heartbeat (every 5 s) is older than this is "
+        "reported 'stale' instead of its last status, so a dead worker cannot leave "
+        "cameras looking live.",
+    )
     jwt_expires_minutes: int = 60 * 12
     edge_service_token: SecretStr = Field(
         default=SecretStr("dev-only-edge-service-token"),
