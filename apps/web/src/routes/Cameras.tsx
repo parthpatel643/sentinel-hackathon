@@ -17,6 +17,7 @@ import { CoverageLifecyclePanel } from '../components/CoverageLifecyclePanel'
 import { cameraLabel, cameraLabelWithLocality, cameraStatusColor, hasCurrentFrameRate } from '../lib/cameraStatusColor'
 import type { Camera } from '../lib/types'
 import './monitoring-workspace.css'
+import { useAuth } from '../lib/AuthContext'
 
 /** Analysis this far behind live means the machine cannot keep up with this
  * camera's tier: lower the sampled rate or move the camera to another worker. */
@@ -32,6 +33,10 @@ export function Cameras() {
   const { t } = useTranslation()
   const { data: cameras, loading, error, refetch } = usePolling(() => camerasApi.list(), 10000)
   const { t: tr } = useTranslation('readiness')
+  // Registry writes are administrator-only on the API; operators are not
+  // offered actions that would be refused.
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [view, setView] = useState<'table' | 'map' | 'insights'>('table')
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
@@ -104,7 +109,7 @@ export function Cameras() {
       <div className="registry-workspace">
       <div className="registry-heading">
         <div><h2>{t('monitoring:registry')}</h2><p>{t('monitoring:registryHelp')}</p></div>
-        <Button onClick={() => openOnboarding('location')}><Plus size={16} />{t('cameras.addCamera')}</Button>
+        {isAdmin && <Button onClick={() => openOnboarding('location')}><Plus size={16} />{t('cameras.addCamera')}</Button>}
       </div>
       <div className="registry-health" role="group" aria-label={t('workspace.allStatuses')}>
         {['all', 'live', 'degraded', 'down', 'stale', 'connecting', 'unknown'].map((value) => (
@@ -158,7 +163,7 @@ export function Cameras() {
         <div className="registry-table-content">
           {loading && !cameras && <p className="text-sm text-text-tertiary">{t('cameras.loading')}</p>}
           {cameras?.length === 0 && (
-            <div className="empty-state"><CameraIcon size={32} /><h3>{t('monitoring:noCameras')}</h3><p>{t('monitoring:noCamerasHelp')}</p><Button onClick={() => openOnboarding('location')}><Plus size={16} />{t('cameras.addCamera')}</Button></div>
+            <div className="empty-state"><CameraIcon size={32} /><h3>{t('monitoring:noCameras')}</h3><p>{t('monitoring:noCamerasHelp')}</p>{isAdmin && <Button onClick={() => openOnboarding('location')}><Plus size={16} />{t('cameras.addCamera')}</Button>}</div>
           )}
           {cameras && cameras.length > 0 && filteredCameras?.length === 0 && <div className="empty-state"><p>{t('workspace.noMatchingCameras')}</p></div>}
           {filteredCameras && filteredCameras.length > 0 && (
@@ -222,11 +227,15 @@ export function Cameras() {
         </div>
       )}
       </section>
-      <div className="registry-onboarding">
-        <div><h3>{t('cameras.addCamera')}</h3><p>{t('monitoring:addHelp')}</p></div>
-        <Button variant="secondary" onClick={() => openOnboarding('bulk-import')}><FileUp size={16} />{t('monitoring:importCameras')}</Button>
-        <Button variant="secondary" onClick={() => openOnboarding('discover')}><Server size={16} />{t('monitoring:discoverCameras')}</Button>
-      </div>
+      {isAdmin ? (
+        <div className="registry-onboarding">
+          <div><h3>{t('cameras.addCamera')}</h3><p>{t('monitoring:addHelp')}</p></div>
+          <Button variant="secondary" onClick={() => openOnboarding('bulk-import')}><FileUp size={16} />{t('monitoring:importCameras')}</Button>
+          <Button variant="secondary" onClick={() => openOnboarding('discover')}><Server size={16} />{t('monitoring:discoverCameras')}</Button>
+        </div>
+      ) : (
+        <p className="monitoring-help px-1">{tr('adminToOnboard')}</p>
+      )}
       </div>
       <CameraDetailModal camera={selected} onClose={() => setSelected(null)} />
       <OnboardingWizard key={onboardingPath} initialStep={onboardingPath} open={wizardOpen} onClose={() => setWizardOpen(false)} onOnboarded={refetch} />

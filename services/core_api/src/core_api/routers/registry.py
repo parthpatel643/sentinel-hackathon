@@ -57,6 +57,14 @@ from sentinel_core.stream_urls import redact_credentials
 router = APIRouter(prefix="/api/v1", tags=["registry"])
 
 
+def _require_admin(user: TokenPayload | None) -> None:
+    """Registry writes change what every department sees and what the edge
+    workers dial, so they are an administrator's action. None is the edge
+    worker's service token, which is trusted for its own registrations."""
+    if user is not None and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only an administrator can change the registry")
+
+
 @router.get("/cameras", response_model=list[CameraOut])
 async def list_cameras_endpoint(
     department: str | None = Query(default=None, description="Filter by department name"),
@@ -99,6 +107,9 @@ async def create_camera_endpoint(
     session: AsyncSession = Depends(get_session),
     actor: TokenPayload | None = Depends(current_user_or_service),
 ) -> CameraOut:
+    # The edge worker (service token, actor None) registers catalogue
+    # cameras; a human adding one to the estate must be an administrator.
+    _require_admin(actor)
     existing = await get_camera(session, payload.camera_id)
     if existing is not None:
         raise HTTPException(status_code=409, detail=f"camera {payload.camera_id!r} already exists")
@@ -172,6 +183,8 @@ async def bulk_import_endpoint(
     session: AsyncSession = Depends(get_session),
     user: TokenPayload = Depends(current_user),
 ) -> BulkImportResult:
+    if not dry_run:
+        _require_admin(user)  # previewing a file is harmless; changing the estate is not
     content = (await file.read()).decode("utf-8-sig")  # -sig: tolerate an Excel-exported BOM
     result = await parse_and_import_csv(session, content, dry_run=dry_run)
     if not dry_run:
@@ -198,7 +211,8 @@ async def discover_from_catalogue_endpoint(
 ) -> dict[str, object]:
     """Catalogue-driven onboarding: fetch the government catalogue right now
     and upsert every camera it lists. Never hard-codes a camera id — see
-    tests/test_compliance.py."""
+    tests/test_compliance.py. Administrators only."""
+    _require_admin(user)
     settings = get_settings()
     async with GovCatalogueClient(settings) as client:
         descriptors = await client.fetch()

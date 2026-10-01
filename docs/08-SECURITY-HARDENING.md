@@ -386,3 +386,19 @@ department cameras and a shared venue network for the first time.
   administration, the hash chain now records camera onboarding (manual, bulk
   CSV, catalogue and device discovery), BOLO arming with its retro-scan
   result, every alert status change, and each Movement Report export.
+
+### Who may do what
+
+| Action | Operator | Administrator | Edge worker (service token) |
+|---|---|---|---|
+| View cameras, map, live wall, search, reports | ✓ (own department under RLS, or all if unscoped) | ✓ | — |
+| Arm a BOLO / add a watchlist entry, triage alerts and zone events | ✓ | ✓ | — |
+| Preview a camera CSV (dry run) | ✓ | ✓ | — |
+| Add a camera, commit a CSV import, sync a catalogue, discover a device | — | ✓ | registers its own catalogue cameras only |
+| Configure zone rules, manage users, retention, audit verification | — | ✓ | — |
+| Post detections, health, zone events, snapshots; read the edge manifest | — | — | ✓ |
+
+The watchlist is statewide by design: a stolen or wanted vehicle is of
+interest to every department, so watchlist entries are not department-scoped;
+the alerts they raise are, because those belong to the camera that saw the
+vehicle.

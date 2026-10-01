@@ -1,5 +1,6 @@
 export const readinessCopy = {
   en: {
+    adminToOnboard: 'Adding or importing cameras changes the registry for every department, so it is done by an administrator.',
     matchedByAttributes: 'Read as {{plate}}: same last four characters, same vehicle type and colour, and reachable in time from the hops either side. Confirm on the snapshot.',
     impossibleTravel: 'Impossible travel',
     infeasibleAtSpeed: 'Reaching this camera from the previous sighting needs {{speed}} km/h. Suspect a cloned plate, a wrong camera clock, or a read that is not this vehicle.',
@@ -80,6 +81,7 @@ export const readinessCopy = {
     basemapOffline: 'Map tiles are unavailable. Camera positions and routes are still accurate.',
   },
   hi: {
+    adminToOnboard: 'कैमरे जोड़ना या आयात करना हर विभाग की रजिस्ट्री बदलता है, इसलिए यह व्यवस्थापक करता है।',
     matchedByAttributes: '{{plate}} पढ़ा गया: अंतिम चार अक्षर, वाहन का प्रकार और रंग समान, और दोनों ओर के पड़ावों से समय पर पहुँच योग्य। स्नैपशॉट पर पुष्टि करें।',
     impossibleTravel: 'असंभव यात्रा',
     infeasibleAtSpeed: 'पिछले दर्शन से इस कैमरे तक पहुँचने के लिए {{speed}} किमी/घंटा चाहिए। नकली नंबर प्लेट, कैमरे की ग़लत घड़ी या किसी और वाहन की रीड की आशंका।',
@@ -160,6 +162,7 @@ export const readinessCopy = {
     basemapOffline: 'मानचित्र टाइलें उपलब्ध नहीं हैं। कैमरा स्थान और मार्ग फिर भी सटीक हैं।',
   },
   gu: {
+    adminToOnboard: 'કેમેરા ઉમેરવા કે આયાત કરવાથી દરેક વિભાગની રજિસ્ટ્રી બદલાય છે, તેથી તે વ્યવસ્થાપક કરે છે.',
     matchedByAttributes: '{{plate}} વંચાયું: છેલ્લા ચાર અક્ષર, વાહનનો પ્રકાર અને રંગ સમાન, અને બંને બાજુના પડાવથી સમયસર પહોંચી શકાય. સ્નેપશોટ પર ખાતરી કરો.',
     impossibleTravel: 'અશક્ય મુસાફરી',
     infeasibleAtSpeed: 'અગાઉના દેખાવથી આ કેમેરા સુધી પહોંચવા {{speed}} કિમી/કલાક જોઈએ. નકલી નંબર પ્લેટ, કેમેરાની ખોટી ઘડિયાળ અથવા બીજા વાહનના રીડની શંકા.',

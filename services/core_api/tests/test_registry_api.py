@@ -335,3 +335,38 @@ async def test_heartbeat_reports_analysis_lag_and_silence_turns_live_into_stale(
         .values(last_seen_at=datetime.now(UTC) - timedelta(minutes=2))
     )
     assert (await client.get("/api/v1/cameras/fin-cam-01")).json()["status"] == "stale"
+
+
+async def test_only_administrators_change_the_registry(client: httpx.AsyncClient) -> None:
+    _as(OPERATOR)
+    csv_body = "camera_id,name\nop-cam,Operator camera\n"
+
+    create = await client.post("/api/v1/cameras", json={"camera_id": "op-cam", "name": "x"})
+    preview = await client.post(
+        "/api/v1/cameras/bulk-import",
+        params={"dry_run": "true"},
+        files={"file": ("c.csv", csv_body, "text/csv")},
+    )
+    commit = await client.post(
+        "/api/v1/cameras/bulk-import",
+        params={"dry_run": "false"},
+        files={"file": ("c.csv", csv_body, "text/csv")},
+    )
+    sync = await client.post("/api/v1/cameras/discover")
+
+    assert create.status_code == 403
+    assert preview.status_code == 200
+    assert commit.status_code == 403
+    assert sync.status_code == 403
+
+
+async def test_the_edge_worker_still_registers_its_cameras(client: httpx.AsyncClient) -> None:
+    app.dependency_overrides.pop(current_user_or_service, None)
+
+    response = await client.post(
+        "/api/v1/cameras",
+        headers=_service_headers(),
+        json={"camera_id": "worker-cam", "name": "Catalogue camera"},
+    )
+
+    assert response.status_code == 201, response.text
