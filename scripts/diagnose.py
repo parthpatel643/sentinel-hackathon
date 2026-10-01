@@ -278,7 +278,8 @@ async def check_hls(settings: Settings, client: httpx.AsyncClient) -> Result:
     if not ready:
         return _warn("no ready path to test HLS against", "Fix the previous check first.")
 
-    serving, failing = [], []
+    serving: list[str] = []
+    failing: list[str] = []
     for name in ready[:6]:
         url = f"{settings.relay_hls_url.rstrip('/')}/{name}/index.m3u8"
         try:

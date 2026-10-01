@@ -37,6 +37,7 @@ def main() -> None:
     from edge_agent.analytics.plate_reader import FastAlprPlateReader
     from edge_agent.analytics.vehicle_detector import VehicleDetector
     from sentinel_core.clock import Frame, FrameTiming
+    from sentinel_core.schemas import AnprPayload
 
     image_path = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_IMAGE
     if not image_path.exists():
@@ -104,6 +105,8 @@ def main() -> None:
 
     for event in events:
         payload = event.payload
+        if not isinstance(payload, AnprPayload):
+            continue
         print(f"  plate:         {payload.plate_text}")
         print(f"  normalised:    {payload.plate_normalised}")
         print(f"  ambiguity key: {payload.plate_ambiguity_key}")
@@ -112,9 +115,11 @@ def main() -> None:
             f"  format valid:  {payload.format_valid}  (Indian grammar - a non-Indian "
             "test plate correctly reads False here, that is not a bug)"
         )
-        print(
-            f"  vehicle:       {payload.vehicle.vehicle_class} (track {payload.vehicle.track_id})"
-        )
+        if payload.vehicle is not None:
+            print(
+                f"  vehicle:       {payload.vehicle.vehicle_class} "
+                f"(track {payload.vehicle.track_id})"
+            )
         print(f"  model versions: {event.pipeline.models}")
         print()
 

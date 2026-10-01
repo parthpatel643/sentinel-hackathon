@@ -75,7 +75,7 @@ fmt: ## Format
 	uv run ruff format .
 
 types: ## Type-check
-	uv run mypy packages services tests
+	uv run mypy packages services tests scripts
 
 check: lint types test ## Everything CI runs
 
