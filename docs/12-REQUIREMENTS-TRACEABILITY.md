@@ -53,7 +53,7 @@ a measured run, never only at a design document.
 
 | Quantity | Measured (where) | Projected at 80,000 cameras |
 |---|---|---|
-| Analytics per laptop, dense traffic (a plated vehicle in every frame) | Base M2: 2 cameras at 8 fps keep up; 4 fall behind ([tier capacity](../evidence/TIER-CAPACITY.md)) | Sized per GPU in [04 §3](./04-SCALE-PLAN.md); tiering means only 12% of cameras run continuous ANPR |
+| Analytics per laptop, dense traffic (a plated vehicle in every frame) | Base M2: about 16 analysed fps in total is the edge (2 cameras at 8 fps marginal, 4 at 4 fps keep up) ([tier capacity](../evidence/TIER-CAPACITY.md)) | Sized per GPU in [04 §3](./04-SCALE-PLAN.md); tiering means only 12% of cameras run continuous ANPR |
 | Plate-read ceiling | ~30 reads/s on M2 CPU | GPU inference in production |
 | Restore of 1 M detections | 5.7 s ([DR drill](../evidence/DR-RESTORE-DRILL.md)) | RTO via replica failover, not dump/restore |
 | ANPR exact match | 65% per crop, 78% voted, one camera ([accuracy](../evidence/ANPR-ACCURACY.md)) | Fine-tuning on Indian plates first |

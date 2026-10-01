@@ -17,7 +17,7 @@ Usage:
     uv run --package core_api python scripts/measure_tier_capacity.py \\
         --tier b_sampled --cameras 4 8 12 --duration 90
     uv run --package core_api python scripts/measure_tier_capacity.py \\
-        --tier a_continuous --cameras 2 4 --sampled-fps 8
+        --tier a_continuous --stride 3 --cameras 1 2
 """
 
 from __future__ import annotations
@@ -61,6 +61,7 @@ class RunResult:
     tier: str
     cameras: int
     sampled_fps: float
+    stride: int
     target_fps: float
     analysed_fps_median: float
     analysed_fps_min: float
@@ -234,7 +235,13 @@ def register(client: httpx.Client, ids: list[str], tier: str) -> None:
 
 
 def run_once(
-    client: httpx.Client, *, tier: str, n: int, sampled_fps: float, duration_s: float
+    client: httpx.Client,
+    *,
+    tier: str,
+    n: int,
+    sampled_fps: float,
+    duration_s: float,
+    stride: int = 1,
 ) -> RunResult:
     ids = [f"load-{tier[0]}{n:02d}-{i:02d}" for i in range(1, n + 1)]
     asyncio.run(delete_load_cameras())
@@ -258,6 +265,8 @@ def run_once(
                 ",".join(ids),
                 "--sampled-fps",
                 str(sampled_fps),
+                "--frame-stride",
+                str(stride),
                 "--resync-interval",
                 "0",
             ],
@@ -292,12 +301,13 @@ def run_once(
             for series in lags.values()
             if series
         ]
-        target = FPS if tier == "a_continuous" else sampled_fps
+        target = FPS / stride if tier == "a_continuous" else sampled_fps
         return RunResult(
             tier=tier,
             cameras=n,
             sampled_fps=sampled_fps,
-            target_fps=target,
+            stride=stride,
+            target_fps=round(target, 1),
             analysed_fps_median=round(statistics.median(per_camera), 1),
             analysed_fps_min=round(min(per_camera), 1),
             lag_s_max=round(max(all_lags), 1) if all_lags else float("nan"),
@@ -326,6 +336,7 @@ def main() -> int:
     )
     parser.add_argument("--cameras", type=int, nargs="+", default=[2, 4, 8])
     parser.add_argument("--sampled-fps", type=float, default=8.0)
+    parser.add_argument("--stride", type=int, default=1, help="tier A: analyse every Nth frame")
     parser.add_argument("--duration", type=float, default=90.0, help="seconds per run")
     parser.add_argument(
         "--api", default=os.environ.get("SENTINEL_CORE_API_URL", "http://127.0.0.1:18000")
@@ -352,6 +363,7 @@ def main() -> int:
                 n=n,
                 sampled_fps=args.sampled_fps,
                 duration_s=args.duration,
+                stride=args.stride,
             )
             results.append(result)
             verdict = "keeps up" if result.keeps_up else "FALLS BEHIND"

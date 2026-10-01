@@ -109,8 +109,8 @@ tracking + post-processing (CPU)          ≈ negligible on GPU
 ```
 
 **What we have measured, rather than estimated:** the same chain on a laptop CPU
-(base Apple M2, ONNX Runtime, no GPU) sustains about **16 analysed frames per
-second** on dense traffic, end to end through the real worker, with the plate
+(base Apple M2, ONNX Runtime, no GPU) reaches about **16 analysed frames per
+second** on dense traffic before falling behind, end to end through the real worker, with the plate
 detector the limit at about 30 plate reads per second
 ([tier capacity](../evidence/TIER-CAPACITY.md)). The L4 figure above is the
 vendor-benchmark estimate this plan sizes on; the laptop figure is what the

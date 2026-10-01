@@ -174,8 +174,9 @@ keeps it on the map and live wall but out of ANPR.
 
 Measured end to end on the base M2 ([tier capacity](../evidence/TIER-CAPACITY.md)),
 on a dense scene with a plate to read in nearly every frame: **about 16 analysed
-frames per second in total**, so 2 cameras at 8 fps or 4 cameras at 4 fps. The
-plate detector is the limit. Measure the M4 the same way during UAT
+frames per second in total, and that is the edge**. Two cameras at 8 fps kept up
+in some runs and not others; four at 4 fps kept up. The plate detector is the
+limit. Plan to about 75% of the measured edge. Measure the M4 the same way during UAT
 ([11-M4-UAT](./11-M4-UAT.md)) and use its figure, not this one.
 
 Every camera's **tier** in the registry decides what it costs:

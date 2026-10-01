@@ -183,7 +183,8 @@ column, or the wizard), not by the worker:
 | `c_motion_gated` | `SAMPLED_FPS`, only while something moves | `SAMPLED_FPS` |
 | `d_registry_only` | Nothing: map and live wall only | none |
 
-A base M2 sustains about 16 analysed frames a second of dense traffic in total
+A base M2 reaches about 16 analysed frames a second of dense traffic in total
+before it starts to fall behind
 ([tier capacity](evidence/TIER-CAPACITY.md)). The Cameras screen shows each
 camera's analysed rate and, in red, how far analysis trails live when it
 falls behind.

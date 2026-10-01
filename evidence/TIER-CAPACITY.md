@@ -33,18 +33,30 @@ analysed frame. Real junctions are emptier, so these are floors.
 
 ## Results
 
+Every recorded run (`tier-capacity-m2.csv`). Repeats of the same configuration are
+listed separately; how far they differ is the point.
+
 | Tier | Analysis rate | Cameras | Analysed fps | Lag at end | Worker CPU | Verdict |
 |---|---|---|---|---|---|---|
 | B sampled | 8 fps | 2 | 8.0 | 1.0 s | 369% | keeps up |
+| B sampled | 8 fps | 2 | 8.0 | 7.0 s | 410% | falls behind |
 | B sampled | 8 fps | 4 | 8.0 | 18.9 s, growing | 567% | falls behind |
 | B sampled | 4 fps | 4 | 4.0 | 1.0 s | 507% | keeps up |
 | B sampled | 4 fps | 6 | 4.0 | 21.9 s, growing | 654% | falls behind |
-| A continuous | 25 fps | 1 | 25.0 | 10.5 s, growing | 233% | falls behind |
+| A continuous | 25 fps (stride 1) | 1 | 25.0 | 10.5 s, growing | 233% | falls behind |
+| A continuous | 8.3 fps (stride 3) | 1 | 8.3 | 0.1 s | 197% | keeps up |
+| A continuous | 8.3 fps (stride 3) | 2 | 8.3 | 46.0 s | 261% | falls behind |
+| A continuous | 8.3 fps (stride 3) | 2 | 7.1 | 2.6 s | 367% | keeps up, dropping frames |
 
 **Rule of thumb for the M2: about 16 analysed frames per second of dense traffic in
-total** (2 × 8 or 4 × 4). Tier A at a full 25 fps does not fit one camera's
-serial pipeline (about 12.7 analysed fps on this scene); run tier A with
-`STRIDE=2` or `3`.
+total, and that is the edge, not a safe margin.** Two cameras at about 8 fps kept up in
+some runs and not in others; four at 4 fps kept up. One camera at 8 fps always kept up.
+The M2 was also running the API, Postgres, the Docker VM and the web dev server, as it
+would on site. Tier A at a full 25 fps does not fit one camera's serial pipeline (about
+12.7 analysed fps on this scene); run tier A with `STRIDE=3`.
+
+For the finale, plan to about **75% of the measured edge**: on the M2 that is one
+camera at 8 fps plus a few at 4 fps, or everything at 4 fps.
 
 ## What limits it, and what changed because of this measurement
 
