@@ -13,8 +13,16 @@ const STATUS_DOT: Record<string, string> = {
   connecting: 'bg-sev-medium',
   degraded: 'bg-sev-high',
   down: 'bg-sev-critical',
+  stale: 'bg-sev-high',
   unknown: 'bg-text-tertiary',
 }
+
+// A tile whose player failed, or has buffered this long, is remounted with
+// backoff — the same 2 s → 30 s schedule the edge worker uses — rather than
+// left dead until someone reloads the page.
+const STALL_MS = 15_000
+const RETRY_BASE_MS = 2_000
+const RETRY_MAX_MS = 30_000
 
 function fpsLabel(camera: Camera): string {
   if (!hasCurrentFrameRate(camera)) return '—'
@@ -43,15 +51,48 @@ export function LiveWallTile({ camera, latestDetection, onOpen }: LiveWallTilePr
   const { ref, inView } = useInView<HTMLDivElement>(0.15)
   const [stream, setStream] = useState<CameraStream | null>(null)
   const [playback, setPlayback] = useState<PlaybackState>('loading')
+  const [attempt, setAttempt] = useState(0)
+  const [retryAt, setRetryAt] = useState<number | null>(null)
   // Read once per render tick via state (not Date.now() inline in the JSX
   // below) so "is this read still recent" re-evaluates on a timer instead
   // of only whenever some unrelated prop happens to re-render this tile.
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 5000)
+    // Ticks faster while a retry countdown is on screen.
+    const id = setInterval(() => setNow(Date.now()), retryAt ? 1000 : 5000)
     return () => clearInterval(id)
-  }, [])
+  }, [retryAt])
+
+  function onPlayback(state: PlaybackState) {
+    setPlayback(state)
+    if (state === 'playing') {
+      setAttempt(0)
+      setRetryAt(null)
+    }
+  }
+
+  // Schedule a remount after a fatal error or a long stall.
+  useEffect(() => {
+    if (!inView || retryAt !== null) return
+    if (playback === 'playing' || !stream?.available) return
+    // Failed: retry now. Stalled mid-play, or never started: give it a while.
+    const delay = playback === 'error' ? 0 : playback === 'buffering' ? STALL_MS : STALL_MS * 2
+    const id = setTimeout(() => {
+      setRetryAt(Date.now() + Math.min(RETRY_BASE_MS * 2 ** attempt, RETRY_MAX_MS))
+    }, delay)
+    return () => clearTimeout(id)
+  }, [playback, inView, attempt, retryAt, stream?.available])
+
+  useEffect(() => {
+    if (retryAt === null) return
+    const id = setTimeout(() => {
+      setAttempt((n) => n + 1)
+      setRetryAt(null)
+      setPlayback('loading')
+    }, Math.max(0, retryAt - Date.now()))
+    return () => clearTimeout(id)
+  }, [retryAt])
 
   useEffect(() => {
     if (!inView) return
@@ -98,10 +139,11 @@ export function LiveWallTile({ camera, latestDetection, onOpen }: LiveWallTilePr
         )}
         {inView && stream?.available && stream.hls_url && (
           <HlsVideoPlayer
+            key={attempt}
             src={stream.hls_url}
             className="h-full w-full"
             controls={false}
-            onStateChange={setPlayback}
+            onStateChange={onPlayback}
           />
         )}
         {inView && stream && (!stream.available || !stream.hls_url) && (
@@ -114,7 +156,9 @@ export function LiveWallTile({ camera, latestDetection, onOpen }: LiveWallTilePr
 
         {inView && stream?.available && (
           <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-            {t(PLAYBACK_LABEL_KEY[playback])}
+            {retryAt !== null
+              ? t('readiness:reconnectingIn', { seconds: Math.max(1, Math.ceil((retryAt - now) / 1000)) })
+              : t(PLAYBACK_LABEL_KEY[playback])}
           </span>
         )}
         {recentRead && (

@@ -1,5 +1,6 @@
 export const readinessCopy = {
   en: {
+    reconnectingIn: 'Reconnecting in {{seconds}} s',
     downloadTemplate: 'Download a CSV template (Hikvision, Dahua, HLS and map-only examples)',
     adminToOnboard: 'Adding or importing cameras changes the registry for every department, so it is done by an administrator.',
     matchedByAttributes: 'Read as {{plate}}: same last four characters, same vehicle type and colour, and reachable in time from the hops either side. Confirm on the snapshot.',
@@ -82,6 +83,7 @@ export const readinessCopy = {
     basemapOffline: 'Map tiles are unavailable. Camera positions and routes are still accurate.',
   },
   hi: {
+    reconnectingIn: '{{seconds}} से. में फिर से जुड़ रहा है',
     downloadTemplate: 'CSV टेम्पलेट डाउनलोड करें (Hikvision, Dahua, HLS और केवल-मानचित्र उदाहरण)',
     adminToOnboard: 'कैमरे जोड़ना या आयात करना हर विभाग की रजिस्ट्री बदलता है, इसलिए यह व्यवस्थापक करता है।',
     matchedByAttributes: '{{plate}} पढ़ा गया: अंतिम चार अक्षर, वाहन का प्रकार और रंग समान, और दोनों ओर के पड़ावों से समय पर पहुँच योग्य। स्नैपशॉट पर पुष्टि करें।',
@@ -164,6 +166,7 @@ export const readinessCopy = {
     basemapOffline: 'मानचित्र टाइलें उपलब्ध नहीं हैं। कैमरा स्थान और मार्ग फिर भी सटीक हैं।',
   },
   gu: {
+    reconnectingIn: '{{seconds}} સે.માં ફરી જોડાય છે',
     downloadTemplate: 'CSV ટેમ્પ્લેટ ડાઉનલોડ કરો (Hikvision, Dahua, HLS અને ફક્ત-નકશો ઉદાહરણો)',
     adminToOnboard: 'કેમેરા ઉમેરવા કે આયાત કરવાથી દરેક વિભાગની રજિસ્ટ્રી બદલાય છે, તેથી તે વ્યવસ્થાપક કરે છે.',
     matchedByAttributes: '{{plate}} વંચાયું: છેલ્લા ચાર અક્ષર, વાહનનો પ્રકાર અને રંગ સમાન, અને બંને બાજુના પડાવથી સમયસર પહોંચી શકાય. સ્નેપશોટ પર ખાતરી કરો.',
