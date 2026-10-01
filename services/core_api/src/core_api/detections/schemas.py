@@ -86,12 +86,23 @@ class RoutePoint(BaseModel):
     observed_at: datetime
     plate_text: str
     plate_confidence: float
-    match_rung: str = Field(description="exact | ambiguity_class | edit_distance")
+    match_rung: str = Field(
+        description="exact | ambiguity_class | edit_distance | partial_attribute"
+    )
     snapshot_uri: str | None
     confirmed: bool = Field(
         default=True,
         description="False for an edit_distance hop: a different plate one character away, "
         "which an operator must confirm against the snapshot.",
+    )
+    implied_speed_kmh: float | None = Field(
+        default=None,
+        description="Speed a vehicle would need from the previous hop to this one",
+    )
+    infeasible: bool = Field(
+        default=False,
+        description="True when that speed is beyond any road vehicle: a cloned plate, a wrong "
+        "camera clock, or a misattributed read",
     )
 
 

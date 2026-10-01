@@ -282,3 +282,89 @@ async def test_short_queries_do_not_use_edit_distance(db_session: AsyncSession) 
     route = await get_vehicle_route(db_session, "AB1235")
 
     assert route.total_sightings == 0
+
+
+async def _camera_at(session: AsyncSession, camera_id: str, lat: float, lon: float) -> None:
+    await upsert_camera(
+        session,
+        camera_id=camera_id,
+        name=camera_id,
+        driver_id="rtsp",
+        department_name=None,
+        site_name=None,
+        location=GeoPointOut(lat=lat, lon=lon),
+        tier="b_sampled",
+        status="unknown",
+        source="manual",
+        attributes={},
+        profiles=[],
+    )
+
+
+async def _sighting(
+    session: AsyncSession, n: int, camera_id: str, minutes: float, plate: str, colour: str = "white"
+) -> None:
+    await ingest_detection(
+        session,
+        _detection_in(
+            event_id=f"01JBRIDGE{n:016d}",
+            camera_id=camera_id,
+            plate_text=plate,
+            observed_at=ANCHOR - timedelta(hours=2) + timedelta(minutes=minutes),
+            vehicle_class="car",
+            vehicle_colour=colour,
+        ),
+    )
+
+
+async def _three_junctions(session: AsyncSession) -> None:
+    # ~3 km apart along a road, west to east.
+    await _camera_at(session, "br-west", 23.0225, 72.5400)
+    await _camera_at(session, "br-mid", 23.0225, 72.5700)
+    await _camera_at(session, "br-east", 23.0225, 72.6000)
+
+
+async def test_an_unreadable_middle_hop_is_bridged_as_probable(db_session: AsyncSession) -> None:
+    await _three_junctions(db_session)
+    await _sighting(db_session, 1, "br-west", 0, "GJ01AB1234")
+    await _sighting(db_session, 2, "br-mid", 4, "MH01AB1234")  # state code misread
+    await _sighting(db_session, 3, "br-east", 8, "GJ01AB1234")
+
+    route = await get_vehicle_route(db_session, "GJ01AB1234")
+
+    assert [p.camera_id for p in route.points] == ["br-west", "br-mid", "br-east"]
+    bridged = route.points[1]
+    assert bridged.match_rung == "partial_attribute"
+    assert bridged.confirmed is False
+    assert bridged.plate_text == "MH01AB1234"
+    assert not any(p.infeasible for p in route.points)
+    assert route.points[2].implied_speed_kmh is not None
+    assert 30 < route.points[2].implied_speed_kmh < 60
+
+
+async def test_a_bridge_needs_matching_appearance_and_road_speed(db_session: AsyncSession) -> None:
+    await _three_junctions(db_session)
+    await _camera_at(db_session, "br-far", 21.1702, 72.8311)  # Surat, ~230 km away
+    await _sighting(db_session, 1, "br-west", 0, "GJ01AB1234")
+    await _sighting(db_session, 2, "br-mid", 4, "MH01AB1234", colour="red")
+    await _sighting(db_session, 3, "br-far", 6, "GJ01AA1234")
+    await _sighting(db_session, 4, "br-east", 8, "GJ01AB1234")
+
+    route = await get_vehicle_route(db_session, "GJ01AB1234")
+
+    assert [p.camera_id for p in route.points] == ["br-west", "br-east"]
+
+
+async def test_impossible_travel_between_exact_reads_is_flagged(db_session: AsyncSession) -> None:
+    """Two exact reads 230 km apart in ten minutes: a cloned plate or a
+    wrong camera clock, and an investigator must be told."""
+    await _three_junctions(db_session)
+    await _camera_at(db_session, "br-far", 21.1702, 72.8311)
+    await _sighting(db_session, 1, "br-west", 0, "GJ01AB1234")
+    await _sighting(db_session, 2, "br-far", 10, "GJ01AB1234")
+
+    route = await get_vehicle_route(db_session, "GJ01AB1234")
+
+    assert route.points[1].infeasible is True
+    assert route.points[1].implied_speed_kmh is not None
+    assert route.points[1].implied_speed_kmh > 1000

@@ -8,9 +8,12 @@ an alert" are always decided together, not in two places that can drift.
 
 from __future__ import annotations
 
+import math
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 
-from sqlalchemy import func, select, update
+from sqlalchemy import Row, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core_api.db.models import Camera, Detection
@@ -175,20 +178,12 @@ async def get_vehicle_route(
             match_rung = "edit_distance"
 
     points = [
-        RoutePoint(
-            event_id=detection.event_id,
-            camera_id=camera.camera_id,
-            camera_name=camera.name,
-            location=location_out(camera.location),
-            observed_at=detection.observed_at,
-            plate_text=detection.plate_text,
-            plate_confidence=detection.plate_confidence,
-            match_rung=match_rung,
-            snapshot_uri=detection.snapshot_uri,
-            confirmed=match_rung != "edit_distance",
-        )
+        _route_point(detection, camera, match_rung, confirmed=match_rung != "edit_distance")
         for detection, camera in rows
     ]
+    if match_rung in ("exact", "ambiguity_class"):
+        points = await _bridge_unread_hops(session, normalised, rows, points, since=since)
+    _mark_feasibility(points)
 
     return VehicleRoute(
         plate_normalised=normalised,
@@ -197,3 +192,125 @@ async def get_vehicle_route(
         last_seen_at=points[-1].observed_at if points else None,
         points=points,
     )
+
+
+def _route_point(
+    detection: Detection, camera: Camera, match_rung: str, *, confirmed: bool
+) -> RoutePoint:
+    return RoutePoint(
+        event_id=detection.event_id,
+        camera_id=camera.camera_id,
+        camera_name=camera.name,
+        location=location_out(camera.location),
+        observed_at=detection.observed_at,
+        plate_text=detection.plate_text,
+        plate_confidence=detection.plate_confidence,
+        match_rung=match_rung,
+        snapshot_uri=detection.snapshot_uri,
+        confirmed=confirmed,
+    )
+
+
+# Above this, two consecutive sightings cannot be one vehicle on a road: the
+# plate is cloned, a camera clock is wrong, or one of the reads is not it.
+INFEASIBLE_SPEED_KMH = 150.0
+# Bridged hops must be comfortably reachable, not merely possible.
+BRIDGE_MAX_SPEED_KMH = 120.0
+BRIDGE_TAIL_CHARS = 4
+BRIDGE_MAX_EDITS = 3
+
+
+def _edit_distance(a: str, b: str) -> int:
+    previous = list(range(len(b) + 1))
+    for i, ca in enumerate(a, start=1):
+        current = [i]
+        for j, cb in enumerate(b, start=1):
+            current.append(min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (ca != cb)))
+        previous = current
+    return previous[-1]
+
+
+def _km_between(a: RoutePoint, b: RoutePoint) -> float | None:
+    if a.location is None or b.location is None:
+        return None
+    lat1, lon1, lat2, lon2 = map(
+        math.radians, (a.location.lat, a.location.lon, b.location.lat, b.location.lon)
+    )
+    h = (
+        math.sin((lat2 - lat1) / 2) ** 2
+        + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
+    )
+    return 2 * 6371.0 * math.asin(math.sqrt(h))
+
+
+def _speed_kmh(a: RoutePoint, b: RoutePoint) -> float | None:
+    km = _km_between(a, b)
+    if km is None:
+        return None
+    hours = (b.observed_at - a.observed_at).total_seconds() / 3600
+    if km < 0.05:
+        return 0.0
+    return math.inf if hours <= 0 else km / hours
+
+
+def _mark_feasibility(points: list[RoutePoint]) -> None:
+    """Stamps each hop with the speed implied from the hop before it, and
+    flags travel no vehicle could make."""
+    for previous, point in pairwise(points):
+        speed = _speed_kmh(previous, point)
+        if speed is None:
+            continue
+        point.implied_speed_kmh = None if math.isinf(speed) else round(speed, 1)
+        point.infeasible = speed > INFEASIBLE_SPEED_KMH
+
+
+async def _bridge_unread_hops(
+    session: AsyncSession,
+    normalised: str,
+    rows: Sequence[Row[tuple[Detection, Camera]]],
+    points: list[RoutePoint],
+    *,
+    since: datetime,
+) -> list[RoutePoint]:
+    """Rungs 4-5 of the matching ladder, conservatively: a read whose plate
+    shares the target's last four characters and is at most three edits
+    away, made by a vehicle of the same class and colour as every confirmed
+    sighting, and reachable at road speed from the confirmed hops either side
+    of it. Returned as probable — an operator confirms each on its frame."""
+    classes = {d.vehicle_class for d, _ in rows}
+    colours = {d.vehicle_colour for d, _ in rows}
+    if len(classes) != 1 or len(colours) != 1 or None in classes or None in colours:
+        return points  # no consistent appearance to bridge on
+    vehicle_class, colour = classes.pop(), colours.pop()
+    tail = normalised[-BRIDGE_TAIL_CHARS:]
+    known = {d.event_id for d, _ in rows}
+    candidates = (
+        await session.execute(
+            select(Detection, Camera)
+            .join(Camera, Camera.camera_id == Detection.camera_id)
+            .where(
+                Detection.created_at >= since,
+                Detection.plate_normalised.like(f"%{tail}"),
+                Detection.plate_normalised != normalised,
+                Detection.vehicle_class == vehicle_class,
+                Detection.vehicle_colour == colour,
+            )
+        )
+    ).all()
+    bridged = list(points)
+    for detection, camera in candidates:
+        if detection.event_id in known:
+            continue
+        if _edit_distance(detection.plate_normalised, normalised) > BRIDGE_MAX_EDITS:
+            continue
+        candidate = _route_point(detection, camera, "partial_attribute", confirmed=False)
+        before = [p for p in points if p.observed_at <= candidate.observed_at]
+        after = [p for p in points if p.observed_at > candidate.observed_at]
+        neighbours = ([before[-1]] if before else []) + ([after[0]] if after else [])
+        speeds = [
+            _speed_kmh(*sorted((n, candidate), key=lambda p: p.observed_at)) for n in neighbours
+        ]
+        if neighbours and all(s is not None and s <= BRIDGE_MAX_SPEED_KMH for s in speeds):
+            bridged.append(candidate)
+    bridged.sort(key=lambda p: (p.observed_at, p.event_id))
+    return bridged

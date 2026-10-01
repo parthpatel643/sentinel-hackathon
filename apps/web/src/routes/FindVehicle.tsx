@@ -74,6 +74,7 @@ function SightingEvidence({ point }: { point: RoutePoint }) {
           <div><dt>{t('investigation:location')}</dt><dd>{point.location ? `${point.location.lat.toFixed(5)}, ${point.location.lon.toFixed(5)}` : t('investigation:noLocation')}</dd></div>
         </dl>
         {point.match_rung !== 'exact' && <p className="iw-context-note">{matchNote(point, t)}</p>}
+        {point.infeasible && <p className="iw-context-note text-sev-critical">{infeasibleNote(point, t)}</p>}
       </div>
     </section>
   )
@@ -82,9 +83,15 @@ function SightingEvidence({ point }: { point: RoutePoint }) {
 /** Why a non-exact hop is on the route. A one-character match may be a
  * different vehicle, so it says so and names the plate actually read. */
 function matchNote(point: RoutePoint, t: TFunction): string {
-  return point.match_rung === 'edit_distance'
-    ? t('readiness:matchedByEditDistance', { plate: point.plate_text })
-    : t('findVehicle.matchedByAmbiguity')
+  if (point.match_rung === 'edit_distance') return t('readiness:matchedByEditDistance', { plate: point.plate_text })
+  if (point.match_rung === 'partial_attribute') return t('readiness:matchedByAttributes', { plate: point.plate_text })
+  return t('findVehicle.matchedByAmbiguity')
+}
+
+function infeasibleNote(point: RoutePoint, t: TFunction): string {
+  return point.implied_speed_kmh != null
+    ? t('readiness:infeasibleAtSpeed', { speed: Math.round(point.implied_speed_kmh) })
+    : t('readiness:infeasibleClock')
 }
 
 function formatTime(iso: string): string {
@@ -461,6 +468,9 @@ export function FindVehicle() {
                       <p className="iw-camera-name">{point.camera_name}</p>
                       {point.match_rung !== 'exact' && (
                         <SeverityBadge severity="medium" label={t('findVehicle.probableMatch')} className="mt-1" />
+                      )}
+                      {point.infeasible && (
+                        <SeverityBadge severity="critical" label={t('readiness:impossibleTravel')} className="mt-1" />
                       )}
                     </div>
                     </button>

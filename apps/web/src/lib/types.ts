@@ -226,7 +226,7 @@ export interface Detection {
   node_id: string
 }
 
-export type MatchRung = 'exact' | 'ambiguity_class' | 'edit_distance'
+export type MatchRung = 'exact' | 'ambiguity_class' | 'edit_distance' | 'partial_attribute'
 
 export interface RoutePoint {
   /** Addresses the snapshot endpoint; `snapshot_uri` is an internal reference. */
@@ -240,6 +240,10 @@ export interface RoutePoint {
   match_rung: MatchRung
   snapshot_uri: string | null
   confirmed: boolean
+  /** Speed a vehicle would need from the previous hop to this one. */
+  implied_speed_kmh?: number | null
+  /** Beyond any road vehicle: a cloned plate, a wrong camera clock, or a misattributed read. */
+  infeasible?: boolean
 }
 
 export interface VehicleRoute {

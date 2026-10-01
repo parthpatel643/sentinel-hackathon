@@ -52,6 +52,8 @@ _CSV_HEADER = [
     "plate_confidence",
     "match_rung",
     "confirmed",
+    "implied_speed_kmh",
+    "infeasible",
     "snapshot_uri",
 ]
 
@@ -74,6 +76,8 @@ def _render_csv(route: VehicleRoute) -> bytes:
                 f"{point.plate_confidence:.3f}",
                 point.match_rung,
                 point.confirmed,
+                "" if point.implied_speed_kmh is None else point.implied_speed_kmh,
+                point.infeasible,
                 point.snapshot_uri or "",
             ]
         )
@@ -306,7 +310,8 @@ def _render_pdf(
             point.plate_text,
             f"{point.plate_confidence * 100:.0f}%",
             point.match_rung,
-            "confirmed" if point.confirmed else "probable",
+            ("IMPOSSIBLE" if point.infeasible else "")
+            or ("confirmed" if point.confirmed else "probable"),
         ]
         for value, width in zip(row, widths, strict=True):
             pdf.cell(width, 7, value, border=1)

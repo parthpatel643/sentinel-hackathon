@@ -1,5 +1,9 @@
 export const readinessCopy = {
   en: {
+    matchedByAttributes: 'Read as {{plate}}: same last four characters, same vehicle type and colour, and reachable in time from the hops either side. Confirm on the snapshot.',
+    impossibleTravel: 'Impossible travel',
+    infeasibleAtSpeed: 'Reaching this camera from the previous sighting needs {{speed}} km/h. Suspect a cloned plate, a wrong camera clock, or a read that is not this vehicle.',
+    infeasibleClock: 'Seen here no later than at the previous camera, which is elsewhere. Suspect a cloned plate or a wrong camera clock.',
     zoneTitle: 'Zone alert',
     zoneBody: '{{rule}} in {{zone}} at {{camera}}',
     soundOn: 'Alert sound on — click to mute',
@@ -76,6 +80,10 @@ export const readinessCopy = {
     basemapOffline: 'Map tiles are unavailable. Camera positions and routes are still accurate.',
   },
   hi: {
+    matchedByAttributes: '{{plate}} पढ़ा गया: अंतिम चार अक्षर, वाहन का प्रकार और रंग समान, और दोनों ओर के पड़ावों से समय पर पहुँच योग्य। स्नैपशॉट पर पुष्टि करें।',
+    impossibleTravel: 'असंभव यात्रा',
+    infeasibleAtSpeed: 'पिछले दर्शन से इस कैमरे तक पहुँचने के लिए {{speed}} किमी/घंटा चाहिए। नकली नंबर प्लेट, कैमरे की ग़लत घड़ी या किसी और वाहन की रीड की आशंका।',
+    infeasibleClock: 'पिछले कैमरे से पहले या उसी समय यहाँ दिखा, जो दूसरी जगह है। नकली नंबर प्लेट या कैमरे की ग़लत घड़ी की आशंका।',
     zoneTitle: 'ज़ोन अलर्ट',
     zoneBody: '{{camera}} पर {{zone}} में {{rule}}',
     soundOn: 'अलर्ट ध्वनि चालू — बंद करने के लिए क्लिक करें',
@@ -152,6 +160,10 @@ export const readinessCopy = {
     basemapOffline: 'मानचित्र टाइलें उपलब्ध नहीं हैं। कैमरा स्थान और मार्ग फिर भी सटीक हैं।',
   },
   gu: {
+    matchedByAttributes: '{{plate}} વંચાયું: છેલ્લા ચાર અક્ષર, વાહનનો પ્રકાર અને રંગ સમાન, અને બંને બાજુના પડાવથી સમયસર પહોંચી શકાય. સ્નેપશોટ પર ખાતરી કરો.',
+    impossibleTravel: 'અશક્ય મુસાફરી',
+    infeasibleAtSpeed: 'અગાઉના દેખાવથી આ કેમેરા સુધી પહોંચવા {{speed}} કિમી/કલાક જોઈએ. નકલી નંબર પ્લેટ, કેમેરાની ખોટી ઘડિયાળ અથવા બીજા વાહનના રીડની શંકા.',
+    infeasibleClock: 'અગાઉના કેમેરા કરતાં વહેલું કે સાથે જ અહીં દેખાયું, જે બીજી જગ્યાએ છે. નકલી નંબર પ્લેટ અથવા કેમેરાની ખોટી ઘડિયાળની શંકા.',
     zoneTitle: 'ઝોન અલર્ટ',
     zoneBody: '{{camera}} પર {{zone}}માં {{rule}}',
     soundOn: 'અલર્ટ અવાજ ચાલુ — બંધ કરવા ક્લિક કરો',
