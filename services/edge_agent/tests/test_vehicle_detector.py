@@ -10,7 +10,11 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from edge_agent.analytics.vehicle_detector import VEHICLE_CLASSES, decode_yolo_output
+from edge_agent.analytics.vehicle_detector import (
+    DETECTED_CLASSES,
+    VEHICLE_CLASSES,
+    decode_yolo_output,
+)
 
 NUM_CLASSES = 80
 
@@ -44,9 +48,8 @@ def test_decodes_a_single_confident_car_detection() -> None:
 
 
 def test_non_vehicle_classes_are_filtered_out() -> None:
-    """A person (class 0) or a traffic light must never reach the tracker —
-    this is a vehicle-centric pipeline by design (see 00-SOLUTION-PLAN.md
-    section 9: no face recognition, vehicle-centric analytics only)."""
+    """With the vehicle-only filter a person (class 0) never reaches the
+    tracker. The worker opts into people with DETECTED_CLASSES."""
     raw = _synthetic_output([(320.0, 320.0, 100.0, 60.0, 0, 0.95)])  # class 0 = person
 
     detections = decode_yolo_output(raw, letterbox_result_scale=1.0, letterbox_pad=(0.0, 0.0))
@@ -117,3 +120,30 @@ def test_all_documented_vehicle_classes_are_recognised() -> None:
         raw = _synthetic_output([(320.0, 320.0, 100.0, 60.0, class_id, 0.9)])
         detections = decode_yolo_output(raw, letterbox_result_scale=1.0, letterbox_pad=(0.0, 0.0))
         assert detections[0].vehicle_class == name
+
+
+def test_people_are_detected_when_asked_for() -> None:
+    raw = _synthetic_output([(320.0, 320.0, 40.0, 120.0, 0, 0.9)])
+
+    detections = decode_yolo_output(
+        raw, letterbox_result_scale=1.0, letterbox_pad=(0.0, 0.0), class_filter=DETECTED_CLASSES
+    )
+
+    assert [d.vehicle_class for d in detections] == ["person"]
+
+
+def test_a_rider_never_suppresses_the_motorcycle_under_them() -> None:
+    # The rider's box overlaps the motorcycle's heavily and scores higher.
+    # Class-agnostic NMS would keep only the rider and lose the plate.
+    raw = _synthetic_output(
+        [
+            (320.0, 300.0, 70.0, 140.0, 0, 0.92),  # person
+            (320.0, 320.0, 80.0, 120.0, 3, 0.80),  # motorcycle
+        ]
+    )
+
+    detections = decode_yolo_output(
+        raw, letterbox_result_scale=1.0, letterbox_pad=(0.0, 0.0), class_filter=DETECTED_CLASSES
+    )
+
+    assert sorted(d.vehicle_class for d in detections) == ["motorcycle", "person"]

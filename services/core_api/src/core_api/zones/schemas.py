@@ -60,6 +60,7 @@ class ZoneEventIn(BaseModel):
     camera_id: str
     rule_type: str
     track_id: str
+    object_class: Literal["vehicle", "person"] = "vehicle"
     dwell_time_s: float | None = None
     heading_deg: float | None = None
     observed_at: datetime
@@ -72,6 +73,7 @@ class ZoneEventOut(BaseModel):
     camera_id: str
     rule_type: str
     track_id: str
+    object_class: str = "vehicle"
     dwell_time_s: float | None
     heading_deg: float | None
     observed_at: datetime

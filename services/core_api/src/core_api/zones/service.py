@@ -54,6 +54,7 @@ async def record_zone_event(session: AsyncSession, payload: ZoneEventIn) -> Zone
         camera_id=payload.camera_id,
         rule_type=payload.rule_type,
         track_id=payload.track_id,
+        object_class=payload.object_class,
         dwell_time_s=payload.dwell_time_s,
         heading_deg=payload.heading_deg,
         observed_at=payload.observed_at,

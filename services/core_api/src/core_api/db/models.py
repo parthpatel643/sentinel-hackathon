@@ -117,6 +117,13 @@ class Camera(Base):
         comment="How far behind live the worker's analysis was at the last heartbeat: "
         "receipt time minus the stream position of the latest frame."
     )
+    people_in_view: Mapped[int | None] = mapped_column(
+        comment="Most people in one analysed frame since the previous heartbeat. A count, "
+        "never an identity."
+    )
+    vehicles_in_view: Mapped[int | None] = mapped_column(
+        comment="Most vehicles in one analysed frame since the previous heartbeat."
+    )
 
     source: Mapped[str] = mapped_column(
         default="manual", comment="gov_catalogue | manual | bulk_csv | api"
@@ -426,6 +433,9 @@ class ZoneEvent(Base):
     camera_id: Mapped[str] = mapped_column(ForeignKey("cameras.camera_id", ondelete="CASCADE"))
     rule_type: Mapped[str]
     track_id: Mapped[str]
+    object_class: Mapped[str] = mapped_column(
+        default="vehicle", server_default="vehicle", comment="vehicle | person"
+    )
     dwell_time_s: Mapped[float | None]
     heading_deg: Mapped[float | None]
     observed_at: Mapped[datetime]

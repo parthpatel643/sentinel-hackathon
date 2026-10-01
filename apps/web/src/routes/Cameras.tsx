@@ -204,6 +204,9 @@ export function Cameras() {
                             {camera.analysis_lag_s != null && camera.analysis_lag_s >= LAG_WARNING_S && (
                               <span className="text-sev-high"> · {tr('lagBehind', { seconds: Math.round(camera.analysis_lag_s) })}</span>
                             )}
+                            {camera.people_in_view != null && (
+                              <div>{tr('inView', { people: camera.people_in_view, vehicles: camera.vehicles_in_view ?? 0 })}</div>
+                            )}
                           </div>
                         )}
                       </td>

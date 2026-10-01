@@ -392,3 +392,18 @@ def test_a_settled_plate_is_not_reread_on_every_frame() -> None:
 
     # Every frame until the vote settles, then one recheck in the next eight.
     assert reader._index == SETTLED_AFTER_READS + 1
+
+
+def test_people_are_tracked_apart_from_vehicles_and_never_read() -> None:
+    person = VehicleDetection(
+        bbox_xyxy=(300.0, 100.0, 340.0, 220.0), vehicle_class="person", confidence=0.9
+    )
+    detector = FakeVehicleDetector([[_car(), person]])
+    reader = FakePlateReader([[_plate("GJ01AB1234")]])
+    pipeline = AnprPipeline(detector, reader, node_id="n", model_versions={})
+
+    pipeline.process_frame(_frame(0.0))
+
+    assert len(pipeline.last_tracked_vehicles) == 1
+    assert [p.detection.vehicle_class for p in pipeline.last_tracked_people] == ["person"]
+    assert reader._index == 1  # the plate reader saw the car only

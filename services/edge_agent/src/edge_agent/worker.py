@@ -57,7 +57,8 @@ from edge_agent.analytics.plate_reader import FastAlprPlateReader
 from edge_agent.analytics.scheduler import AnalysisScheduler, SchedulerConfig
 from edge_agent.analytics.snapshot_writer import SnapshotWriter
 from edge_agent.analytics.tamper import TamperDetector
-from edge_agent.analytics.vehicle_detector import VehicleDetector
+from edge_agent.analytics.tracker import TrackedVehicle
+from edge_agent.analytics.vehicle_detector import DETECTED_CLASSES, VehicleDetector
 from edge_agent.analytics.zone_rules import Zone, ZoneRuleEngine
 from edge_agent.fleet import CameraFleet
 from edge_agent.outbox import DetectionOutbox
@@ -352,6 +353,19 @@ class _LoadMeter:
         self.latest: FrameTiming | None = None
         self._analysed = 0
         self._window_start_pts: float | None = None
+        self._people_peak: int | None = None
+        self._vehicles_peak: int | None = None
+
+    def counted(self, *, people: int, vehicles: int) -> None:
+        self._people_peak = max(people, self._people_peak or 0)
+        self._vehicles_peak = max(vehicles, self._vehicles_peak or 0)
+
+    def take_counts(self) -> tuple[int | None, int | None]:
+        """Most people and vehicles seen in one analysed frame since the last
+        report: a crowd or a queue, not a running total of passers-by."""
+        counts = (self._people_peak, self._vehicles_peak)
+        self._people_peak = self._vehicles_peak = None
+        return counts
 
     def saw(self, timing: FrameTiming) -> None:
         if self.latest is not None and timing.seq < self.latest.seq:
@@ -395,6 +409,10 @@ async def _report_health(
         }
         if load is not None:
             payload["analysed_fps"] = load.take_analysed_fps()
+            people, vehicles = load.take_counts()
+            if people is not None:
+                payload["people_in_view"] = people
+                payload["vehicles_in_view"] = vehicles
             if load.latest is not None:
                 payload["stream_position_at"] = load.latest.observed_at.isoformat()
         try:
@@ -600,6 +618,10 @@ async def _run_camera(
                 continue
             load.analysed()
             events = await asyncio.to_thread(pipeline.process_frame, frame)
+            load.counted(
+                people=len(pipeline.last_tracked_people),
+                vehicles=len(pipeline.last_tracked_vehicles),
+            )
             for event in events:
                 payload = event.payload
                 assert isinstance(payload, AnprPayload)
@@ -686,14 +708,18 @@ async def _evaluate_zones(
     frame: Frame[np.ndarray],
 ) -> None:
     height, width = frame.image.shape[:2]
-    positions = {
-        tracked.track_id: (
-            (tracked.detection.bbox_xyxy[0] + tracked.detection.bbox_xyxy[2]) / 2 / width,
-            (tracked.detection.bbox_xyxy[1] + tracked.detection.bbox_xyxy[3]) / 2 / height,
-        )
-        for tracked in pipeline.last_tracked_vehicles
-    }
-    zone_events = zone_engine.update(positions, now_s=frame.timing.pts_ms / 1000.0)
+
+    def centre(tracked: TrackedVehicle) -> tuple[float, float]:
+        x1, y1, x2, y2 = tracked.detection.bbox_xyxy
+        return ((x1 + x2) / 2 / width, (y1 + y2) / 2 / height)
+
+    # People and vehicles are tracked separately and both number from 1, so
+    # people take negative ids here to share one zone engine.
+    positions = {tracked.track_id: centre(tracked) for tracked in pipeline.last_tracked_vehicles}
+    people = {-tracked.track_id: centre(tracked) for tracked in pipeline.last_tracked_people}
+    zone_events = zone_engine.update(
+        positions | people, now_s=frame.timing.pts_ms / 1000.0, people=frozenset(people)
+    )
     for zone_event in zone_events:
         try:
             response = await client.post(
@@ -702,7 +728,12 @@ async def _evaluate_zones(
                     "zone_id": zone_event.zone_id,
                     "camera_id": camera_id,
                     "rule_type": zone_event.rule_type,
-                    "track_id": str(zone_event.track_id),
+                    "track_id": (
+                        f"person-{-zone_event.track_id}"
+                        if zone_event.object_class == "person"
+                        else str(zone_event.track_id)
+                    ),
+                    "object_class": zone_event.object_class,
                     "dwell_time_s": zone_event.dwell_time_s,
                     "heading_deg": zone_event.heading_deg,
                     "observed_at": frame.observed_at.isoformat(),
@@ -873,7 +904,7 @@ async def main() -> None:
             raise SystemExit("no cameras to run — check --source/--cameras/--limit/--department")
 
         logger.info("loading models ...")
-        vehicle_detector = VehicleDetector(VEHICLE_MODEL)
+        vehicle_detector = VehicleDetector(VEHICLE_MODEL, class_filter=DETECTED_CLASSES)
         plate_reader = FastAlprPlateReader()
         logger.info(
             "models loaded; vehicle detector providers: %s", vehicle_detector.providers_in_use

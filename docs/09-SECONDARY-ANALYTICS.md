@@ -145,6 +145,28 @@ the presets.
 
 ---
 
+## 3a. People: counting and zone intrusion, never identity
+
+The official evaluation lists person detection next to vehicle detection. The
+vehicle detector's COCO model already finds people, so the same single inference
+now reports them (`DETECTED_CLASSES` in `vehicle_detector.py`):
+
+- **Counting.** Each heartbeat carries the most people and vehicles seen in one
+  analysed frame since the last (`people_in_view`, `vehicles_in_view`). The
+  Cameras screen shows them under the ANPR rate: crowd and queue counting with
+  no extra model.
+- **Zones.** People are tracked on their own tracker and held to intrusion and
+  loitering zones (a person standing still is not a stopped vehicle, and has no
+  wrong way). Their zone events are labelled `person` in the queue.
+- **No identity.** People are never read, matched or followed across cameras.
+  Faces in evidence stay blurred. This keeps the no-face-recognition position.
+- **Vehicles are unaffected.** People get their own non-maximum suppression, so
+  a rider's box can never suppress the motorcycle under them. On 120 real
+  government-grid frames: 185 people found in 90 frames, and zero vehicle boxes
+  lost against vehicle-only detection.
+
+---
+
 ## 4. Verification summary
 
 - Full backend suite at the time of this milestone: **353 tests passing**

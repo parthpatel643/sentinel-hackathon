@@ -328,6 +328,13 @@ async def test_heartbeat_reports_analysis_lag_and_silence_turns_live_into_stale(
     assert camera["analysed_fps"] == 8.1
     assert 11.0 <= camera["analysis_lag_s"] <= 20.0
 
+    counted = await client.patch(
+        "/api/v1/cameras/fin-cam-01/health",
+        headers=_service_headers(),
+        json={"status": "live", "people_in_view": 7, "vehicles_in_view": 3},
+    )
+    assert (counted.json()["people_in_view"], counted.json()["vehicles_in_view"]) == (7, 3)
+
     # The worker dies: no more heartbeats.
     await db_session.execute(
         update(Camera)

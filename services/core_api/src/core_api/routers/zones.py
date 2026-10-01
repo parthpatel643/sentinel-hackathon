@@ -74,6 +74,7 @@ def _event_out(event: ZoneEvent, zone_name: str | None) -> ZoneEventOut:
         camera_id=event.camera_id,
         rule_type=event.rule_type,
         track_id=event.track_id,
+        object_class=event.object_class,
         dwell_time_s=event.dwell_time_s,
         heading_deg=event.heading_deg,
         observed_at=event.observed_at,

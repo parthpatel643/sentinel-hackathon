@@ -19,7 +19,7 @@ from edge_agent.analytics.colour import classify_vehicle_colour
 from edge_agent.analytics.frame_clock import FrameClockReader
 from edge_agent.analytics.plate_reader import PlateCandidate
 from edge_agent.analytics.tracker import SimpleTracker, TrackedVehicle
-from edge_agent.analytics.vehicle_detector import VehicleDetection
+from edge_agent.analytics.vehicle_detector import PERSON, VehicleDetection
 from edge_agent.analytics.voting import PlateVoter, VotedPlate
 from sentinel_core.clock import Frame
 from sentinel_core.schemas import (
@@ -83,6 +83,7 @@ class AnprPipeline:
         self._vehicle_detector = vehicle_detector
         self._plate_reader = plate_reader
         self._tracker = tracker or SimpleTracker()
+        self._people_tracker = SimpleTracker()
         self._node_id = node_id
         self._model_versions = model_versions
         self._roi_margin = roi_margin
@@ -99,6 +100,10 @@ class AnprPipeline:
         # zone rules need every tracked vehicle's position, not just the
         # ones that happen to have a resolved plate this frame.
         self.last_tracked_vehicles: list[TrackedVehicle] = []
+        # People, when the detector reports them: tracked separately (a
+        # person and the motorcycle they ride are two tracks) so they can
+        # trip intrusion and loitering zones, and counted. Never identified.
+        self.last_tracked_people: list[TrackedVehicle] = []
 
     def process_frame(self, frame: Frame[np.ndarray]) -> list[Event]:
         # Once per frame, not once per event: several vehicles can be read
@@ -111,12 +116,16 @@ class AnprPipeline:
             # camera reboot). A track surviving across it would silently
             # merge two unrelated vehicles under one id and one vote history.
             self._tracker.reset()
+            self._people_tracker.reset()
             self._voters.clear()
             self._last_emitted.clear()
 
-        vehicle_detections = self._vehicle_detector.detect(frame.image)
+        detections = self._vehicle_detector.detect(frame.image)
+        vehicle_detections = [d for d in detections if d.vehicle_class != PERSON]
+        people = [d for d in detections if d.vehicle_class == PERSON]
         tracked_vehicles = self._tracker.update(vehicle_detections)
         self.last_tracked_vehicles = tracked_vehicles
+        self.last_tracked_people = self._people_tracker.update(people)
 
         events = [
             event

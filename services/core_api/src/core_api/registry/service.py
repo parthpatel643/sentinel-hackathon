@@ -400,6 +400,8 @@ def camera_to_out(camera: Camera, *, reveal_credentials: bool = False) -> Camera
         tamper_status=camera.tamper_status,
         analysed_fps=camera.analysed_fps,
         analysis_lag_s=camera.analysis_lag_s,
+        people_in_view=camera.people_in_view,
+        vehicles_in_view=camera.vehicles_in_view,
         source=camera.source,
         attributes=camera.attributes,
         profiles=profiles,
@@ -424,6 +426,10 @@ async def update_camera_health(
     camera.last_seen_at = now
     if update.analysed_fps is not None:
         camera.analysed_fps = update.analysed_fps
+    if update.people_in_view is not None:
+        camera.people_in_view = update.people_in_view
+    if update.vehicles_in_view is not None:
+        camera.vehicles_in_view = update.vehicles_in_view
     if update.stream_position_at is not None:
         camera.analysis_lag_s = max(0.0, (now - update.stream_position_at).total_seconds())
     if update.measured_fps is not None:

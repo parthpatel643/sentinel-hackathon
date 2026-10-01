@@ -67,7 +67,10 @@ export function ZoneEventQueue({ highlightId }: { highlightId?: string | null })
                 label={tc(`cameraDetail.zoneRules.ruleTypes.${event.rule_type}`, { defaultValue: event.rule_type })}
               />
               <div className="min-w-0 flex-1">
-                <strong>{event.zone_name ?? event.zone_id}</strong>
+                <strong>
+                  {event.zone_name ?? event.zone_id}
+                  {event.object_class === 'person' && <span className="font-normal text-text-secondary"> · {t('zonePerson')}</span>}
+                </strong>
                 <small>
                   {event.camera_id} · {formatIst(event.observed_at, i18n.language)}
                   {event.dwell_time_s != null && ` · ${t('zoneDwell', { seconds: Math.round(event.dwell_time_s) })}`}

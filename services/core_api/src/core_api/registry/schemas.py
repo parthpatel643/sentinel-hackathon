@@ -143,6 +143,12 @@ class CameraOut(BaseModel):
     analysis_lag_s: float | None = Field(
         default=None, description="How far behind live analysis was at the last heartbeat"
     )
+    people_in_view: int | None = Field(
+        default=None, description="Most people in one analysed frame at the last heartbeat"
+    )
+    vehicles_in_view: int | None = Field(
+        default=None, description="Most vehicles in one analysed frame at the last heartbeat"
+    )
     source: str
     attributes: dict[str, str]
     profiles: list[StreamProfileOut]
@@ -157,6 +163,8 @@ class CameraHealthUpdate(BaseModel):
 
     status: str = Field(description="connecting | live | degraded | down")
     analysed_fps: float | None = None
+    people_in_view: int | None = Field(default=None, ge=0)
+    vehicles_in_view: int | None = Field(default=None, ge=0)
     stream_position_at: datetime | None = Field(
         default=None,
         description="Stream time of the latest frame the worker has read (connection epoch "

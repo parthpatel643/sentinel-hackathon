@@ -11,6 +11,7 @@ resolution changes.
 
 from __future__ import annotations
 
+import dataclasses
 import math
 from dataclasses import dataclass, field
 from typing import Literal
@@ -18,6 +19,10 @@ from typing import Literal
 __all__ = ["Zone", "ZoneEvent", "ZoneRuleEngine"]
 
 RuleType = Literal["intrusion", "loitering", "wrong_way", "stopped_vehicle"]
+ObjectClass = Literal["vehicle", "person"]
+# Rules a pedestrian can break. Wrong-way and stopped-vehicle are about
+# traffic; a person standing still on a footpath is not an incident.
+_PERSON_RULES: frozenset[str] = frozenset({"intrusion", "loitering"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +58,7 @@ class ZoneEvent:
     track_id: int
     dwell_time_s: float | None = None
     heading_deg: float | None = None
+    object_class: ObjectClass = "vehicle"
 
 
 def _point_in_polygon(point: tuple[float, float], polygon: tuple[tuple[float, float], ...]) -> bool:
@@ -115,7 +121,15 @@ class ZoneRuleEngine:
         self._zones = zones
         self._tracks: dict[int, _TrackState] = {}
 
-    def update(self, positions: dict[int, tuple[float, float]], now_s: float) -> list[ZoneEvent]:
+    def update(
+        self,
+        positions: dict[int, tuple[float, float]],
+        now_s: float,
+        *,
+        people: frozenset[int] = frozenset(),
+    ) -> list[ZoneEvent]:
+        """`people` names the track ids in `positions` that are people; they
+        are held to intrusion and loitering only."""
         events: list[ZoneEvent] = []
         active_ids = set(positions)
         for stale_id in set(self._tracks) - active_ids:
@@ -125,7 +139,11 @@ class ZoneRuleEngine:
             state = self._tracks.setdefault(track_id, _TrackState())
             state.record(x, y, now_s)
 
+            is_person = track_id in people
+            first_new = len(events)
             for zone in self._zones:
+                if is_person and zone.rule_type not in _PERSON_RULES:
+                    continue
                 inside = _point_in_polygon((x, y), zone.polygon)
                 was_inside = zone.zone_id in state.zone_entered_at
 
@@ -213,5 +231,10 @@ class ZoneRuleEngine:
                         else:
                             state.fired_rules.discard(key)
                     continue
+            if is_person:
+                events[first_new:] = [
+                    dataclasses.replace(event, object_class="person")
+                    for event in events[first_new:]
+                ]
 
         return events

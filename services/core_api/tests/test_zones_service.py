@@ -166,3 +166,27 @@ async def test_list_zone_events_filters_by_camera(db_session: AsyncSession) -> N
 
     assert len(pairs) == 1
     assert pairs[0][0].camera_id == "zone-test-cam-a"
+
+
+async def test_a_person_zone_event_keeps_its_object_class(db_session: AsyncSession) -> None:
+    await _make_camera(db_session)
+    zone = await create_zone(
+        db_session,
+        "zone-test-cam",
+        ZoneCreate(name="Depot yard", rule_type="intrusion", polygon=RIGHT_HALF),
+    )
+
+    await record_zone_event(
+        db_session,
+        ZoneEventIn(
+            zone_id=zone.id,
+            camera_id="zone-test-cam",
+            rule_type="intrusion",
+            track_id="person-3",
+            object_class="person",
+            observed_at=datetime.now(UTC),
+        ),
+    )
+
+    ((event, _),) = await list_zone_events(db_session, camera_id="zone-test-cam")
+    assert (event.object_class, event.track_id) == ("person", "person-3")

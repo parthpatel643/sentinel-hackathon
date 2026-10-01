@@ -91,6 +91,7 @@ export interface ZoneEvent {
   camera_id: string
   rule_type: string
   track_id: string
+  object_class?: 'vehicle' | 'person'
   dwell_time_s: number | null
   heading_deg: number | null
   observed_at: string
@@ -144,6 +145,9 @@ export interface Camera {
   analysed_fps?: number | null
   /** How far behind live the worker's analysis was at its last heartbeat. */
   analysis_lag_s?: number | null
+  /** Most people / vehicles in one analysed frame at the last heartbeat. Counts, never identities. */
+  people_in_view?: number | null
+  vehicles_in_view?: number | null
   declared_fps: number | null
   reconnects: number
   discontinuities: number

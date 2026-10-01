@@ -20,11 +20,22 @@ import onnxruntime as ort
 
 from edge_agent.analytics.preprocess import letterbox
 
-__all__ = ["VehicleDetection", "VehicleDetector", "decode_yolo_output"]
+__all__ = [
+    "DETECTED_CLASSES",
+    "PERSON",
+    "VEHICLE_CLASSES",
+    "VehicleDetection",
+    "VehicleDetector",
+    "decode_yolo_output",
+]
 
-# COCO class ids relevant to vehicle-centric ANPR. Everything else (person,
-# traffic light, etc.) is discarded before it ever reaches the tracker.
+# COCO class ids relevant to vehicle-centric ANPR. Everything else (traffic
+# lights, animals, etc.) is discarded before it ever reaches a tracker.
 VEHICLE_CLASSES: dict[int, str] = {2: "car", 3: "motorcycle", 5: "bus", 7: "truck"}
+PERSON = "person"
+# People are counted and can trip intrusion and loitering zones. They are
+# never identified: no face recognition, and faces in evidence are blurred.
+DETECTED_CLASSES: dict[int, str] = {0: PERSON, **VEHICLE_CLASSES}
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,12 +90,23 @@ def decode_yolo_output(
     boxes_xyxy[:, [1, 3]] -= pad_y
     boxes_xyxy /= letterbox_result_scale
 
-    nms_indices = cv2.dnn.NMSBoxes(
-        boxes_xyxy.tolist(), confidences.tolist(), conf_thresh, iou_thresh
-    )
-    if len(nms_indices) == 0:
+    # Vehicles suppress each other whatever their class (one car is not also
+    # a truck), but a person never suppresses a vehicle: a rider's box
+    # overlaps the motorcycle under them, and losing the motorcycle would
+    # lose its plate.
+    is_person = np.array([class_filter.get(int(c)) == PERSON for c in class_ids])
+    kept: list[int] = []
+    for group in (~is_person, is_person):
+        indices = np.flatnonzero(group)
+        if len(indices) == 0:
+            continue
+        survivors = cv2.dnn.NMSBoxes(
+            boxes_xyxy[indices].tolist(), confidences[indices].tolist(), conf_thresh, iou_thresh
+        )
+        kept.extend(int(indices[i]) for i in np.array(survivors).flatten())
+    if not kept:
         return []
-    kept_indices = np.array(nms_indices).flatten()
+    kept_indices = np.array(sorted(kept))
 
     return [
         VehicleDetection(
@@ -114,8 +136,10 @@ class VehicleDetector:
         conf_thresh: float = 0.4,
         iou_thresh: float = 0.45,
         providers: Sequence[str] = ("CoreMLExecutionProvider", "CPUExecutionProvider"),
+        class_filter: dict[int, str] = VEHICLE_CLASSES,
     ) -> None:
         self._session = ort.InferenceSession(str(model_path), providers=list(providers))
+        self._class_filter = class_filter
         self._input_name = self._session.get_inputs()[0].name
         self._input_size = input_size
         self._conf_thresh = conf_thresh
@@ -133,6 +157,7 @@ class VehicleDetector:
             (lb.pad_x, lb.pad_y),
             conf_thresh=self._conf_thresh,
             iou_thresh=self._iou_thresh,
+            class_filter=self._class_filter,
         )
 
     @property

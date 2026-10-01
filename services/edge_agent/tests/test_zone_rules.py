@@ -212,3 +212,32 @@ def test_a_track_that_disappears_is_forgotten_not_leaked() -> None:
     events = engine.update({1: (0.7, 0.5)}, now_s=21.0)
 
     assert events == []  # only ~1s of dwell since re-appearing, not 21s
+
+
+def test_a_person_can_trip_intrusion_and_is_labelled_as_a_person() -> None:
+    zone = Zone(zone_id="z1", name="Depot yard", rule_type="intrusion", polygon=RIGHT_HALF)
+    engine = ZoneRuleEngine([zone])
+
+    engine.update({-1: (0.2, 0.5), 1: (0.2, 0.6)}, now_s=0.0, people=frozenset({-1}))
+    events = engine.update({-1: (0.7, 0.5), 1: (0.7, 0.6)}, now_s=1.0, people=frozenset({-1}))
+
+    assert {(e.track_id, e.object_class) for e in events} == {(-1, "person"), (1, "vehicle")}
+
+
+def test_a_person_standing_still_is_not_a_stopped_vehicle() -> None:
+    zone = Zone(
+        zone_id="z1",
+        name="Shoulder",
+        rule_type="stopped_vehicle",
+        polygon=RIGHT_HALF,
+        dwell_threshold_s=2.0,
+    )
+    engine = ZoneRuleEngine([zone])
+
+    events = [
+        e
+        for t in range(6)
+        for e in engine.update({-1: (0.7, 0.5)}, now_s=float(t), people=frozenset({-1}))
+    ]
+
+    assert events == []

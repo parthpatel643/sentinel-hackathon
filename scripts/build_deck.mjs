@@ -413,7 +413,7 @@ function bullets(s, items, { x, y, w, h, size = 12.5, color = TEXT }) {
     'ANPR with real open-source models',
     'Registry, search, alerts, evidence',
     'Watchlist correlation, both rungs',
-    'Zones, tamper, vehicle colour',
+    'Zones, tamper, colour, people count',
     'mTLS, RLS, audit chain, signed URLs',
   ]
   const not = [
