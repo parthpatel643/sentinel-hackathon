@@ -6,7 +6,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 
 .DEFAULT_GOAL := help
-.PHONY: help install up down logs ps api web worker deck seed prefetch test lint fmt types check audit secrets-scan sbom clean
+.PHONY: help install up down logs ps api web worker deck seed dr-drill prefetch test lint fmt types check audit secrets-scan sbom clean
 
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -64,6 +64,9 @@ doctor: ## Diagnose why the camera feed is not coming (--gov for the real grid)
 
 seed: ## Create the default operator login
 	uv run --package core_api python scripts/seed_admin_user.py
+
+dr-drill: ## Back up, restore into a fresh DB, verify counts and the audit chain
+	./scripts/dr_drill.sh
 
 test: ## Run the test suite
 	uv run pytest

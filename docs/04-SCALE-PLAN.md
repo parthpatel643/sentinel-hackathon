@@ -192,6 +192,8 @@ Steady-state footprint
 
 **Targets: RPO ≤ 15 min for central state (0 for edge-buffered events, which are durably queued locally), RTO ≤ 1 h for full service, RTO ≤ 5 min for alerting.** Quarterly DR drills with documented runbooks; automated backups with restore verification, because an unverified backup is a rumour.
 
+**Drilled, not just planned.** `make dr-drill` backs up the live database, restores it into a fresh one, compares every table's row count and the migration head, verifies the audit hash chain on the restored copy, then tampers with one row to prove verification catches it. Its first run failed (TimescaleDB hypertables need `timescaledb_pre_restore()`), which is the point of a drill. Measured: 1,000,000 detections restore in 5.7 s on one M2 core, so a logical restore covers the small, critical tables in seconds while the 1-hour RTO for a year of detections rests on replica failover and physical point-in-time restore. See [`evidence/DR-RESTORE-DRILL.md`](../evidence/DR-RESTORE-DRILL.md).
+
 ---
 
 ## 6. Indicative cost (₹)
