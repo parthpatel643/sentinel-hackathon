@@ -34,6 +34,7 @@ import type {
   Zone,
   ZoneCreate,
   ZoneEvent,
+  ZoneEventStatus,
 } from './types'
 
 /** The API defaults to 24 hours, so the default window sends no parameter. */
@@ -73,6 +74,10 @@ export const zonesApi = {
     post<Zone>(`/api/v1/cameras/${encodeURIComponent(cameraId)}/zones`, payload),
   events: (cameraId: string, limit = 50) =>
     get<ZoneEvent[]>(`/api/v1/zone-events?camera_id=${encodeURIComponent(cameraId)}&limit=${limit}`),
+  eventsByStatus: (status: ZoneEventStatus, limit = 50) =>
+    get<ZoneEvent[]>(`/api/v1/zone-events?status=${status}&limit=${limit}`),
+  updateEvent: (eventId: string, status: Exclude<ZoneEventStatus, 'new'>, note?: string) =>
+    patch<ZoneEvent>(`/api/v1/zone-events/${eventId}`, { status, note }),
 }
 
 export const camerasApi = {

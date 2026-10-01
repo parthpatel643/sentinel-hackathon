@@ -8,8 +8,10 @@ import { useAuth } from '../../lib/AuthContext'
 import { AlertNotifier } from '../AlertNotifier'
 import { ThemeToggle } from '../ui/ThemeToggle'
 import { LanguageSwitcher } from '../ui/LanguageSwitcher'
+import { AlertSoundToggle } from '../ui/AlertSoundToggle'
 import { OPEN_COMMAND_PALETTE } from '../CommandPalette'
 import './command-shell.css'
+import { formatIstDate, formatIstTime } from '../../lib/time'
 
 const NAV_ITEMS = [
   { to: '/', labelKey: 'workspace.overview', icon: LayoutGrid, end: true },
@@ -125,8 +127,8 @@ export function Shell({ children }: { children: ReactNode }) {
             <strong>{t(currentLabel)}</strong>
           </div>
           <time className="workspace-clock" dateTime={now.toISOString()} aria-label={t('command:localTime')}>
-            {now.toLocaleDateString(i18n.language, { day: '2-digit', month: 'short' })}
-            <span>{now.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}</span>
+            {formatIstDate(now, i18n.language, { day: '2-digit', month: 'short' })}
+            <span>{formatIstTime(now, i18n.language)} IST</span>
           </time>
           <form role="search" aria-label={t('workspace.vehicleSearch')} onSubmit={search} className="workspace-search">
             <Search size={17} className="shrink-0 text-text-tertiary" />
@@ -136,7 +138,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <button type="button" className="command-trigger" aria-label={t('workspace.openCommands')} title={t('workspace.openCommands')} onClick={() => document.dispatchEvent(new Event(OPEN_COMMAND_PALETTE))}>
             <Command size={17} aria-hidden="true" /><kbd>K</kbd>
           </button>
-          <div className="workspace-preferences"><LanguageSwitcher /><ThemeToggle /></div>
+          <div className="workspace-preferences"><LanguageSwitcher /><AlertSoundToggle /><ThemeToggle /></div>
         </header>
         <main id="workspace-content" tabIndex={-1} className="workspace-content">{children}</main>
         <AlertNotifier />

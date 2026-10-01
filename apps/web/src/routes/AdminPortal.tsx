@@ -16,6 +16,7 @@ import type {
   WatchlistEntry,
 } from '../lib/types'
 import './management-workspace.css'
+import { formatIst, formatIstDate } from '../lib/time'
 
 type Section = 'users' | 'watchlist' | 'retention' | 'integrations' | 'audit'
 
@@ -261,7 +262,7 @@ function WatchlistSection() {
               <td className="px-4 py-2.5 text-text-secondary">{e.entry_type}</td>
               <td className="px-4 py-2.5 capitalize text-text-secondary">{e.priority}</td>
               <td className="px-4 py-2.5 text-text-tertiary">
-                {e.valid_until ? new Date(e.valid_until).toLocaleDateString() : t('common.noExpiry')}
+                {e.valid_until ? formatIstDate(e.valid_until) : t('common.noExpiry')}
               </td>
               <td className={e.active ? 'px-4 py-2.5 text-ok' : 'px-4 py-2.5 text-text-tertiary'}>
                 {e.active ? t('common.active') : t('common.deactivated')}
@@ -572,7 +573,7 @@ function AuditSection() {
             {entries?.map((e) => (
               <tr key={e.id} className="border-b border-border-subtle/60 last:border-0">
                 <td className="px-4 py-2.5 plate-mono text-xs text-text-tertiary">
-                  {new Date(e.created_at).toLocaleString()}
+                  {formatIst(e.created_at, undefined, { year: 'numeric', second: '2-digit' })}
                 </td>
                 <td className="px-4 py-2.5 text-text-secondary">{e.actor_email ?? t('common.unknown')}</td>
                 <td className="px-4 py-2.5 text-text-primary">{e.action}</td>

@@ -94,7 +94,11 @@ export interface ZoneEvent {
   dwell_time_s: number | null
   heading_deg: number | null
   observed_at: string
+  status?: ZoneEventStatus
+  resolved_by?: string | null
 }
+
+export type ZoneEventStatus = 'new' | 'acknowledged' | 'resolved' | 'false_positive'
 
 export interface IntegrationStatus {
   provider_id: string

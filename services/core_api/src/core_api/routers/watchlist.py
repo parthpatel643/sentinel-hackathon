@@ -14,6 +14,7 @@ from core_api.auth.dependencies import current_user
 from core_api.auth.service import TokenPayload
 from core_api.db.base import get_session, get_sessionmaker
 from core_api.db.models import Alert
+from core_api.events.broker import publish_models
 from core_api.evidence.schemas import EvidenceClipOut
 from core_api.evidence.service import get_clip_for_alert, request_seal_clip, seal_clip_task
 from core_api.watchlist.schemas import (
@@ -123,6 +124,8 @@ async def bolo_endpoint(
         },
     )
     await session.commit()
+    alert_models = [AlertOut.model_validate(a) for a in alerts]
+    await publish_models(session, "alert", [(a.camera_id, a) for a in alert_models])
 
     return BoloResult(
         watchlist_entry=WatchlistEntryOut.model_validate(entry),
@@ -159,7 +162,9 @@ async def update_alert_endpoint(
         detail={"status": payload.status, "note": payload.resolution_note or ""},
     )
     await session.commit()
-    return AlertOut.model_validate(alert)
+    out = AlertOut.model_validate(alert)
+    await publish_models(session, "alert", [(out.camera_id, out)])
+    return out
 
 
 @router.post("/alerts/{alert_id}/seal-clip", response_model=EvidenceClipOut, status_code=202)

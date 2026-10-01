@@ -22,6 +22,7 @@ from core_api.auth.service import TokenPayload
 from core_api.db.base import get_session
 from core_api.detections.schemas import DetectionIn, DetectionOut, VehicleRoute
 from core_api.detections.service import get_vehicle_route, ingest_detection, search_detections
+from core_api.events.broker import publish_models
 from core_api.evidence.reveal import (
     record_reveal_audit,
     resolve_original_path,
@@ -58,12 +59,14 @@ async def ingest_detection_endpoint(
     detection = await ingest_detection(session, payload)
     alerts = await correlate_detection(session, detection)
     await session.commit()
+    alert_models = [AlertOut.model_validate(a) for a in alerts]
+    await publish_models(session, "alert", [(a.camera_id, a) for a in alert_models])
     if edge_identity:
         logger.info(
             "detection_ingested_via_mtls_gateway",
             extra={"edge_identity": edge_identity, "camera_id": payload.camera_id},
         )
-    return [AlertOut.model_validate(a) for a in alerts]
+    return alert_models
 
 
 @router.get("/detections", response_model=list[DetectionOut])

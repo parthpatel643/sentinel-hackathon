@@ -14,6 +14,7 @@ import { RequestError } from '../components/ui/RequestError'
 import { Button } from '../components/ui/Button'
 import type { Alert, Camera, CameraStatus, Detection } from '../lib/types'
 import './command-overview.css'
+import { formatIst, formatIstTime } from '../lib/time'
 
 const STATUSES: CameraStatus[] = ['live', 'degraded', 'down', 'stale', 'connecting', 'unknown']
 
@@ -22,12 +23,12 @@ function ActivityEntry({ item, cameraName }: { item: Alert | Detection; cameraNa
   const isAlert = 'last_seen_at' in item
   const timestamp = isAlert ? item.last_seen_at : item.observed_at
   const date = new Date(timestamp)
-  const time = Number.isNaN(date.getTime()) ? t('common.notAvailable') : date.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })
+  const time = Number.isNaN(date.getTime()) ? t('common.notAvailable') : formatIstTime(date, i18n.language)
   return (
     <Link className="command-event" to={isAlert ? `/alerts?alert=${encodeURIComponent(item.id)}` : `/find-a-vehicle?plate=${encodeURIComponent(item.plate_text)}`}>
       <span className={`command-event-icon ${isAlert ? 'is-alert' : ''}`} aria-hidden="true">{isAlert ? <Bell size={18} /> : <ScanLine size={18} />}</span>
       <div className="command-event-body">
-        <div className="command-event-title"><strong className="plate-mono">{item.plate_text}</strong><time dateTime={timestamp} title={date.toLocaleString(i18n.language)}>{time}</time></div>
+        <div className="command-event-title"><strong className="plate-mono">{item.plate_text}</strong><time dateTime={timestamp} title={formatIst(date, i18n.language, { year: 'numeric', second: '2-digit' })}>{time}</time></div>
         <p>{cameraName ?? item.camera_id}</p>
         <div className="command-event-meta">
           <span>{isAlert ? t('home.watchlistHit') : t('command:recentDetections')}</span>

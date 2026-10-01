@@ -20,6 +20,7 @@ from core_api.registry.service import codecs_in_use
 from core_api.routers.admin import router as admin_router
 from core_api.routers.auth import router as auth_router
 from core_api.routers.detections import router as detections_router
+from core_api.routers.events import router as events_router
 from core_api.routers.evidence import router as evidence_router
 from core_api.routers.field import router as field_router
 from core_api.routers.registry import router as registry_router
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
     app.include_router(detections_router)
     app.include_router(field_router)
     app.include_router(zones_router)
+    app.include_router(events_router)
     # evidence_router (clip video streaming) is intentionally NOT under the
     # blanket current_user dependency below — it has its own per-route auth
     # that also accepts a signed URL (M12), which a blanket JWT requirement

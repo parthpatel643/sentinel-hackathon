@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { fieldApi } from '../lib/api'
 import { ApiError } from '../lib/http'
 import type { PlateLookup } from '../lib/types'
+import { formatIst } from '../lib/time'
 
 /** docs/03-UX-DESIGN.md §5.2: "result shows the vehicle's status (clear /
  * stolen / wanted) as a full-screen colour-and-icon verdict readable at
@@ -60,10 +61,10 @@ export function FieldLookup() {
             {result.last_seen_at
               ? result.last_seen_camera_name
                 ? t('field.lookup.lastSeenAt', {
-                    date: new Date(result.last_seen_at).toLocaleString(),
+                    date: formatIst(result.last_seen_at),
                     camera: result.last_seen_camera_name,
                   })
-                : t('field.lookup.lastSeen', { date: new Date(result.last_seen_at).toLocaleString() })
+                : t('field.lookup.lastSeen', { date: formatIst(result.last_seen_at) })
               : t('field.lookup.noSightings')}
           </p>
         </div>

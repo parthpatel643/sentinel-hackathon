@@ -15,6 +15,7 @@ import type { RoutePoint, VehicleRoute } from '../lib/types'
 import { TopBar } from '../components/layout/TopBar'
 import i18n from '../lib/i18n'
 import './investigation-workspace.css'
+import { formatIst } from '../lib/time'
 
 function requestMessage(error: unknown, fallback: string): string {
   if (!(error instanceof ApiError)) return fallback
@@ -87,12 +88,7 @@ function matchNote(point: RoutePoint, t: TFunction): string {
 }
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleString(i18n.language, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return formatIst(iso, i18n.language)
 }
 
 function ConfidenceBar({ point }: { point: RoutePoint }) {

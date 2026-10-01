@@ -8,14 +8,10 @@ import { useLowBandwidthMode } from './useLowBandwidthMode'
 import type { Alert, Camera } from '../lib/types'
 import { ApiError } from '../lib/http'
 import { SeverityBadge } from '../components/ui/SeverityBadge'
+import { formatIst } from '../lib/time'
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return formatIst(iso)
 }
 
 function haversineKm(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {

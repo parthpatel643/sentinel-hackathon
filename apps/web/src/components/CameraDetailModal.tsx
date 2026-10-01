@@ -10,6 +10,7 @@ import { useAuth } from '../lib/AuthContext'
 import { hasCurrentFrameRate } from '../lib/cameraStatusColor'
 import { VideoOff } from 'lucide-react'
 import '../routes/monitoring-workspace.css'
+import { formatIst, formatIstTime } from '../lib/time'
 
 const PRESET_REGIONS: { key: string; polygon: number[][] }[] = [
   { key: 'fullFrame', polygon: [[0, 0], [1, 0], [1, 1], [0, 1]] },
@@ -148,7 +149,7 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
           <ul className="flex flex-col gap-1 text-xs text-text-secondary">
             {events.slice(0, 5).map((e) => (
               <li key={e.id}>
-                {new Date(e.observed_at).toLocaleTimeString()} — {e.zone_name ?? e.zone_id} (
+                {formatIstTime(e.observed_at, undefined, { second: '2-digit' })} — {e.zone_name ?? e.zone_id} (
                 {e.rule_type}
                 {e.dwell_time_s != null ? `, ${e.dwell_time_s.toFixed(0)}s` : ''})
               </li>
@@ -240,7 +241,7 @@ export function CameraDetailModal({ camera, onClose }: CameraDetailModalProps) {
             <div>
               <dt className="text-text-tertiary">{t('cameraDetail.lastSeen')}</dt>
               <dd className="text-text-primary">
-                {camera.last_seen_at ? new Date(camera.last_seen_at).toLocaleString() : t('common.unknown')}
+                {camera.last_seen_at ? formatIst(camera.last_seen_at, undefined, { second: '2-digit' }) : t('common.unknown')}
               </dd>
             </div>
           </dl>

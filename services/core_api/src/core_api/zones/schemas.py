@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -74,5 +75,12 @@ class ZoneEventOut(BaseModel):
     dwell_time_s: float | None
     heading_deg: float | None
     observed_at: datetime
+    status: str = "new"
+    resolved_by: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class ZoneEventUpdate(BaseModel):
+    status: Literal["acknowledged", "resolved", "false_positive"]
+    note: str | None = None

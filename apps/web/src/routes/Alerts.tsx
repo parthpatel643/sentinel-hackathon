@@ -12,6 +12,9 @@ import type { Alert, AlertStatus, EvidenceClip } from '../lib/types'
 import { RequestError } from '../components/ui/RequestError'
 import { Input } from '../components/ui/Input'
 import './investigation-workspace.css'
+import { formatIst } from '../lib/time'
+import { ZoneEventQueue } from '../components/ZoneEventQueue'
+import { useLiveEvents } from '../lib/liveEvents'
 
 const FILTERS: { key: string; status?: AlertStatus }[] = [
   { key: 'unacknowledged', status: 'new' },
@@ -24,12 +27,7 @@ const FILTERS: { key: string; status?: AlertStatus }[] = [
 ]
 
 function formatTime(iso: string, language: string): string {
-  return new Date(iso).toLocaleString(language, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return formatIst(iso, language)
 }
 
 function severityForAlert(alert: Alert): Severity {
@@ -222,7 +220,11 @@ export function Alerts() {
       return next
     }, { replace: true })
   }
-  const { data: alerts, error, refetch } = usePolling(() => alertsApi.list(filter.status), 6000, [filter.status])
+  // Live events refresh the queue the moment an alert lands; the poll is the
+  // fallback for a dropped stream.
+  const { data: alerts, error, refetch } = usePolling(() => alertsApi.list(filter.status), 20000, [filter.status])
+  useLiveEvents((kind) => { if (kind === 'alert') refetch() })
+  const zoneHighlight = searchParams.get('zone')
   const loadedAlerts = alerts?.filter((alert) => !filter.status || alert.status === filter.status)
   const filteredAlerts = loadedAlerts?.filter((alert) =>
     `${alert.plate_text} ${alert.camera_id}`.toLowerCase().includes(query.trim().toLowerCase()) &&
@@ -279,6 +281,7 @@ export function Alerts() {
             : <section className="iw-detail-empty"><Bell size={36} strokeWidth={1.4} /><h2>{t('investigation:selectAlert')}</h2><p>{t('investigation:selectAlertDescription')}</p></section>}
         </div>
       </div>
+      <div className="iw-triage-content"><ZoneEventQueue highlightId={zoneHighlight} /></div>
       <SealedClipModal clip={viewingClip} onClose={() => setViewingClip(null)} />
     </div>
   )

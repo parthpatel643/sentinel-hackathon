@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { alertsApi } from '../lib/api'
 import type { EvidenceClip } from '../lib/types'
 import { Modal } from './ui/Modal'
+import { formatIst } from '../lib/time'
 
 interface SealedClipModalProps {
   clip: EvidenceClip | null
@@ -63,7 +64,7 @@ export function SealedClipModal({ clip, onClose }: SealedClipModalProps) {
             <ShieldCheck size={15} className="mt-0.5 flex-shrink-0 text-ok" />
             <div className="min-w-0">
               <p className="text-text-secondary">
-                {clip.sealed_at && t('sealedClip.sealed', { date: new Date(clip.sealed_at).toLocaleString() })}
+                {clip.sealed_at && t('sealedClip.sealed', { date: formatIst(clip.sealed_at, undefined, { second: '2-digit' }) })}
                 {clip.duration_s != null && ` · ${clip.duration_s.toFixed(1)}s`}
               </p>
               <p className="plate-mono mt-0.5 truncate text-text-tertiary">
