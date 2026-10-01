@@ -359,6 +359,9 @@ export function OnboardingWizard({ open, onClose, onOnboarded, initialStep = 'lo
         {step === 'bulk-import' && (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-text-secondary">{t('onboarding.bulkImportHelp')}</p>
+            <a className="text-sm font-medium text-accent hover:underline" href={`${import.meta.env.BASE_URL}camera-import-template.csv`} download>
+              {t('readiness:downloadTemplate')}
+            </a>
             <input
               aria-label={t('monitoring:csvFile')}
               type="file"

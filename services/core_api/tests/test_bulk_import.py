@@ -3,6 +3,8 @@ database; the actual insert path needs the real Postgres."""
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core_api.registry.bulk_import import parse_and_import_csv
@@ -78,3 +80,16 @@ async def test_a_csv_missing_a_required_column_fails_cleanly(db_session: AsyncSe
     assert result.succeeded == 0
     assert result.failed == 1
     assert "name" in result.rows[0].error  # type: ignore[operator]
+
+
+_TEMPLATE = (
+    Path(__file__).resolve().parents[3] / "apps/web/public/camera-import-template.csv"
+).read_text()
+
+
+async def test_the_published_csv_template_imports_cleanly(db_session: AsyncSession) -> None:
+    """The template the wizard offers for download must stay valid input."""
+    result = await parse_and_import_csv(db_session, _TEMPLATE, dry_run=True)
+
+    assert result.total_rows == 4
+    assert result.failed == 0, [r.error for r in result.rows if not r.ok]

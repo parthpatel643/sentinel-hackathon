@@ -1,0 +1,5 @@
+camera_id,name,department_name,site_name,lat,lon,tier,protocol,url,codec,installed_on,amc_expires_on,maintenance_status,vendor,model
+pol-cg-road-01,CG Road junction (Hikvision NVR ch 1 main stream),Police,CG Road,23.0300,72.5600,a_continuous,rtsp,rtsp://viewer:p%40ss@10.20.1.15:554/Streaming/Channels/101,h265,2021-06-01,2027-03-31,ok,Hikvision,DS-7616NI
+gsrtc-depot-02,Geeta Mandir depot gate (Dahua NVR ch 2 main stream),GSRTC,Geeta Mandir depot,23.0112,72.5921,b_sampled,rtsp,rtsp://viewer:p%40ss@10.30.4.20:554/cam/realmonitor?channel=2&subtype=0,h264,2019-02-15,2026-12-31,due,Dahua,NVR4216
+health-phc-03,PHC entrance (HLS only),Health,Vastrapur PHC,23.0365,72.5294,c_motion_gated,hls,http://10.40.2.8/live/cam3/index.m3u8,h264,,,,,
+mun-depot-04,Municipal yard (map only),Municipal,Danapith yard,23.0251,72.5917,d_registry_only,,,,2016-08-01,,faulty,,
