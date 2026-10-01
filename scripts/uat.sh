@@ -49,7 +49,7 @@ if ! curl -fsS "$API/api/v1/health" > /dev/null; then
   exit 1
 fi
 
-step "Doctor (stack, models, relay)" doctor.log make doctor
+step "Preflight (stack, relay, API, offline models)" doctor.log uv run python scripts/diagnose.py --preflight
 step "Lint and format" lint.log make lint
 step "Type check" types.log make types
 step "Backend and edge test suite" pytest.log uv run pytest -q

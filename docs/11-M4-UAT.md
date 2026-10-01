@@ -46,7 +46,7 @@ summary in `report.md`:
 
 | Step | Expected |
 |---|---|
-| `make doctor` | every check green |
+| Preflight (`diagnose.py --preflight`) | stack, relay, API and offline models green |
 | Lint, format, types | clean |
 | Test suite (pytest) | all pass. It shares the dev database: run on a fresh database or after resetting the demo data |
 | Web build and Playwright UI tests | all pass |
@@ -87,7 +87,7 @@ CSV
 | # | Do | Expect | Result |
 |---|---|---|---|
 | A | **Cameras → Import cameras**, choose `/tmp/uat-cameras.csv`; then import `apps/web/public/camera-import-template.csv` as a dry run only | Two cameras added, pins on the map. Template dry run: 5 rows valid, one of them a private camera | |
-| B | Terminal: `make worker SOURCE=registry` | Within 30 s both UAT cameras show **live** and `ANPR 8.0 fps` on the Cameras screen; worker log prints `uat-plate-0x: GJ01AB1234` | |
+| B | Terminal: `make worker SOURCE=registry` | Within 30 s both UAT cameras show **live** and `ANPR 8.0 fps` on the Cameras screen; worker log prints `uat-plate-0x: GJ01AB1234`; `make doctor` reports the whole chain healthy | |
 | C | **Live Wall**: open both UAT cameras and two synthetic grid cameras, including an H.265 one | Every tile plays. Note whether the H.265 tile plays in Chrome; if not, confirm it plays in Safari (field card, [07 §6a](./07-DRIVER-SDK.md)) | |
 | D | Stop one UAT publisher (`kill %1`), wait, start it again | Its tile shows an error, then recovers by itself within about 30 s of the feed returning | |
 | E | Open the console in two browser windows. **Watchlist**: add `GJ01AB1234` as stolen | Both windows show the alert banner and play the sound within a second or two of the next `GJ01AB1234` line in the worker log | |

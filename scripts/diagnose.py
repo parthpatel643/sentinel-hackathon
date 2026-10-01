@@ -310,6 +310,11 @@ async def main() -> int:
     parser.add_argument(
         "--gov", action="store_true", help="also check the government grid credentials and quota"
     )
+    parser.add_argument(
+        "--preflight",
+        action="store_true",
+        help="only the checks that need no camera or worker yet: stack, relay, API, models",
+    )
     args = parser.parse_args()
     settings = Settings()
 
@@ -335,6 +340,9 @@ async def main() -> int:
 
         if args.gov and _report("gov catalogue", await check_gov_catalogue()):
             return _finish(True)
+        if args.preflight:
+            print(f"\n{GREEN}Preflight passed.{RESET} Start a worker, then run `make doctor`.\n")
+            return 0
 
         for label, result in (
             ("camera registry", await check_cameras_onboarded(settings, client)),
