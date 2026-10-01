@@ -61,8 +61,7 @@ def test_the_recording_directory_mirrors_the_relay_path(settings: Settings) -> N
     recordings_dir — so the directory has to mirror the path exactly."""
     assert str(_recording_dir_for_path(settings, "ext/cam06")) == "data/recordings/ext/cam06"
     assert (
-        str(_recording_dir_for_path(settings, "dev/dev-cam-01"))
-        == "data/recordings/dev/dev-cam-01"
+        str(_recording_dir_for_path(settings, "dev/dev-cam-01")) == "data/recordings/dev/dev-cam-01"
     )
 
 

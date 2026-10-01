@@ -191,7 +191,7 @@ The repository is private, so the archive you hand over *is* your code credibili
 **Questions you will be asked, and the short answers**
 | Question | Answer |
 |---|---|
-| "What if the plate is dirty or partly unreadable?" | Show the fuzzy/partial path and the ambiguity classes, then the appearance-ReID bridge and the feasibility gate |
+| "What if the plate is dirty or partly unreadable?" | Show the ambiguity classes (search `GJO1AB1Z34`, get `GJ01AB1234`), then a one-character misread coming back as a dashed *probable* hop with the plate actually read. Be plain that wildcard search and appearance ReID are designed ([01-ARCHITECTURE §6.1](./01-ARCHITECTURE.md)) but not built. |
 | "How does this scale to 80,000?" | The tiering table and the three formulas. Offer to re-derive with their numbers. |
 | "What about privacy?" | **"We do no face recognition at all — faces are detected only so we can blur them."** Then: default blur at the edge, reveal-on-authorisation with reason capture, hash-chained audit, retention engine, false-match redressal |
 | "Will this disturb our existing systems?" | Read-only, pull-based, standards-first; no agent on department infrastructure; the department's VMS keeps running untouched |

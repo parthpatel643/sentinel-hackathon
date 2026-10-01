@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core_api.db.models import Camera, Detection
@@ -18,16 +18,39 @@ from core_api.detections.schemas import DetectionIn, DetectionOut, RoutePoint, V
 from core_api.registry.service import location_out
 from sentinel_core.plates import ambiguity_key, normalise_plate
 
-__all__ = ["get_vehicle_route", "ingest_detection", "search_detections"]
+__all__ = ["get_vehicle_route", "ingest_detection", "search_detections", "within_one_edit"]
+
+# Rung 3 only engages for plate-length queries: a short fragment is one edit
+# away from far too many real plates for the result to mean anything.
+EDIT_DISTANCE_MIN_LENGTH = 7
+EDIT_DISTANCE_MAX_CANDIDATES = 5
+
+
+def within_one_edit(a: str, b: str) -> bool:
+    """True when `a` and `b` differ by at most one substitution, insertion
+    or deletion — an OCR read that dropped, added or misread one character
+    outside the ambiguity classes (which rung 2 already covers)."""
+    if a == b:
+        return True
+    if abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        return sum(x != y for x, y in zip(a, b, strict=True)) == 1
+    shorter, longer = (a, b) if len(a) < len(b) else (b, a)
+    return any(longer[:i] + longer[i + 1 :] == shorter for i in range(len(longer)))
 
 
 async def ingest_detection(session: AsyncSession, payload: DetectionIn) -> Detection:
+    # Search and watchlist matching key on these two columns, so they are
+    # derived here from the plate text rather than trusted from the producer:
+    # a third-party ANPR feed sending "GJ 01 AB 1234" as its normalised form
+    # would otherwise be unfindable under the plate an operator types.
     detection = Detection(
         event_id=payload.event_id,
         camera_id=payload.camera_id,
         plate_text=payload.plate_text,
-        plate_normalised=payload.plate_normalised,
-        plate_ambiguity_key=payload.plate_ambiguity_key,
+        plate_normalised=normalise_plate(payload.plate_text),
+        plate_ambiguity_key=ambiguity_key(payload.plate_text),
         plate_confidence=payload.plate_confidence,
         format_valid=payload.format_valid,
         frames_voted=payload.frames_voted,
@@ -84,10 +107,13 @@ async def search_detections(
 async def get_vehicle_route(
     session: AsyncSession, plate_query: str, *, window: timedelta = timedelta(hours=24)
 ) -> VehicleRoute:
-    """Reconstruct a vehicle's route: exact match first, falling back to an
-    OCR-ambiguity-class match if nothing exact is found — rungs 1-2 of the
-    matching ladder in docs/01-ARCHITECTURE.md section 6.1. Edit-distance and
-    partial/wildcard (rungs 3-4) are a documented next step.
+    """Reconstruct a vehicle's route down the matching ladder in
+    docs/01-ARCHITECTURE.md section 6.1, stopping at the first rung that
+    finds anything: exact, then OCR-ambiguity class, then reads exactly one
+    character away (rung 3). Rung-3 hops are returned `confirmed=False` —
+    they may be a different vehicle whose plate differs by one character, so
+    the console draws them as probable and the operator confirms each
+    against its snapshot. Partial/wildcard (rung 4) is a documented next step.
     """
     normalised = normalise_plate(plate_query)
     since = datetime.now(UTC) - window
@@ -122,6 +148,29 @@ async def get_vehicle_route(
         rows = (await session.execute(fallback_query)).all()
         match_rung = "ambiguity_class"
 
+    if not rows and len(normalised) >= EDIT_DISTANCE_MIN_LENGTH:
+        seen_plates = (
+            await session.execute(
+                select(Detection.plate_normalised)
+                .where(Detection.created_at >= since)
+                .group_by(Detection.plate_normalised)
+                .order_by(func.count().desc())
+            )
+        ).scalars()
+        near = [p for p in seen_plates if within_one_edit(p, normalised)]
+        if near:
+            near_query = (
+                select(Detection, Camera)
+                .join(Camera, Camera.camera_id == Detection.camera_id)
+                .where(
+                    Detection.plate_normalised.in_(near[:EDIT_DISTANCE_MAX_CANDIDATES]),
+                    Detection.created_at >= since,
+                )
+                .order_by(Detection.observed_at.asc())
+            )
+            rows = (await session.execute(near_query)).all()
+            match_rung = "edit_distance"
+
     points = [
         RoutePoint(
             event_id=detection.event_id,
@@ -133,7 +182,7 @@ async def get_vehicle_route(
             plate_confidence=detection.plate_confidence,
             match_rung=match_rung,
             snapshot_uri=detection.snapshot_uri,
-            confirmed=True,
+            confirmed=match_rung != "edit_distance",
         )
         for detection, camera in rows
     ]

@@ -12,6 +12,11 @@ instance they query. Run this only when you want to look at the UI, and
 expect `make check` / pytest to need a clean database again afterwards (see
 this script's own `--reset` flag).
 
+Camera, detection and health calls are the edge worker's machine endpoints
+and use the shared service token; arming the BOLOs is an operator action and
+logs in as the account `scripts/seed_admin_user.py` creates (override with
+--email/--password if you seeded a different one).
+
 Usage:
     uv run python scripts/seed_demo_data.py            # seed
     uv run python scripts/seed_demo_data.py --reset     # wipe demo tables only
@@ -25,11 +30,21 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 
+from sentinel_core.config import get_settings
+
 API_BASE = "http://localhost:18000"
+DEFAULT_EMAIL = "admin@sentinel-platform.com"
+DEFAULT_PASSWORD = "sentinel-admin-2026"
 
 CAMERAS = [
     {
         "camera_id": "ahm-sarkhej-01",
+        "lifecycle": {
+            "installed_on": "2017-11-20",
+            "amc_expires_on": "2027-03-31",
+            "maintenance_status": "ok",
+            "vendor": "Hikvision",
+        },
         "name": "Sarkhej Circle North",
         "site_name": "Sarkhej Circle",
         "location": {"lat": 23.0106, "lon": 72.5040},
@@ -44,6 +59,12 @@ CAMERAS = [
     },
     {
         "camera_id": "ahm-sghighway-02",
+        "lifecycle": {
+            "installed_on": "2023-02-14",
+            "amc_expires_on": "2026-09-15",
+            "maintenance_status": "due",
+            "vendor": "CP Plus",
+        },
         "name": "SG Highway Gate 2",
         "site_name": "SG Highway",
         "location": {"lat": 23.0395, "lon": 72.5066},
@@ -58,6 +79,12 @@ CAMERAS = [
     },
     {
         "camera_id": "ahm-iscon-03",
+        "lifecycle": {
+            "installed_on": "2021-07-01",
+            "amc_expires_on": "2026-11-30",
+            "maintenance_status": "ok",
+            "vendor": "Dahua",
+        },
         "name": "Iskcon Crossroad",
         "site_name": "Iskcon Crossroad",
         "location": {"lat": 23.0270, "lon": 72.5075},
@@ -72,6 +99,11 @@ CAMERAS = [
     },
     {
         "camera_id": "ahm-prahlad-04",
+        "lifecycle": {
+            "installed_on": "2019-05-10",
+            "maintenance_status": "under_repair",
+            "vendor": "Honeywell",
+        },
         "name": "Prahladnagar Junction",
         "site_name": "Prahladnagar",
         "location": {"lat": 23.0125, "lon": 72.5000},
@@ -171,8 +203,23 @@ BOLOS = [
 ]
 
 
-def seed() -> None:
-    with httpx.Client(base_url=API_BASE, timeout=10.0) as client:
+def _login(client: httpx.Client, email: str, password: str) -> dict[str, str]:
+    response = client.post("/api/v1/auth/login", json={"email": email, "password": password})
+    if response.status_code == 401:
+        raise SystemExit(
+            f"could not log in as {email} — run scripts/seed_admin_user.py first, or pass "
+            "--email/--password for an existing account."
+        )
+    response.raise_for_status()
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+def seed(email: str, password: str) -> None:
+    service_token = get_settings().edge_service_token.get_secret_value()
+    with httpx.Client(
+        base_url=API_BASE, timeout=10.0, headers={"X-Service-Token": service_token}
+    ) as client:
+        operator = _login(client, email, password)
         for cam in CAMERAS:
             response = client.post(
                 "/api/v1/cameras",
@@ -184,7 +231,9 @@ def seed() -> None:
                     "site_name": cam["site_name"],
                     "location": cam["location"],
                     "tier": cam["tier"],
-                    "attributes": {},
+                    # Model 1 lifecycle metadata, so the ageing/AMC report has
+                    # something to show.
+                    "attributes": cam.get("lifecycle", {}),
                     "profiles": [],
                 },
             )
@@ -198,7 +247,7 @@ def seed() -> None:
             response.raise_for_status()
 
         for bolo in BOLOS:
-            response = client.post("/api/v1/bolo", json=bolo)
+            response = client.post("/api/v1/bolo", json=bolo, headers=operator)
             response.raise_for_status()
             result = response.json()
             print(
@@ -247,13 +296,15 @@ def main() -> None:
     parser.add_argument(
         "--reset", action="store_true", help="remove the demo rows instead of seeding them"
     )
+    parser.add_argument("--email", default=DEFAULT_EMAIL, help="operator account for the BOLOs")
+    parser.add_argument("--password", default=DEFAULT_PASSWORD)
     args = parser.parse_args()
 
     try:
         if args.reset:
             reset()
         else:
-            seed()
+            seed(args.email, args.password)
     except httpx.HTTPStatusError as exc:
         print(
             f"API call failed: {exc.request.url} -> {exc.response.status_code} {exc.response.text}",

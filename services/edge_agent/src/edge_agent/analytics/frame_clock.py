@@ -166,9 +166,7 @@ class FrameClockReader:
         if parsed is None or not self._is_plausible(parsed):
             return self._anchor
 
-        drift = (
-            abs((parsed - self._anchor).total_seconds()) if self._anchor is not None else None
-        )
+        drift = abs((parsed - self._anchor).total_seconds()) if self._anchor is not None else None
         if drift is not None and drift <= self.max_jump_s:
             # Consistent with what we already trust: the normal case.
             self._anchor = parsed
@@ -182,9 +180,10 @@ class FrameClockReader:
         # every *correct* reading as a jump once it had locked onto a misread,
         # and the timestamp froze. So a second, agreeing reading promotes the
         # candidate and the clock self-heals.
-        if self._candidate is not None and abs(
-            (parsed - self._candidate).total_seconds()
-        ) <= self.corroboration_s:
+        if (
+            self._candidate is not None
+            and abs((parsed - self._candidate).total_seconds()) <= self.corroboration_s
+        ):
             self._anchor = parsed
             self._candidate = None
         else:
@@ -227,9 +226,7 @@ class FrameClockReader:
 
         height, width = frame.shape[:2]
         for crop_height, crop_width in self.crop_candidates:
-            crop = frame[
-                : max(1, int(height * crop_height)), : max(1, int(width * crop_width))
-            ]
+            crop = frame[: max(1, int(height * crop_height)), : max(1, int(width * crop_width))]
             if crop.size == 0:
                 continue
             grey = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop
@@ -246,9 +243,7 @@ class FrameClockReader:
 
             for candidate in (padded, grey):
                 try:
-                    text = str(
-                        pytesseract.image_to_string(candidate, config=_TESSERACT_CONFIG)
-                    )
+                    text = str(pytesseract.image_to_string(candidate, config=_TESSERACT_CONFIG))
                 except Exception as exc:  # pragma: no cover - binary missing/broken
                     self._warn_once(f"tesseract failed: {exc}")
                     return None

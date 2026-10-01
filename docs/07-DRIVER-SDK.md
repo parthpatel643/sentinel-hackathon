@@ -46,6 +46,16 @@ class CameraSource(Protocol):
 | *(gov catalogue)* | `packages/sentinel_core/src/sentinel_core/gov_catalogue.py` | Real, but **not** a `CameraSource` — a separate, simpler discovery-only client (list cameras + bulk-import) predating this Protocol, already wired into the onboarding wizard's "Connect a department system" step. Left as-is rather than force-fit into `CameraSource`, since it has no stream-open/health-check responsibility of its own (cameras it discovers are onboarded as plain `rtsp` sources). |
 | `milestone` / `genetec` / `hikvision` / `dahua` | `packages/sentinel_core/.../drivers/{milestone,genetec,hikvision,dahua}.py` | Contract-shaped mocks — real protocol shape, proven against a mock server, not a licensed vendor SDK. See §7 below. |
 
+**Onboarding through a driver.** `onvif`, `hikvision` and `dahua` are exposed
+to operators through `POST /api/v1/cameras/discover-device` (admin only) and
+the wizard's **Discover a device** form: directed discovery against one address
+and account, a dry-run listing of every stream, then an upsert of each as a
+registry camera the edge worker's `--source registry` mode analyses. Drivers
+build stream URLs with `sentinel_core.stream_urls.with_credentials`, which
+percent-encodes the account — ONVIF's `GetStreamUri` returns credential-free
+URIs by spec, and a raw `@` in a password would otherwise redirect the
+connection to the wrong host.
+
 ## 3. Why ONVIF is hand-rolled SOAP, not a WSDL client library
 
 Libraries like `python-onvif-zeep` generate their client from bundled WSDL

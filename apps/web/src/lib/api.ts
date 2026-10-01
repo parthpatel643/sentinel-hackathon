@@ -17,10 +17,13 @@ import type {
   CoverageGapReport,
   Department,
   Detection,
+  DeviceDiscoveryRequest,
+  DeviceDiscoveryResult,
   EvidenceClip,
   FieldSighting,
   IntegrationStatus,
   IntegratorCompliance,
+  LifecycleReport,
   PlateLookup,
   RetentionExecutionResult,
   RetentionPreview,
@@ -32,6 +35,11 @@ import type {
   ZoneCreate,
   ZoneEvent,
 } from './types'
+
+/** The API defaults to 24 hours, so the default window sends no parameter. */
+function windowQuery(windowHours: number): string {
+  return windowHours === 24 ? '' : `?window_hours=${windowHours}`
+}
 
 export const authApi = {
   login: (email: string, password: string) =>
@@ -79,6 +87,8 @@ export const camerasApi = {
     return postForm<BulkImportResult>(`/api/v1/cameras/bulk-import?dry_run=${dryRun}`, form)
   },
   discover: () => post<Record<string, unknown>>('/api/v1/cameras/discover'),
+  discoverDevice: (payload: DeviceDiscoveryRequest) =>
+    post<DeviceDiscoveryResult>('/api/v1/cameras/discover-device', payload),
 }
 
 export const departmentsApi = {
@@ -87,6 +97,10 @@ export const departmentsApi = {
 
 export const coverageApi = {
   gaps: () => get<CoverageGapReport>('/api/v1/coverage/gaps'),
+  lifecycle: (department?: string) =>
+    get<LifecycleReport>(`/api/v1/coverage/lifecycle${department ? `?department=${encodeURIComponent(department)}` : ''}`),
+  lifecycleCsv: (department?: string) =>
+    getBlob(`/api/v1/coverage/lifecycle?format=csv${department ? `&department=${encodeURIComponent(department)}` : ''}`),
 }
 
 export const complianceApi = {
@@ -102,8 +116,10 @@ export const detectionsApi = {
     const qs = query.toString()
     return get<Detection[]>(`/api/v1/detections${qs ? `?${qs}` : ''}`)
   },
-  vehicleRoute: (plate: string) => get<VehicleRoute>(`/api/v1/vehicles/${encodeURIComponent(plate)}/route`),
-  movementReport: (plate: string) => getBlob(`/api/v1/vehicles/${encodeURIComponent(plate)}/movement-report`),
+  vehicleRoute: (plate: string, windowHours = 24) =>
+    get<VehicleRoute>(`/api/v1/vehicles/${encodeURIComponent(plate)}/route${windowQuery(windowHours)}`),
+  movementReport: (plate: string, windowHours = 24) =>
+    getBlob(`/api/v1/vehicles/${encodeURIComponent(plate)}/movement-report${windowQuery(windowHours)}`),
   // The snapshot endpoint is bearer-authed like everything else, which a
   // plain <img src> cannot attach — and `snapshot_uri` is an internal
   // `snapshot://<ulid>` reference, not a loadable URL. Fetched as a Blob and

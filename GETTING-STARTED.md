@@ -158,6 +158,41 @@ curl -s localhost:18000/api/v1/health                     # {"status":"ok",...}
 In the console: **Live Wall** shows the cameras, and **Find a Vehicle** finds a
 plate once the worker has read one.
 
+### Analysing any camera you onboard (the registry source)
+
+The synthetic and government sources each bring their own camera list. A real
+deployment — and the Phase-2 finale — starts from whatever you onboard: the
+**Add camera** wizard, a **bulk CSV**, **device discovery** (an ONVIF camera or
+a Hikvision/Dahua NVR by address and account), or a catalogue sync. Point the
+worker at the registry instead:
+
+```bash
+make worker SOURCE=registry STRIDE=3                     # every onboarded camera
+make worker SOURCE=registry DEPARTMENT=Police STRIDE=3   # one shard per department
+```
+
+It re-reads the registry every 30 seconds (`--resync-interval`), so a camera
+onboarded while it runs starts being analysed within one interval, a corrected
+stream URL replaces the old one, and a camera moved to the `d_registry_only`
+tier is stopped and its relay connection released. The worker reads the
+registry through a service-token-only endpoint; operators never see stream
+credentials — the console and API show them as `rtsp://***@host/...`.
+
+A minimal CSV (see the wizard's help for every column, including
+`installed_on`, `amc_expires_on`, `maintenance_status`, `vendor` and `model`
+for the lifecycle report):
+
+```csv
+camera_id,name,department_name,lat,lon,protocol,url
+pol-cg-road-01,CG Road junction,Police,23.0300,72.5600,rtsp,rtsp://viewer:p%40ss@10.20.1.15:554/Streaming/Channels/101
+```
+
+Percent-encode `@`, `:`, `/`, `#` and `?` inside a password (`@` is `%40`).
+
+Before going onto a network without internet, run `make prefetch` once while
+online: the plate detector, plate OCR and face-blur models are otherwise
+downloaded on first use. `make doctor` warns if any are missing.
+
 ---
 
 ## 5. Running against the real government grid
@@ -285,6 +320,9 @@ Defaults work for a local run; set these only when they do not.
 | `SENTINEL_RELAY_HLS_URL` | browser reaches the relay on a different host than the API does |
 | `SENTINEL_DB_*` | changed the compose ports |
 | `SENTINEL_ADMIN_PASSWORD` | scripts that log in on your behalf |
+| `SENTINEL_ENVIRONMENT` + `SENTINEL_JWT_SECRET`, `_EDGE_SERVICE_TOKEN`, `_MTLS_GATEWAY_SHARED_SECRET`, `_MEDIA_URL_SIGNING_SECRET` | the API is reachable from another machine. Any environment other than `local` refuses to start while a secret still has its published `dev-only-*` default; workers need the same `SENTINEL_EDGE_SERVICE_TOKEN` |
+| `SENTINEL_CORE_API_URL` | an edge worker on a different machine from the API |
+| `VITE_MAP_TILE_URL` (in `apps/web/.env`) | basemap tiles from a local or departmental tile server instead of openstreetmap.org |
 
 Both CORS variables matter the moment the console is not on the same machine as
 the API — a mismatch shows up as the console loading fine and then every request

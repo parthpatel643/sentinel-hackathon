@@ -33,6 +33,7 @@ from sentinel_core.schemas.camera import (
     StreamProfile,
     StreamProtocol,
 )
+from sentinel_core.stream_urls import with_credentials
 
 __all__ = ["MediaProfile", "OnvifSource"]
 
@@ -315,9 +316,16 @@ class OnvifSource:
             for profile in profiles:
                 try:
                     uri = await self.get_stream_uri(media_xaddr, profile.token)
+                    # ONVIF stream URIs carry no credentials by spec, yet the
+                    # RTSP server behind them demands the same account.
+                    uri = with_credentials(uri, self._username, self._password)
                     stream_profiles.append(StreamProfile(protocol=StreamProtocol.RTSP, url=uri))
                 except (httpx.HTTPError, ValueError):
                     continue
+                # One RTSP profile per camera — the registry's contract, and
+                # what the edge worker opens. ONVIF lists the main stream
+                # first; sub-streams are lower-resolution copies of it.
+                break
 
             camera_id = info.get("SerialNumber") or xaddr
             name = " ".join(filter(None, [info.get("Manufacturer"), info.get("Model")])) or xaddr

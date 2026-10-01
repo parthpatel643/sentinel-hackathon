@@ -91,7 +91,9 @@ async def update_watchlist_entry_endpoint(
 
 @router.post("/bolo", response_model=BoloResult, status_code=201)
 async def bolo_endpoint(
-    payload: BoloRequest, session: AsyncSession = Depends(get_session)
+    payload: BoloRequest,
+    session: AsyncSession = Depends(get_session),
+    user: TokenPayload = Depends(current_user),
 ) -> BoloResult:
     """One input, two directions in time: arm a forward-looking watchlist
     entry AND retro-scan every detection already on file for a match — the
@@ -103,11 +105,23 @@ async def bolo_endpoint(
             entry_type=payload.entry_type,
             priority=payload.priority,
             case_reference=payload.case_reference,
-            requested_by=payload.requested_by,
+            requested_by=payload.requested_by or user.email,
             notes=payload.notes,
         ),
     )
     alerts = await retro_scan(session, entry)
+    await record_audit_event(
+        session,
+        actor_email=user.email,
+        action="bolo_armed",
+        resource_type="watchlist_entry",
+        resource_id=str(entry.id),
+        detail={
+            "plate_normalised": entry.plate_normalised,
+            "entry_type": entry.entry_type,
+            "retro_alerts_created": len(alerts),
+        },
+    )
     await session.commit()
 
     return BoloResult(
@@ -128,11 +142,22 @@ async def list_alerts_endpoint(
 
 @router.patch("/alerts/{alert_id}", response_model=AlertOut)
 async def update_alert_endpoint(
-    alert_id: UUID, payload: AlertUpdate, session: AsyncSession = Depends(get_session)
+    alert_id: UUID,
+    payload: AlertUpdate,
+    session: AsyncSession = Depends(get_session),
+    user: TokenPayload = Depends(current_user),
 ) -> AlertOut:
     alert = await update_alert(session, alert_id, payload)
     if alert is None:
         raise HTTPException(status_code=404, detail=f"no alert with id {alert_id}")
+    await record_audit_event(
+        session,
+        actor_email=user.email,
+        action="alert_status_changed",
+        resource_type="alert",
+        resource_id=str(alert_id),
+        detail={"status": payload.status, "note": payload.resolution_note or ""},
+    )
     await session.commit()
     return AlertOut.model_validate(alert)
 

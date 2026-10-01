@@ -24,6 +24,7 @@ Python package wrapping its download the way `open-image-models`/
 from __future__ import annotations
 
 import logging
+import tempfile
 import threading
 import urllib.request
 from pathlib import Path
@@ -31,7 +32,13 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-__all__ = ["blur_faces", "blur_regions", "detect_faces", "ensure_model_downloaded"]
+__all__ = [
+    "FaceModelUnavailableError",
+    "blur_faces",
+    "blur_regions",
+    "detect_faces",
+    "ensure_model_downloaded",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -44,16 +51,59 @@ _DEFAULT_MODEL_PATH = (
 )
 
 
+_DOWNLOAD_TIMEOUT_S = 20.0
+# After a failed download, the next snapshots skip straight to "no model"
+# instead of each blocking its camera for the full timeout again; one in this
+# many tries the network again. Counted, not timed: the analytics path never
+# reads the wall clock (tests/test_compliance.py).
+_RETRY_EVERY_N_SKIPS = 50
+_download_lock = threading.Lock()
+_skips_since_failure: dict[Path, int] = {}
+
+
+class FaceModelUnavailableError(RuntimeError):
+    """The face detector could not be downloaded recently; not retried yet."""
+
+
 def ensure_model_downloaded(model_path: Path = _DEFAULT_MODEL_PATH) -> Path:
     """Idempotent: skips the download if the file already exists, exactly
     like the "Skipping download of '<model>', already exists" behaviour
-    the vehicle detector/OCR models already log at worker startup."""
+    the vehicle detector/OCR models already log at worker startup.
+
+    This runs inside a camera's pipeline thread on its first snapshot, so it
+    is bounded (a network that silently drops traffic must not freeze the
+    camera), serialised (several cameras reach it at once), written to a
+    unique temporary file and renamed into place (an interrupted fetch must
+    not leave a truncated model every later run trusts), and backs off after
+    a failure. Run `scripts/prefetch_models.py` before going onto an isolated
+    network."""
     if model_path.exists():
         return model_path
-    model_path.parent.mkdir(parents=True, exist_ok=True)
-    logger.info("Downloading face detector model to %s", model_path)
-    urllib.request.urlretrieve(_MODEL_URL, model_path)
-    return model_path
+    with _download_lock:
+        if model_path.exists():
+            return model_path
+        skips = _skips_since_failure.get(model_path)
+        if skips is not None and skips < _RETRY_EVERY_N_SKIPS:
+            _skips_since_failure[model_path] = skips + 1
+            raise FaceModelUnavailableError(
+                "face detector download failed; skipping snapshots until the next retry "
+                "(run scripts/prefetch_models.py while online)"
+            )
+        model_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.info("Downloading face detector model to %s", model_path)
+        try:
+            with urllib.request.urlopen(_MODEL_URL, timeout=_DOWNLOAD_TIMEOUT_S) as response:
+                payload = response.read()
+            with tempfile.NamedTemporaryFile(
+                dir=model_path.parent, prefix=f".{model_path.name}.", delete=False
+            ) as partial:
+                partial.write(payload)
+            Path(partial.name).replace(model_path)
+        except Exception:
+            _skips_since_failure[model_path] = 0
+            raise
+        _skips_since_failure.pop(model_path, None)
+        return model_path
 
 
 _detectors = threading.local()

@@ -82,3 +82,20 @@ def test_gov_catalogue_url_defaults_to_the_real_endpoint() -> None:
     used to hard-code a camera id."""
     settings = Settings()
     assert settings.gov_catalogue_url == "https://cctv.corp8.cloud/cameras.json"
+
+
+def test_dev_default_secrets_are_reported_by_env_var_name() -> None:
+    defaults = Settings().secrets_left_at_dev_defaults()
+
+    assert "SENTINEL_JWT_SECRET" in defaults
+    assert "SENTINEL_EDGE_SERVICE_TOKEN" in defaults
+    assert "SENTINEL_GOV_ACCESS_PASSWORD" not in defaults
+
+
+def test_overridden_secrets_are_not_reported() -> None:
+    settings = Settings(jwt_secret=SecretStr("a" * 32), edge_service_token=SecretStr("b" * 32))
+
+    remaining = settings.secrets_left_at_dev_defaults()
+
+    assert "SENTINEL_JWT_SECRET" not in remaining
+    assert "SENTINEL_EDGE_SERVICE_TOKEN" not in remaining

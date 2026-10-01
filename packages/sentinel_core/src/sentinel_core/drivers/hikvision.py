@@ -25,6 +25,7 @@ from sentinel_core.schemas.camera import (
     StreamProfile,
     StreamProtocol,
 )
+from sentinel_core.stream_urls import rtsp_host, with_credentials
 
 __all__ = ["HikvisionSource"]
 
@@ -110,7 +111,11 @@ class HikvisionSource:
             if not channel_id:
                 continue
             # ISAPI's own convention: rtsp://.../Streaming/Channels/<id>
-            url = f"rtsp://{self._username}:{self._password}@{scope.host}:554/Streaming/Channels/{channel_id}"
+            url = with_credentials(
+                f"rtsp://{rtsp_host(scope.host)}:554/Streaming/Channels/{channel_id}",
+                self._username,
+                self._password,
+            )
             profiles_by_channel[channel_id] = [StreamProfile(protocol=StreamProtocol.RTSP, url=url)]
 
         return [

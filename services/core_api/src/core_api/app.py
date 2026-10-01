@@ -35,6 +35,14 @@ __all__ = ["create_app"]
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(level=settings.log_level, json_output=settings.log_json)
+    insecure = settings.secrets_left_at_dev_defaults()
+    if insecure and settings.environment != "local":
+        raise RuntimeError(
+            f"SENTINEL_ENVIRONMENT={settings.environment} but {', '.join(insecure)} still "
+            "hold the development defaults published in this repository. Set each to a "
+            "random value in .env (e.g. `openssl rand -hex 32`) — the edge workers need the "
+            "same SENTINEL_EDGE_SERVICE_TOKEN."
+        )
 
     app = FastAPI(
         title="Sentinel Platform API",
@@ -53,6 +61,10 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # The console is cross-origin to the API, and browsers hide every
+        # response header not listed here — without it the Movement Report
+        # and lifecycle CSV download as a file literally named "download".
+        expose_headers=["Content-Disposition"],
     )
     # M12: decodes the caller's JWT (best-effort) so get_session can apply
     # department-scoped Postgres RLS — see core_api/security/tenancy.py.

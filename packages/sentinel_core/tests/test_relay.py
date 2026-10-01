@@ -26,6 +26,17 @@ from sentinel_core.relay import (
 EXTERNAL = "rtsp://user:pass@103.250.160.189:8554/stream/cam01"
 
 
+def _existing_path(**overrides: object) -> dict[str, object]:
+    """What MediaMTX's `GET /v3/config/paths/get/<name>` actually returns for
+    a path this module created (verified against the running relay)."""
+    return {
+        "name": "ext/cam01",
+        "source": EXTERNAL,
+        "sourceOnDemand": True,
+        "rtspTransport": "tcp",
+    } | overrides
+
+
 @pytest.fixture
 def settings() -> Settings:
     return Settings(
@@ -70,7 +81,7 @@ async def test_an_existing_path_is_reused_rather_than_re_added(settings: Setting
         assert request.method == "GET"
         # MediaMTX always reports the mode, and it already matches what this
         # caller wants, so there is nothing to reconcile either.
-        return httpx.Response(200, json={"name": "ext/cam01", "sourceOnDemand": True})
+        return httpx.Response(200, json=_existing_path())
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         assert await ensure_relay_path(
@@ -173,7 +184,7 @@ async def test_an_existing_path_is_reconciled_to_the_mode_the_caller_asked_for(
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "GET":
-            return httpx.Response(200, json={"name": "ext/cam01", "sourceOnDemand": True})
+            return httpx.Response(200, json=_existing_path())
         if request.method == "PATCH":
             patched.update(json.loads(request.content))
             return httpx.Response(200)
@@ -194,13 +205,37 @@ async def test_an_existing_path_is_reconciled_to_the_mode_the_caller_asked_for(
 async def test_a_path_already_in_the_right_mode_is_left_alone(settings: Settings) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "GET":
-            return httpx.Response(200, json={"name": "ext/cam01", "sourceOnDemand": True})
+            return httpx.Response(200, json=_existing_path())
         raise AssertionError(f"should not have written: {request.method} {request.url}")
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         assert await ensure_relay_path(
             rtsp_url=EXTERNAL, path_name="ext/cam01", settings=settings, client=client
         )
+
+
+async def test_a_corrected_camera_url_replaces_the_stale_relay_source(
+    settings: Settings,
+) -> None:
+    """An operator fixing a mistyped RTSP URL or NVR password on site must
+    not be left watching the relay keep dialling the old one."""
+    patched: dict[str, object] = {}
+    corrected = "rtsp://10.20.1.15:554/Streaming/Channels/101"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(200, json=_existing_path(rtspTransport="udp"))
+        if request.method == "PATCH":
+            patched.update(json.loads(request.content))
+            return httpx.Response(200)
+        raise AssertionError(f"unexpected {request.method} {request.url}")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        assert await ensure_relay_path(
+            rtsp_url=corrected, path_name="ext/cam01", settings=settings, client=client
+        )
+
+    assert patched == {"source": corrected, "rtspTransport": "tcp"}
 
 
 async def test_releasing_a_path_puts_it_back_on_demand(settings: Settings) -> None:
@@ -215,9 +250,7 @@ async def test_releasing_a_path_puts_it_back_on_demand(settings: Settings) -> No
         return httpx.Response(200)
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        assert await release_relay_path(
-            path_name="ext/cam01", settings=settings, client=client
-        )
+        assert await release_relay_path(path_name="ext/cam01", settings=settings, client=client)
 
     assert patched == {"sourceOnDemand": True}
 
@@ -230,6 +263,4 @@ async def test_releasing_never_raises_when_the_relay_has_gone(settings: Settings
         raise httpx.ConnectError("connection refused", request=request)
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        assert not await release_relay_path(
-            path_name="ext/cam01", settings=settings, client=client
-        )
+        assert not await release_relay_path(path_name="ext/cam01", settings=settings, client=client)

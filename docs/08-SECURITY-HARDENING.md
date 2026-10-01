@@ -358,3 +358,31 @@ string itself proves authorization, for a short, explicit window.
   rejected (401); confirmed a tampered/invalid signature is rejected
   (401), not silently accepted.
 
+
+---
+
+## 7. Stream credentials, published defaults, and what gets audited
+
+Added while preparing for the Phase-2 finale, where the platform meets
+department cameras and a shared venue network for the first time.
+
+- **Stream credentials never reach an operator.** A camera's RTSP/WHEP URL
+  embeds its account (for the sandbox grid, the team's registered email and
+  access password). `camera_to_out` now masks the userinfo of every profile
+  URL — `rtsp://***@host:port/path` — on every operator-facing endpoint. The
+  only place credentialed URLs leave the API is `GET /api/v1/edge/cameras`,
+  gated by the edge service token, which is what `--source registry` workers
+  read. Asserted in `services/core_api/tests/test_registry_api.py`.
+- **Credentials are percent-encoded wherever URLs are built**
+  (`sentinel_core.stream_urls.with_credentials`), so a password containing
+  `@`, `:`, `/`, `#` or `?` cannot re-point a connection at another host.
+- **No published secret on a shared network.** The JWT, edge-service,
+  gateway and media-signing secrets default to `dev-only-*` values that are
+  in this repository. Any `SENTINEL_ENVIRONMENT` other than `local` now
+  refuses to start while one of them is unchanged, naming the variables to
+  set. `local` keeps the zero-configuration quickstart, and `make api` binds
+  to localhost only.
+- **Audit coverage of evaluation-day actions.** Besides user and watchlist
+  administration, the hash chain now records camera onboarding (manual, bulk
+  CSV, catalogue and device discovery), BOLO arming with its retro-scan
+  result, every alert status change, and each Movement Report export.

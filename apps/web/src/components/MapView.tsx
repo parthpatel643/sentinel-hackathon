@@ -8,7 +8,8 @@ import {
   type GeoJSONSource,
   type StyleSpecification,
 } from 'maplibre-gl'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import i18n from '../lib/i18n'
 
 export interface MapMarker {
@@ -47,6 +48,9 @@ interface MapViewProps {
    * statewide frame, but a result set (a plate's sightings) is meaningless
    * if the map is still looking somewhere else. */
   fitToMarkers?: boolean
+  /** Centres of registry grid cells no camera covers ([lon, lat]) — the
+   * gap-analysis layer on the Cameras map. */
+  coverageGaps?: [number, number][]
 }
 
 // OpenStreetMap's raw tile server: no API key, global coverage including
@@ -65,21 +69,37 @@ interface MapViewProps {
 // tile.openstreetmap.org directly — acceptable for this hackathon
 // dev/demo's traffic level, and attribution is kept visible (rather than
 // suppressed) as the policy also requires.
+//
+// On a police or venue network the public tile server may be unreachable.
+// VITE_MAP_TILE_URL points the basemap at a local or departmental tile
+// server instead (any XYZ raster template), and when tiles still fail the
+// map says so rather than looking broken: camera pins, routes and gap
+// cells are drawn from our own data and remain correct without a basemap.
+const TILE_URL = import.meta.env.VITE_MAP_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+const TILE_ATTRIBUTION = import.meta.env.VITE_MAP_TILE_ATTRIBUTION || '© OpenStreetMap contributors'
+const BASEMAP_SOURCE_ID = 'osm'
 const RASTER_STYLE: StyleSpecification = {
   version: 8,
   sources: {
-    osm: {
+    [BASEMAP_SOURCE_ID]: {
       type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tiles: [TILE_URL],
       tileSize: 256,
-      attribution: '© OpenStreetMap contributors',
+      attribution: TILE_ATTRIBUTION,
     },
   },
-  layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
+  layers: [
+    { id: 'basemap-fallback', type: 'background', paint: { 'background-color': '#707782' } },
+    { id: 'osm', type: 'raster', source: BASEMAP_SOURCE_ID },
+  ],
 }
 
 const GUJARAT_CENTER: [number, number] = [72.5714, 23.0225]
 const ROUTE_SOURCE_ID = 'find-a-vehicle-route'
+const GAPS_SOURCE_ID = 'coverage-gaps'
+// A stable default: `= []` in the signature is a new array every render, which
+// re-ran the gap-layer effect (a GeoJSON reload) on every frame of route replay.
+const NO_GAPS: [number, number][] = []
 
 /** Initial compass bearing from point A to B, in degrees — used to orient
  * the DOM-based direction-arrow markers along a route segment. */
@@ -91,6 +111,23 @@ function bearingDegrees([lon1, lat1]: [number, number], [lon2, lat2]: [number, n
     Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
     Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(toRad(lon2 - lon1))
   return (toDeg(Math.atan2(y, x)) + 360) % 360
+}
+
+/** Run `apply` as soon as the style accepts sources and layers.
+ *
+ * Not `isStyleLoaded() ? apply() : once('load', apply)`: `isStyleLoaded()`
+ * is also false while basemap *tiles* are loading, and `load` fires only
+ * once per map — so an overlay requested after the first load but mid-pan
+ * (or on a slow venue network) was queued on an event that never came
+ * again, and silently never drawn. `addSource` itself only refuses while the
+ * style document is unparsed, which is the one condition worth waiting for. */
+function whenStyleReady(map: MapLibreMap, apply: (map: MapLibreMap) => void) {
+  try {
+    apply(map)
+  } catch (error) {
+    if (!(error instanceof Error) || !/not done loading/i.test(error.message)) throw error
+    map.once('styledata', () => whenStyleReady(map, apply))
+  }
 }
 
 function midpoint([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): [number, number] {
@@ -106,6 +143,7 @@ export function MapView({
   vehiclePosition = null,
   onMapClick,
   fitToMarkers = false,
+  coverageGaps = NO_GAPS,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
@@ -119,6 +157,10 @@ export function MapView({
   // whichever onMapClick the caller most recently passed in.
   const onMapClickRef = useRef(onMapClick)
   onMapClickRef.current = onMapClick
+  const coverageGapsRef = useRef(coverageGaps)
+  coverageGapsRef.current = coverageGaps
+  const [basemapOffline, setBasemapOffline] = useState(false)
+  const { t } = useTranslation('readiness')
 
   function syncArrowMarkers(map: MapLibreMap, segments: RouteSegment[]) {
     for (const marker of arrowMarkersRef.current) marker.remove()
@@ -169,6 +211,12 @@ export function MapView({
     }
     i18n.on('languageChanged', updateControlLabels)
     map.on('click', (event) => onMapClickRef.current?.(event.lngLat.lat, event.lngLat.lng))
+    map.on('error', (event) => {
+      if ((event as { sourceId?: string }).sourceId === BASEMAP_SOURCE_ID) setBasemapOffline(true)
+    })
+    map.on('sourcedata', (event) => {
+      if (event.sourceId === BASEMAP_SOURCE_ID && event.tile) setBasemapOffline(false)
+    })
     mapRef.current = map
 
     // The container is sized by a flex layout that may not have its final
@@ -178,10 +226,23 @@ export function MapView({
     // ResizeObserver keeps the canvas in sync with the real layout.
     const observer = new ResizeObserver(() => map.resize())
     observer.observe(containerRef.current)
+    // Mutated by the marker effect, never reassigned, so this is the live map.
+    const placedMarkers = markerRefs.current
 
     return () => {
       i18n.off('languageChanged', updateControlLabels)
       observer.disconnect()
+      // Markers belong to this map instance. Keeping them in the refs after
+      // it is removed made the next map (React StrictMode remounts every
+      // effect in development, so `make web` hit this on every visit) treat
+      // them as already placed — the registry map rendered with no camera
+      // pins at all.
+      for (const marker of placedMarkers.values()) marker.remove()
+      placedMarkers.clear()
+      for (const marker of arrowMarkersRef.current) marker.remove()
+      arrowMarkersRef.current = []
+      vehicleMarkerRef.current?.remove()
+      vehicleMarkerRef.current = null
       map.remove()
       mapRef.current = null
     }
@@ -315,10 +376,44 @@ export function MapView({
       syncArrowMarkers(currentMap, segments)
     }
 
-    if (map.isStyleLoaded()) applyRoute(map)
-    else map.once('load', () => applyRoute(map))
+    whenStyleReady(map, applyRoute)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeSegments])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    function applyGaps(currentMap: MapLibreMap) {
+      const geojson: FeatureCollection = {
+        type: 'FeatureCollection',
+        features: coverageGapsRef.current.map((coordinates) => ({
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'Point', coordinates },
+        })),
+      }
+      const existing = currentMap.getSource(GAPS_SOURCE_ID) as GeoJSONSource | undefined
+      if (existing) {
+        existing.setData(geojson)
+        return
+      }
+      currentMap.addSource(GAPS_SOURCE_ID, { type: 'geojson', data: geojson })
+      currentMap.addLayer({
+        id: GAPS_SOURCE_ID,
+        type: 'circle',
+        source: GAPS_SOURCE_ID,
+        paint: {
+          'circle-color': '#f59e0b',
+          'circle-opacity': 0.5,
+          'circle-stroke-width': 0,
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 1.5, 11, 3, 13, 6, 15, 12, 16, 18],
+        },
+      })
+    }
+
+    whenStyleReady(map, applyGaps)
+  }, [coverageGaps])
 
   // The animated "vehicle" marker driven by Replay route — a single marker
   // whose position the caller updates every animation frame.
@@ -356,6 +451,9 @@ export function MapView({
   return (
     <div className={className}>
       <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
+      {basemapOffline && (
+        <p role="status" className="map-basemap-offline">{t('basemapOffline')}</p>
+      )}
     </div>
   )
 }

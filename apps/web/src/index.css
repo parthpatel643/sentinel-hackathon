@@ -339,6 +339,24 @@ table tbody tr:hover { background: var(--color-bg-overlay); }
   filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92);
 }
 
+/* Shown over the map when basemap tiles cannot be fetched (venue or police
+   networks without internet) — markers, routes and gap cells still render. */
+.map-basemap-offline {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 6px;
+  background: var(--color-bg-raised);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  text-align: center;
+}
+
 /* Find a Vehicle's route replay (components/MapView.tsx). A small filled
  * triangle, rotated per-segment to the travel bearing — deliberately a DOM
  * marker like the camera dots, not a MapLibre symbol layer, so it needs no
@@ -392,4 +410,64 @@ table tbody tr:hover { background: var(--color-bg-overlay); }
 
 .cmdk-item[data-selected='true'] svg {
   color: var(--color-accent);
+}
+
+/* Global watchlist-hit notifier (components/AlertNotifier.tsx). */
+.alert-notifier {
+  position: fixed;
+  z-index: 60;
+  top: 72px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(360px, calc(100vw - 32px));
+}
+.alert-notifier-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid color-mix(in oklab, var(--color-sev-critical) 45%, var(--color-border-subtle));
+  border-left-width: 4px;
+  border-left-color: var(--color-sev-critical);
+  border-radius: 8px;
+  background: var(--color-bg-raised);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+.alert-notifier-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-sev-critical);
+}
+.alert-notifier-body {
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+.alert-notifier-open {
+  margin-top: 6px;
+  min-height: 32px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+.alert-notifier-open:hover { text-decoration: underline; }
+.alert-notifier-dismiss {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  color: var(--color-text-tertiary);
+}
+.alert-notifier-dismiss:hover { background: var(--color-bg-overlay); }
+.alert-notifier-more {
+  align-self: flex-end;
+  font-size: 12px;
+  color: var(--color-text-secondary);
 }

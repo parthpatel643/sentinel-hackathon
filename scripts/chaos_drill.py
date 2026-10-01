@@ -380,8 +380,10 @@ def drill_rtsp_blocked(token: str) -> DrillResult:
     opened_blocked = blocked_capture.open()
     blocked_capture.close()
     result.observations.append(
-        console.step(f"with 8554 blocked (simulated via closed port {blocked_port}): "
-                     f"RTSP open succeeded={opened_blocked}")
+        console.step(
+            f"with 8554 blocked (simulated via closed port {blocked_port}): "
+            f"RTSP open succeeded={opened_blocked}"
+        )
     )
     if opened_blocked:
         result.summary = (

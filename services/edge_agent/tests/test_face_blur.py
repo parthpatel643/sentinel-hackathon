@@ -8,13 +8,16 @@ that pipeline stage — this module tests the pure logic around it instead.
 
 from __future__ import annotations
 
+import io
 import threading
 from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
+import pytest
 
 from edge_agent.analytics.face_blur import (
+    FaceModelUnavailableError,
     _detector,
     blur_regions,
     ensure_model_downloaded,
@@ -67,7 +70,7 @@ def test_ensure_model_downloaded_skips_the_download_if_already_cached(tmp_path: 
     model_path = tmp_path / "face_detection_yunet_2023mar.onnx"
     model_path.write_bytes(b"fake-onnx-weights")
 
-    with patch("edge_agent.analytics.face_blur.urllib.request.urlretrieve") as mock_download:
+    with patch("edge_agent.analytics.face_blur.urllib.request.urlopen") as mock_download:
         result = ensure_model_downloaded(model_path)
 
     mock_download.assert_not_called()
@@ -76,18 +79,33 @@ def test_ensure_model_downloaded_skips_the_download_if_already_cached(tmp_path: 
 
 def test_ensure_model_downloaded_downloads_when_missing(tmp_path: Path) -> None:
     model_path = tmp_path / "nested" / "face_detection_yunet_2023mar.onnx"
-
-    def _fake_urlretrieve(url: str, filename: Path) -> None:
-        Path(filename).write_bytes(b"fake-onnx-weights")
+    response = io.BytesIO(b"fake-onnx-weights")
 
     with patch(
-        "edge_agent.analytics.face_blur.urllib.request.urlretrieve", side_effect=_fake_urlretrieve
+        "edge_agent.analytics.face_blur.urllib.request.urlopen", return_value=response
     ) as mock_download:
         result = ensure_model_downloaded(model_path)
 
     mock_download.assert_called_once()
+    # Bounded: a silently-dropping network must not freeze the pipeline.
+    assert mock_download.call_args.kwargs["timeout"] > 0
     assert result == model_path
-    assert model_path.exists()
+    assert model_path.read_bytes() == b"fake-onnx-weights"
+
+
+def test_an_interrupted_download_leaves_no_model_file_behind(tmp_path: Path) -> None:
+    model_path = tmp_path / "face_detection_yunet_2023mar.onnx"
+
+    with (
+        patch(
+            "edge_agent.analytics.face_blur.urllib.request.urlopen",
+            side_effect=TimeoutError("timed out"),
+        ),
+        pytest.raises(TimeoutError),
+    ):
+        ensure_model_downloaded(model_path)
+
+    assert not model_path.exists()
 
 
 def test_each_thread_gets_its_own_detector() -> None:
@@ -125,3 +143,21 @@ def test_each_thread_gets_its_own_detector() -> None:
 
     assert len(seen) == 4, "expected one detector per thread"
     assert len({id(d) for d in seen.values()}) == 4, "threads must not share a detector"
+
+
+def test_a_failed_download_is_not_retried_by_every_snapshot(tmp_path: Path) -> None:
+    """On a network that drops traffic, each retry would block its camera for
+    the full timeout; after one failure the next snapshots fail fast."""
+    model_path = tmp_path / "face_detection_yunet_2023mar.onnx"
+
+    with patch(
+        "edge_agent.analytics.face_blur.urllib.request.urlopen",
+        side_effect=TimeoutError("timed out"),
+    ) as mock_download:
+        with pytest.raises(TimeoutError):
+            ensure_model_downloaded(model_path)
+        with pytest.raises(FaceModelUnavailableError):
+            ensure_model_downloaded(model_path)
+
+    assert mock_download.call_count == 1
+    assert list(tmp_path.iterdir()) == []

@@ -73,7 +73,7 @@ def test_the_leading_index_is_dropped() -> None:
 
 
 def test_honorific_particles_stay_lowercase_but_numerals_do_not() -> None:
-    """"bhai" is an honorific; "teen"/"char" are Gujarati numerals naming a
+    """ "bhai" is an honorific; "teen"/"char" are Gujarati numerals naming a
     three- or four-way junction and must stay capitalised."""
     assert format_camera_name("01 Chiman bhai Bridge").label == "Chiman bhai Bridge"
     assert format_camera_name("05 Visat teen Rasta").label == "Visat Teen Rasta"
@@ -103,7 +103,7 @@ def test_full_joins_label_and_locality_for_single_line_use() -> None:
 
 
 def test_dot_separated_initialisms_keep_their_case() -> None:
-    """"O.N.G.C." cannot match the acronym list because the dots are part of
+    """ "O.N.G.C." cannot match the acronym list because the dots are part of
     the token, and title-casing it produced "O.n.g.c." on the live map."""
     assert format_camera_name("03 O.N.G.C. Office").label == "O.N.G.C. Office"
     assert format_camera_name("R.T.O. Circle").label.startswith("R.T.O.")

@@ -5,6 +5,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn'
 import { useAuth } from '../../lib/AuthContext'
+import { AlertNotifier } from '../AlertNotifier'
 import { ThemeToggle } from '../ui/ThemeToggle'
 import { LanguageSwitcher } from '../ui/LanguageSwitcher'
 import { OPEN_COMMAND_PALETTE } from '../CommandPalette'
@@ -138,6 +139,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="workspace-preferences"><LanguageSwitcher /><ThemeToggle /></div>
         </header>
         <main id="workspace-content" tabIndex={-1} className="workspace-content">{children}</main>
+        <AlertNotifier />
       </div>
     </div>
   )

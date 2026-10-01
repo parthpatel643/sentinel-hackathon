@@ -218,7 +218,7 @@ export interface Detection {
   node_id: string
 }
 
-export type MatchRung = 'exact' | 'ambiguity_class'
+export type MatchRung = 'exact' | 'ambiguity_class' | 'edit_distance'
 
 export interface RoutePoint {
   /** Addresses the snapshot endpoint; `snapshot_uri` is an internal reference. */
@@ -359,4 +359,67 @@ export interface FieldSighting {
   notes: string | null
   has_photo: boolean
   created_at: string
+}
+
+export type LifecycleFinding = 'ageing' | 'amc_expired' | 'amc_expiring' | 'maintenance' | 'offline'
+
+export interface LifecycleCamera {
+  camera_id: string
+  name: string
+  department_name: string | null
+  status: CameraStatus
+  installed_on: string | null
+  age_years: number | null
+  amc_expires_on: string | null
+  maintenance_status: string | null
+  vendor: string | null
+  model: string | null
+  findings: LifecycleFinding[]
+}
+
+export interface DepartmentLifecycle {
+  department_name: string
+  total: number
+  ageing: number
+  amc_expired: number
+  amc_expiring: number
+  maintenance: number
+  offline: number
+  install_date_unknown: number
+}
+
+export interface LifecycleReport {
+  as_of: string
+  ageing_threshold_years: number
+  amc_warning_days: number
+  total_cameras: number
+  install_date_known: number
+  amc_date_known: number
+  ageing: number
+  amc_expired: number
+  amc_expiring: number
+  maintenance: number
+  offline: number
+  by_department: DepartmentLifecycle[]
+  cameras_needing_attention: LifecycleCamera[]
+}
+
+export type DeviceDriver = 'onvif' | 'hikvision' | 'dahua'
+
+export interface DeviceDiscoveryRequest {
+  driver: DeviceDriver
+  host: string
+  username?: string
+  password?: string
+  department_name?: string
+  site_name?: string
+  dry_run: boolean
+}
+
+export interface DeviceDiscoveryResult {
+  dry_run: boolean
+  discovered: { camera_id: string; name: string; stream_count: number; stream_urls: string[] }[]
+  onboarded: string[]
+  updated: string[]
+  failed: { camera_id: string; error: string }[]
 }

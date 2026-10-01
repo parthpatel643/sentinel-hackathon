@@ -9,6 +9,7 @@ place that decides what "the same camera seen again" means (an upsert on
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -17,7 +18,9 @@ from urllib.parse import urlsplit
 
 import httpx
 from geoalchemy2.shape import to_shape
+from pydantic import ValidationError
 from sqlalchemy import delete, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -41,6 +44,9 @@ from sentinel_core.relay import (
 )
 from sentinel_core.schemas import CameraDescriptor
 from sentinel_core.schemas.camera import CameraStatus
+from sentinel_core.stream_urls import redact_credentials
+
+_URL_USERINFO = re.compile(r"(\w+://)[^\s/@]*@")
 
 __all__ = [
     "UpsertSummary",
@@ -220,45 +226,74 @@ async def upsert_from_descriptors(
     summary = UpsertSummary()
     for descriptor in descriptors:
         try:
-            existed = (
-                await session.execute(
-                    select(Camera.camera_id).where(Camera.camera_id == descriptor.camera_id)
-                )
-            ).scalar_one_or_none() is not None
-
-            location = (
-                GeoPointOut(lat=descriptor.location.lat, lon=descriptor.location.lon)
-                if descriptor.location
-                else None
-            )
-            await upsert_camera(
-                session,
-                camera_id=descriptor.camera_id,
-                name=descriptor.name,
-                driver_id=descriptor.driver_id,
-                department_name=descriptor.department,
-                site_name=descriptor.site,
-                location=location,
-                tier=descriptor.tier.value,
-                status=descriptor.status.value,
-                source=source,
-                attributes=descriptor.attributes,
-                profiles=[
-                    {
-                        "protocol": p.protocol.value,
-                        "url": p.url,
-                        "codec": p.codec,
-                        "width": p.width,
-                        "height": p.height,
-                        "declared_fps": p.declared_fps,
-                    }
-                    for p in descriptor.profiles
-                ],
-            )
-            (summary.updated if existed else summary.onboarded).append(descriptor.camera_id)
+            # A savepoint per camera: without it one bad row (a constraint
+            # violation) poisons the session and every later camera in the
+            # batch fails with "transaction has been rolled back".
+            async with session.begin_nested():
+                existed = await _upsert_descriptor(session, descriptor, source=source)
         except Exception as exc:
-            summary.failed.append((descriptor.camera_id, str(exc)))
+            summary.failed.append((descriptor.camera_id, describe_failure(exc)))
+            continue
+        (summary.updated if existed else summary.onboarded).append(descriptor.camera_id)
     return summary
+
+
+def describe_failure(exc: Exception) -> str:
+    """An onboarding error an operator can read, without leaking what the
+    raw exception carries: SQLAlchemy's message embeds the statement's bound
+    parameters, which include the camera's credentialed stream URL."""
+    if isinstance(exc, DBAPIError) and exc.orig is not None:
+        message = str(exc.orig).splitlines()[0]
+    elif isinstance(exc, ValidationError):
+        message = "; ".join(str(error["msg"]) for error in exc.errors())
+    else:
+        message = str(exc)
+    return _URL_USERINFO.sub(r"\1***@", message)
+
+
+async def _upsert_descriptor(
+    session: AsyncSession,
+    descriptor: CameraDescriptor,
+    *,
+    source: str,
+) -> bool:
+    """Upserts one descriptor; returns whether the camera already existed."""
+    existed = (
+        await session.execute(
+            select(Camera.camera_id).where(Camera.camera_id == descriptor.camera_id)
+        )
+    ).scalar_one_or_none() is not None
+
+    location = (
+        GeoPointOut(lat=descriptor.location.lat, lon=descriptor.location.lon)
+        if descriptor.location
+        else None
+    )
+    await upsert_camera(
+        session,
+        camera_id=descriptor.camera_id,
+        name=descriptor.name,
+        driver_id=descriptor.driver_id,
+        department_name=descriptor.department,
+        site_name=descriptor.site,
+        location=location,
+        tier=descriptor.tier.value,
+        status=descriptor.status.value,
+        source=source,
+        attributes=descriptor.attributes,
+        profiles=[
+            {
+                "protocol": p.protocol.value,
+                "url": p.url,
+                "codec": p.codec,
+                "width": p.width,
+                "height": p.height,
+                "declared_fps": p.declared_fps,
+            }
+            for p in descriptor.profiles
+        ],
+    )
+    return existed
 
 
 async def get_camera(session: AsyncSession, camera_id: str) -> Camera | None:
@@ -315,11 +350,18 @@ async def list_departments(session: AsyncSession) -> list[DepartmentOut]:
     ]
 
 
-def camera_to_out(camera: Camera) -> CameraOut:
+def camera_to_out(camera: Camera, *, reveal_credentials: bool = False) -> CameraOut:
+    """Stream URLs leave with their userinfo masked unless the caller is the
+    edge worker's service-token manifest: a gov-catalogue RTSP/WHEP URL embeds
+    the team's registered email and access password, and a department camera
+    embeds its NVR account — neither may reach an operator's browser."""
     # Derived here rather than stored: `name` stays exactly as the catalogue
     # gave it (an evidence trail must be able to show the source's own value),
     # and the readable form is recomputed whenever formatting improves.
     display = format_camera_name(camera.name, camera_id=camera.camera_id)
+    profiles = [StreamProfileOut.model_validate(p) for p in camera.profiles]
+    if not reveal_credentials:
+        profiles = [p.model_copy(update={"url": redact_credentials(p.url)}) for p in profiles]
     return CameraOut(
         camera_id=camera.camera_id,
         name=camera.name,
@@ -339,7 +381,7 @@ def camera_to_out(camera: Camera) -> CameraOut:
         tamper_status=camera.tamper_status,
         source=camera.source,
         attributes=camera.attributes,
-        profiles=[StreamProfileOut.model_validate(p) for p in camera.profiles],
+        profiles=profiles,
         created_at=camera.created_at,
         updated_at=camera.updated_at,
     )

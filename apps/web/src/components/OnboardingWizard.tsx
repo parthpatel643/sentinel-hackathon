@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { camerasApi, departmentsApi } from '../lib/api'
 import { ApiError } from '../lib/http'
 import type { BulkImportResult, Camera, CameraCreate, CameraStream, Department } from '../lib/types'
+import { DeviceDiscoveryForm } from './DeviceDiscoveryForm'
 import { HlsVideoPlayer } from './HlsVideoPlayer'
 import { MapView, type MapMarker } from './MapView'
 import { Button } from './ui/Button'
@@ -418,6 +419,7 @@ export function OnboardingWizard({ open, onClose, onOnboarded, initialStep = 'lo
 
         {step === 'discover' && (
           <div className="flex flex-col gap-3">
+            <h4 className="text-sm font-semibold text-text-primary">{t('readiness:catalogueTitle')}</h4>
             <p className="text-sm text-text-secondary">{t('onboarding.discoverHelp')}</p>
             {!discoverResult && (
               <Button disabled={discovering} onClick={runDiscovery}>
@@ -430,6 +432,8 @@ export function OnboardingWizard({ open, onClose, onOnboarded, initialStep = 'lo
               </Card>
             )}
             {error && <p className="text-xs text-sev-critical">{error}</p>}
+            <hr className="border-border-subtle" />
+            <DeviceDiscoveryForm onOnboarded={onOnboarded} />
             <div className="flex justify-between">
               <Button variant="secondary" onClick={() => setStep('connect')}>
                 {t('onboarding.back')}

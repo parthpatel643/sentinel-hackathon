@@ -3,7 +3,9 @@ over an in-memory VehicleRoute."""
 
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import json
 import zipfile
 from datetime import UTC, datetime
@@ -110,3 +112,16 @@ def test_empty_route_still_produces_a_valid_pdf() -> None:
 
     assert pdf_bytes.startswith(b"%PDF")
     assert manifest["point_count"] == 0
+
+
+def test_csv_carries_both_utc_and_ist_for_every_hop() -> None:
+    zip_bytes, _ = build_movement_report_zip(_sample_route(), generated_by="test@example.com")
+
+    with zipfile.ZipFile(BytesIO(zip_bytes)) as archive:
+        rows = list(csv.DictReader(io.StringIO(archive.read("report.csv").decode())))
+
+    assert rows[0]["observed_at_utc"] == "2026-09-22T10:00:00+00:00"
+    assert rows[0]["observed_at_ist"] == "2026-09-22T15:30:00+05:30"
+    for row in rows:
+        utc = datetime.fromisoformat(row["observed_at_utc"])
+        assert datetime.fromisoformat(row["observed_at_ist"]) == utc

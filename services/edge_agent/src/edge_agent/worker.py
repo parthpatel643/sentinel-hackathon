@@ -9,7 +9,7 @@ and OCR models are loaded once and shared across every camera's pipeline —
 they are stateless inference engines; only the tracker/voter state in each
 `AnprPipeline` instance is per-camera.
 
-Two camera sources, selected with `--source`:
+Three camera sources, selected with `--source`:
 
 - `synthetic` (default): the M1 local RTSP grid
   (`scripts/synthetic_grid.py`) — 8 cameras, unlimited concurrency, no
@@ -19,6 +19,14 @@ Two camera sources, selected with `--source`:
   writing. The integrator guide explicitly asks integrators to "pace your
   load" and open only the cameras being processed, so this defaults to a
   small `--limit` rather than opening all 30 RTSP connections at once.
+- `registry`: whatever the core API's camera registry holds — every camera
+  onboarded by the wizard, bulk CSV, device discovery or a catalogue sync,
+  from any department or vendor. This is the source for real deployments
+  (and the Phase-2 finale): the registry is re-read every
+  `--resync-interval` seconds, so a camera onboarded while the worker runs
+  starts being analysed within one interval, a corrected stream URL replaces
+  the old one, and a removed camera is stopped. Cameras on the
+  `d_registry_only` tier are metadata-only and never opened.
 
 Usage (with the docker-compose stack and core_api already running — see
 README/docs/05-DELIVERY-PLAN.md):
@@ -26,6 +34,7 @@ README/docs/05-DELIVERY-PLAN.md):
     uv run --package edge-agent python -m edge_agent.worker
     uv run --package edge-agent python -m edge_agent.worker --source gov --limit 4
     uv run --package edge-agent python -m edge_agent.worker --source gov --cameras cam01,cam04
+    uv run --package edge-agent python -m edge_agent.worker --source registry --frame-stride 3
 """
 
 from __future__ import annotations
@@ -48,6 +57,7 @@ from edge_agent.analytics.snapshot_writer import SnapshotWriter
 from edge_agent.analytics.tamper import TamperDetector
 from edge_agent.analytics.vehicle_detector import VehicleDetector
 from edge_agent.analytics.zone_rules import Zone, ZoneRuleEngine
+from edge_agent.fleet import CameraFleet
 from edge_agent.pipeline.capture import CaptureConfig
 from edge_agent.pipeline.supervisor import CameraSupervisor
 from sentinel_core.clock import Frame
@@ -60,7 +70,16 @@ from sentinel_core.relay import (
     relay_rtsp_url,
     release_relay_path,
 )
-from sentinel_core.schemas import AnprPayload, CameraDescriptor, Event, StreamProtocol
+from sentinel_core.schemas import (
+    AnalyticsTier,
+    AnprPayload,
+    CameraDescriptor,
+    CameraStatus,
+    Event,
+    GeoPoint,
+    StreamProfile,
+    StreamProtocol,
+)
 
 logger = logging.getLogger("edge_agent.worker")
 
@@ -78,6 +97,7 @@ MODEL_VERSIONS = {
 }
 HEALTH_REPORT_INTERVAL_S = 5.0
 DEFAULT_GOV_LIMIT = 4
+DEFAULT_RESYNC_INTERVAL_S = 30.0
 
 
 def _load_synthetic_descriptors() -> list[CameraDescriptor]:
@@ -89,6 +109,79 @@ def _load_synthetic_descriptors() -> list[CameraDescriptor]:
         )
     raw: list[dict[str, Any]] = json.loads(SYNTHETIC_CATALOGUE.read_text())
     return [CameraDescriptor.model_validate(entry) for entry in raw]
+
+
+def _descriptor_from_registry(raw: dict[str, Any]) -> CameraDescriptor | None:
+    """A registry camera (the `/api/v1/edge/cameras` shape) as something this
+    worker can open, or None when there is nothing to analyse: no RTSP
+    profile, or a camera deliberately kept metadata-only."""
+    try:
+        tier = AnalyticsTier(raw.get("tier") or AnalyticsTier.B_SAMPLED)
+    except ValueError:
+        tier = AnalyticsTier.B_SAMPLED
+    if tier is AnalyticsTier.D_REGISTRY_ONLY:
+        return None
+    profiles = []
+    for profile in raw.get("profiles") or []:
+        try:
+            protocol = StreamProtocol(str(profile.get("protocol", "")).lower())
+        except ValueError:
+            continue
+        profiles.append(
+            StreamProfile(
+                protocol=protocol,
+                url=profile["url"],
+                codec=profile.get("codec"),
+                width=profile.get("width"),
+                height=profile.get("height"),
+                declared_fps=profile.get("declared_fps"),
+            )
+        )
+    if not any(p.protocol is StreamProtocol.RTSP for p in profiles):
+        return None
+    location = raw.get("location")
+    return CameraDescriptor(
+        camera_id=raw["camera_id"],
+        name=raw.get("name") or raw["camera_id"],
+        driver_id=raw.get("driver_id") or "rtsp",
+        department=raw.get("department_name"),
+        site=raw.get("site_name"),
+        location=GeoPoint(lat=location["lat"], lon=location["lon"]) if location else None,
+        profiles=profiles,
+        tier=tier,
+        status=CameraStatus.UNKNOWN,
+        attributes=raw.get("attributes") or {},
+    )
+
+
+async def _fetch_registry_descriptors(client: httpx.AsyncClient) -> list[CameraDescriptor]:
+    response = await client.get("/api/v1/edge/cameras")
+    response.raise_for_status()
+    descriptors = [_descriptor_from_registry(raw) for raw in response.json()]
+    return [d for d in descriptors if d is not None]
+
+
+def _select_cameras(
+    descriptors: list[CameraDescriptor],
+    *,
+    cameras: str | None,
+    limit: int | None,
+    department: str | None = None,
+    warn_missing: bool = True,
+) -> list[CameraDescriptor]:
+    if department:
+        wanted_department = department.casefold()
+        descriptors = [
+            d for d in descriptors if (d.department or "").casefold() == wanted_department
+        ]
+    if cameras:
+        wanted = set(cameras.split(","))
+        descriptors = [d for d in descriptors if d.camera_id in wanted]
+        missing = wanted - {d.camera_id for d in descriptors}
+        if missing and warn_missing:
+            logger.warning("requested camera ids not found in the catalogue: %s", sorted(missing))
+        return descriptors
+    return descriptors[:limit] if limit is not None else descriptors
 
 
 def _rtsp_url(descriptor: CameraDescriptor) -> str | None:
@@ -312,6 +405,7 @@ async def _run_camera(
     *,
     via_relay: bool = True,
     frame_stride: int = 1,
+    stop: asyncio.Event | None = None,
 ) -> None:
     camera_id = descriptor.camera_id
     settings = get_settings()
@@ -352,6 +446,7 @@ async def _run_camera(
     health_task = asyncio.create_task(
         _report_health(client, camera_id, supervisor, tamper_detector)
     )
+    stop_watch = asyncio.create_task(_stop_when_set(stop, supervisor)) if stop else None
     try:
         frame_index = 0
         async for frame in supervisor.frames():
@@ -392,6 +487,24 @@ async def _run_camera(
                 await _evaluate_zones(client, camera_id, zone_engine, pipeline, frame)
     finally:
         health_task.cancel()
+        if stop_watch is not None:
+            stop_watch.cancel()
+
+
+async def _stop_when_set(stop: asyncio.Event, supervisor: CameraSupervisor) -> None:
+    """Ends the supervisor's frame loop at its next check, so it closes its
+    own capture rather than having it closed underneath an in-flight read."""
+    await stop.wait()
+    supervisor.stop()
+
+
+async def _release_camera_relay_path(settings: Settings, descriptor: CameraDescriptor) -> None:
+    path_name = relay_path_for(descriptor.camera_id, settings)
+    if path_name not in _WARMED_RELAY_PATHS:
+        return
+    async with httpx.AsyncClient(timeout=10.0) as relay_client:
+        await release_relay_path(path_name=path_name, settings=settings, client=relay_client)
+    _WARMED_RELAY_PATHS.discard(path_name)
 
 
 async def _load_zone_engine(client: httpx.AsyncClient, camera_id: str) -> ZoneRuleEngine | None:
@@ -471,9 +584,10 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--source",
-        choices=["synthetic", "gov"],
+        choices=["synthetic", "gov", "registry"],
         default="synthetic",
-        help="synthetic: local M1 RTSP grid (default). gov: the real Sentinel Camera Grid.",
+        help="synthetic: local M1 RTSP grid (default). gov: the real Sentinel Camera Grid. "
+        "registry: every camera onboarded into the core API, re-read periodically.",
     )
     parser.add_argument(
         "--limit",
@@ -488,6 +602,20 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="comma-separated camera ids to run instead of the first --limit from the catalogue "
         "(e.g. cam01,cam04).",
+    )
+    parser.add_argument(
+        "--department",
+        type=str,
+        default=None,
+        help="only analyse cameras registered to this department (case-insensitive) — shard a "
+        "large registry across several workers, one per department or district.",
+    )
+    parser.add_argument(
+        "--resync-interval",
+        type=float,
+        default=DEFAULT_RESYNC_INTERVAL_S,
+        help=f"--source registry only: seconds between registry re-reads (default "
+        f"{DEFAULT_RESYNC_INTERVAL_S:.0f}; 0 reads it once).",
     )
     parser.add_argument(
         "--direct",
@@ -509,6 +637,60 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+async def _load_descriptors(
+    args: argparse.Namespace, settings: Settings, client: httpx.AsyncClient
+) -> tuple[list[CameraDescriptor], int | None]:
+    """The source's camera list and its default --limit."""
+    if args.source == "synthetic":
+        return _load_synthetic_descriptors(), None
+    if args.source == "registry":
+        try:
+            return await _fetch_registry_descriptors(client), None
+        except httpx.HTTPError as exc:
+            raise SystemExit(
+                f"could not read the camera registry from {settings.core_api_url}: {exc}\n"
+                "Is the core API running (`make api`) and SENTINEL_EDGE_SERVICE_TOKEN the same "
+                "for both processes?"
+            ) from exc
+    if not settings.gov_access_email:
+        raise SystemExit(
+            "no SENTINEL_GOV_ACCESS_EMAIL/PASSWORD configured — set them in .env "
+            "(see .env.example) to use --source gov."
+        )
+    async with GovCatalogueClient(settings) as gov_client:
+        return await gov_client.fetch(), DEFAULT_GOV_LIMIT
+
+
+async def _resync_forever(
+    args: argparse.Namespace, client: httpx.AsyncClient, fleet: CameraFleet
+) -> None:
+    while True:
+        await asyncio.sleep(args.resync_interval)
+        try:
+            available = await _fetch_registry_descriptors(client)
+        except httpx.HTTPError as exc:
+            # Keep analysing what is already running: a registry blip must
+            # not stop every camera.
+            logger.warning("registry re-read failed, keeping current cameras: %s", exc)
+            continue
+        wanted = _select_cameras(
+            available,
+            cameras=args.cameras,
+            limit=args.limit,
+            department=args.department,
+            warn_missing=False,
+        )
+        changes = await fleet.sync(wanted)
+        if changes:
+            logger.info(
+                "registry resync: started %s, restarted %s, stopped %s (now %d camera(s))",
+                changes.started or "-",
+                changes.restarted or "-",
+                changes.stopped or "-",
+                len(fleet.camera_ids),
+            )
+
+
 async def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     args = _parse_args()
@@ -523,38 +705,6 @@ async def main() -> None:
     settings = get_settings()
     api_base_url = settings.core_api_url
 
-    if args.source == "synthetic":
-        descriptors = _load_synthetic_descriptors()
-        default_limit = None
-    else:
-        if not settings.gov_access_email:
-            raise SystemExit(
-                "no SENTINEL_GOV_ACCESS_EMAIL/PASSWORD configured — set them in .env "
-                "(see .env.example) to use --source gov."
-            )
-        async with GovCatalogueClient(settings) as gov_client:
-            descriptors = await gov_client.fetch()
-        default_limit = DEFAULT_GOV_LIMIT
-
-    if args.cameras:
-        wanted = set(args.cameras.split(","))
-        descriptors = [d for d in descriptors if d.camera_id in wanted]
-        missing = wanted - {d.camera_id for d in descriptors}
-        if missing:
-            logger.warning("requested camera ids not found in the catalogue: %s", sorted(missing))
-    else:
-        limit = args.limit if args.limit is not None else default_limit
-        if limit is not None:
-            descriptors = descriptors[:limit]
-
-    if not descriptors:
-        raise SystemExit("no cameras to run — check --source/--cameras/--limit")
-
-    logger.info("loading models ...")
-    vehicle_detector = VehicleDetector(VEHICLE_MODEL)
-    plate_reader = FastAlprPlateReader()
-    logger.info("models loaded; vehicle detector providers: %s", vehicle_detector.providers_in_use)
-
     # Every call this worker makes is machine-to-machine (camera
     # registration, health heartbeats, detection ingest) — the shared
     # service token (not a human's JWT, which this process has no user to
@@ -564,8 +714,29 @@ async def main() -> None:
     async with httpx.AsyncClient(
         base_url=api_base_url, timeout=10.0, headers=service_headers
     ) as client:
-        for descriptor in descriptors:
-            await _register_camera(client, descriptor)
+        available, default_limit = await _load_descriptors(args, settings, client)
+        descriptors = _select_cameras(
+            available,
+            cameras=args.cameras,
+            limit=args.limit if args.limit is not None else default_limit,
+            department=args.department,
+        )
+        watch_registry = args.source == "registry" and args.resync_interval > 0
+        if not descriptors and not watch_registry:
+            raise SystemExit("no cameras to run — check --source/--cameras/--limit/--department")
+
+        logger.info("loading models ...")
+        vehicle_detector = VehicleDetector(VEHICLE_MODEL)
+        plate_reader = FastAlprPlateReader()
+        logger.info(
+            "models loaded; vehicle detector providers: %s", vehicle_detector.providers_in_use
+        )
+
+        if args.source != "registry":
+            # Registry cameras exist by definition; catalogue and synthetic
+            # ones need their FK target created before detections arrive.
+            for descriptor in descriptors:
+                await _register_camera(client, descriptor)
 
         via_relay = not args.direct
         if via_relay:
@@ -573,27 +744,41 @@ async def main() -> None:
                 settings, keep={relay_path_for(d.camera_id, settings) for d in descriptors}
             )
         logger.info(
-            "starting %d camera pipeline(s) (source=%s, transport=%s, stride=%d) against %s",
+            "starting %d camera pipeline(s) (source=%s, transport=%s, stride=%d%s) against %s",
             len(descriptors),
             args.source,
             "local relay" if via_relay else "direct to camera",
             args.frame_stride,
+            f", registry re-read every {args.resync_interval:.0f}s" if watch_registry else "",
             api_base_url,
         )
-        try:
-            pipelines = asyncio.gather(
-                *(
-                    _run_camera(
-                        client,
-                        descriptor,
-                        vehicle_detector,
-                        plate_reader,
-                        via_relay=via_relay,
-                        frame_stride=args.frame_stride,
-                    )
-                    for descriptor in descriptors
-                )
+        if not descriptors:
+            logger.warning(
+                "the registry has no analysable cameras yet — onboard some (wizard, bulk CSV or "
+                "device discovery) and they will be picked up on the next re-read"
             )
+
+        async def _run(descriptor: CameraDescriptor, stop: asyncio.Event) -> None:
+            await _run_camera(
+                client,
+                descriptor,
+                vehicle_detector,
+                plate_reader,
+                via_relay=via_relay,
+                frame_stride=args.frame_stride,
+                stop=stop,
+            )
+
+        async def _on_removed(descriptor: CameraDescriptor) -> None:
+            if via_relay:
+                await _release_camera_relay_path(settings, descriptor)
+
+        fleet = CameraFleet(_run, on_removed=_on_removed)
+        await fleet.sync(descriptors)
+        supervise = asyncio.create_task(
+            _resync_forever(args, client, fleet) if watch_registry else fleet.wait()
+        )
+        try:
             # Without this, SIGTERM — which is how this process is actually
             # stopped, by `kill`, a container stop or a supervisor — takes the
             # interpreter down where it stands, and the `finally` below never
@@ -606,12 +791,13 @@ async def main() -> None:
             # also sweeps up whatever a previous run left behind.
             loop = asyncio.get_running_loop()
             for signame in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
-                loop.add_signal_handler(signame, pipelines.cancel)
+                loop.add_signal_handler(signame, supervise.cancel)
             try:
-                await pipelines
+                await supervise
             except asyncio.CancelledError:
                 logger.info("shutting down on signal")
         finally:
+            await fleet.cancel_all()
             await _release_warmed_paths(settings)
 
 

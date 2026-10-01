@@ -5,12 +5,13 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core_api.audit.service import record_audit_event
 from core_api.auth.dependencies import (
     current_user,
     current_user_or_signed_url,
@@ -80,28 +81,44 @@ async def search_detections_endpoint(
     )
 
 
+# A multi-day operation (the Phase-2 finale spans two days) needs to reach
+# past yesterday; a week bounds the scan on a busy registry.
+_WINDOW_HOURS = Query(default=24, ge=1, le=168, description="How far back to search")
+
+
 @router.get("/vehicles/{plate}/route", response_model=VehicleRoute)
 async def vehicle_route_endpoint(
     plate: str,
+    window_hours: int = _WINDOW_HOURS,
     session: AsyncSession = Depends(get_session),
     _user: TokenPayload = Depends(current_user),
 ) -> VehicleRoute:
     """The Find-a-Vehicle screen's single call: search + route reconstruction
     in one round trip."""
-    return await get_vehicle_route(session, plate)
+    return await get_vehicle_route(session, plate, window=timedelta(hours=window_hours))
 
 
 @router.get("/vehicles/{plate}/movement-report")
 async def movement_report_endpoint(
     plate: str,
+    window_hours: int = _WINDOW_HOURS,
     session: AsyncSession = Depends(get_session),
     user: TokenPayload = Depends(current_user),
 ) -> Response:
     """The Movement Report export — a zip of report.pdf, report.csv and a
     hash manifest binding them together (docs/01-ARCHITECTURE.md §6.3/§6.5).
     'This is literally the eval-day deliverable.'"""
-    route = await get_vehicle_route(session, plate)
+    route = await get_vehicle_route(session, plate, window=timedelta(hours=window_hours))
     zip_bytes, filename = build_movement_report_zip(route, generated_by=user.email)
+    await record_audit_event(
+        session,
+        actor_email=user.email,
+        action="movement_report_exported",
+        resource_type="vehicle",
+        resource_id=route.plate_normalised,
+        detail={"sightings": route.total_sightings, "file": filename},
+    )
+    await session.commit()
     return Response(
         content=zip_bytes,
         media_type="application/zip",

@@ -151,9 +151,7 @@ async def test_execute_retention_deletes_only_detections_older_than_the_cutoff(
     surviving = set(
         (
             await db_session.execute(
-                select(Detection.event_id).where(
-                    Detection.event_id.in_(["evt-old", "evt-recent"])
-                )
+                select(Detection.event_id).where(Detection.event_id.in_(["evt-old", "evt-recent"]))
             )
         )
         .scalars()

@@ -7,6 +7,7 @@ import { investigationCopy } from '../locales/investigation'
 import { monitoringCopy } from '../locales/monitoring'
 import { managementCopy } from '../locales/management'
 import { commandCopy } from '../locales/command'
+import { readinessCopy } from '../locales/readiness'
 
 export const SUPPORTED_LANGUAGES = ['en', 'hi', 'gu'] as const
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]
@@ -20,9 +21,9 @@ function readStoredLanguage(): SupportedLanguage {
 
 i18n.use(initReactI18next).init({
   resources: {
-    en: { translation: en, investigation: investigationCopy.en, monitoring: monitoringCopy.en, management: managementCopy.en, command: commandCopy.en },
-    hi: { translation: hi, investigation: investigationCopy.hi, monitoring: monitoringCopy.hi, management: managementCopy.hi, command: commandCopy.hi },
-    gu: { translation: gu, investigation: investigationCopy.gu, monitoring: monitoringCopy.gu, management: managementCopy.gu, command: commandCopy.gu },
+    en: { translation: en, investigation: investigationCopy.en, monitoring: monitoringCopy.en, management: managementCopy.en, command: commandCopy.en, readiness: readinessCopy.en },
+    hi: { translation: hi, investigation: investigationCopy.hi, monitoring: monitoringCopy.hi, management: managementCopy.hi, command: commandCopy.hi, readiness: readinessCopy.hi },
+    gu: { translation: gu, investigation: investigationCopy.gu, monitoring: monitoringCopy.gu, management: managementCopy.gu, command: commandCopy.gu, readiness: readinessCopy.gu },
   },
   lng: readStoredLanguage(),
   fallbackLng: 'en',

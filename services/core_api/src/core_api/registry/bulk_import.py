@@ -13,8 +13,9 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core_api.registry.lifecycle import LIFECYCLE_ATTRIBUTES, validate_lifecycle_attribute
 from core_api.registry.schemas import GeoPointOut, StreamProfileIn
-from core_api.registry.service import upsert_camera
+from core_api.registry.service import describe_failure, upsert_camera
 
 __all__ = ["BulkImportResult", "BulkImportRowResult", "parse_and_import_csv"]
 
@@ -32,6 +33,7 @@ OPTIONAL_COLUMNS = {
     "width",
     "height",
     "declared_fps",
+    *LIFECYCLE_ATTRIBUTES,
 }
 
 
@@ -66,6 +68,7 @@ class ParsedCameraRow:
     location: GeoPointOut | None
     tier: str
     profiles: list[StreamProfileIn]
+    attributes: dict[str, str]
 
 
 def _parse_row(raw: dict[str, str]) -> tuple[ParsedCameraRow | None, str | None]:
@@ -106,6 +109,16 @@ def _parse_row(raw: dict[str, str]) -> tuple[ParsedCameraRow | None, str | None]
         except ValueError as exc:
             return None, f"invalid stream profile column: {exc}"
 
+    attributes: dict[str, str] = {}
+    for key in LIFECYCLE_ATTRIBUTES:
+        value = (raw.get(key) or "").strip()
+        if not value:
+            continue
+        lifecycle_error = validate_lifecycle_attribute(key, value)
+        if lifecycle_error is not None:
+            return None, lifecycle_error
+        attributes[key] = value
+
     return (
         ParsedCameraRow(
             camera_id=camera_id,
@@ -116,6 +129,7 @@ def _parse_row(raw: dict[str, str]) -> tuple[ParsedCameraRow | None, str | None]
             location=location,
             tier=raw.get("tier", "").strip() or "b_sampled",
             profiles=profiles,
+            attributes=attributes,
         ),
         None,
     )
@@ -169,7 +183,7 @@ async def parse_and_import_csv(
                     tier=parsed.tier,
                     status="unknown",
                     source="bulk_csv",
-                    attributes={},
+                    attributes=parsed.attributes,
                     profiles=parsed.profiles,
                 )
             except Exception as exc:
@@ -178,7 +192,7 @@ async def parse_and_import_csv(
                         row_number=row_number,
                         camera_id=parsed.camera_id,
                         ok=False,
-                        error=str(exc),
+                        error=describe_failure(exc),
                     )
                 )
                 continue

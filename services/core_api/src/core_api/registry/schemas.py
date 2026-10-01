@@ -9,9 +9,10 @@ carry. `core_api/registry/service.py` converts between the two.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 __all__ = [
     "CameraCreate",
@@ -21,6 +22,9 @@ __all__ = [
     "CoverageGapReport",
     "DepartmentCreate",
     "DepartmentOut",
+    "DeviceDiscoveryRequest",
+    "DeviceDiscoveryResult",
+    "DiscoveredCameraOut",
     "GapCell",
     "GeoPointOut",
     "StreamProfileIn",
@@ -161,3 +165,33 @@ class CoverageGapReport(BaseModel):
     @property
     def coverage_ratio(self) -> float:
         return self.covered_cells / self.total_cells if self.total_cells else 0.0
+
+
+class DeviceDiscoveryRequest(BaseModel):
+    """Onboard every stream a single device exposes — an ONVIF camera, or a
+    Hikvision/Dahua NVR's channels — from its management address and
+    account, instead of typing one RTSP URL per channel."""
+
+    driver: Literal["onvif", "hikvision", "dahua"]
+    host: str = Field(description="Device management address, e.g. 10.20.1.15 or 10.20.1.15:8080")
+    username: str | None = None
+    password: SecretStr | None = None
+    department_name: str | None = None
+    site_name: str | None = None
+    location: GeoPointOut | None = None
+    dry_run: bool = Field(default=True, description="Preview only; nothing is written when true")
+
+
+class DiscoveredCameraOut(BaseModel):
+    camera_id: str
+    name: str
+    stream_count: int
+    stream_urls: list[str] = Field(description="Credentials masked")
+
+
+class DeviceDiscoveryResult(BaseModel):
+    dry_run: bool
+    discovered: list[DiscoveredCameraOut]
+    onboarded: list[str] = Field(default_factory=list)
+    updated: list[str] = Field(default_factory=list)
+    failed: list[dict[str, str]] = Field(default_factory=list)

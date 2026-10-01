@@ -18,6 +18,7 @@ from sentinel_core.schemas.camera import (
     StreamProfile,
     StreamProtocol,
 )
+from sentinel_core.stream_urls import rtsp_host, with_credentials
 
 __all__ = ["DahuaSource"]
 
@@ -99,9 +100,10 @@ class DahuaSource:
         descriptors: list[CameraDescriptor] = []
         for index, name in channel_names.items():
             channel = int(index) + 1  # Dahua's realmonitor channel param is 1-based
-            url = (
-                f"rtsp://{self._username}:{self._password}@{scope.host}:554"
-                f"/cam/realmonitor?channel={channel}&subtype=0"
+            url = with_credentials(
+                f"rtsp://{rtsp_host(scope.host)}:554/cam/realmonitor?channel={channel}&subtype=0",
+                self._username,
+                self._password,
             )
             descriptors.append(
                 CameraDescriptor(

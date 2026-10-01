@@ -119,17 +119,25 @@ async def ensure_relay_path(
     try:
         existing = await client.get(f"{base}/v3/config/paths/get/{path_name}")
         if existing.status_code == 200:
-            # The path exists, but not necessarily in the mode this caller
+            # The path exists, but not necessarily in the shape this caller
             # needs. Returning early here used to make `sourceOnDemand` sticky
             # to whoever created the path first: a path left always-on by a
             # previous run stayed always-on for good, which is how a survey of
             # all thirty cameras left two dozen of them permanently dialling
-            # the gateway with no reader attached. Reconcile it instead.
-            if existing.json().get("sourceOnDemand") is not on_demand:
-                await client.patch(
-                    f"{base}/v3/config/paths/patch/{path_name}",
-                    json={"sourceOnDemand": on_demand},
-                )
+            # the gateway with no reader attached. The same held for the
+            # source itself — an operator correcting a mistyped RTSP URL or
+            # NVR password would see the relay keep pulling the old one until
+            # MediaMTX restarted. Reconcile every field this function owns.
+            current = existing.json()
+            drift: dict[str, object] = {}
+            if current.get("source") != rtsp_url:
+                drift["source"] = rtsp_url
+            if current.get("sourceOnDemand") is not on_demand:
+                drift["sourceOnDemand"] = on_demand
+            if current.get("rtspTransport") != "tcp":
+                drift["rtspTransport"] = "tcp"
+            if drift:
+                await client.patch(f"{base}/v3/config/paths/patch/{path_name}", json=drift)
             return True
         response = await client.post(
             f"{base}/v3/config/paths/add/{path_name}",

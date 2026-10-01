@@ -74,6 +74,7 @@
 .registry-map-list small { color: var(--color-text-secondary); font-size: 11px; margin-top: 5px; }
 .registry-map-list > button > svg { flex-shrink: 0; color: var(--color-text-secondary); }
 .registry-map-canvas { position: relative; min-height: 400px; }
+.registry-gap-toggle { position: absolute; z-index: 2; top: 12px; left: 12px; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 12px; border: 1px solid var(--color-border-subtle); border-radius: 6px; background: var(--color-bg-raised); font-size: 13px; color: var(--color-text-primary); cursor: pointer; }
 .registry-map-notice { position: absolute; z-index: 2; bottom: 30px; left: 12px; right: 12px; width: fit-content; max-width: calc(100% - 24px); padding: 9px 12px; border: 1px solid var(--color-border-subtle); border-radius: 6px; background: var(--color-bg-raised); font-size: 12px; color: var(--color-text-secondary); }
 .registry-onboarding { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 22px 0 8px; }
 .registry-onboarding > div { flex: 1 1 280px; }

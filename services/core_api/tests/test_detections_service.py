@@ -8,7 +8,12 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core_api.detections.schemas import DetectionIn
-from core_api.detections.service import get_vehicle_route, ingest_detection, search_detections
+from core_api.detections.service import (
+    get_vehicle_route,
+    ingest_detection,
+    search_detections,
+    within_one_edit,
+)
 from core_api.registry.schemas import GeoPointOut
 from core_api.registry.service import get_camera, upsert_camera
 from sentinel_core.plates import ambiguity_key
@@ -202,3 +207,73 @@ async def test_a_route_is_found_even_when_the_camera_clock_is_badly_wrong(
     assert len(route.points) == 1, "a stale camera clock must not hide a fresh sighting"
     # The evidence timestamp itself is left exactly as the camera reported it.
     assert route.points[0].observed_at == ANCHOR - timedelta(days=90)
+
+
+async def test_ingest_derives_search_keys_from_the_plate_text_not_the_producer(
+    db_session: AsyncSession,
+) -> None:
+    """A third-party ANPR producer that sends its own (spaced, lower-case)
+    'normalised' form must still be findable under the plate an operator
+    types on evaluation day."""
+    await _make_camera(db_session)
+    detection = await ingest_detection(
+        db_session,
+        _detection_in(
+            plate_text="gj 01 ab-1234",
+            plate_normalised="gj 01 ab-1234",
+            plate_ambiguity_key="whatever",
+        ),
+    )
+
+    assert detection.plate_normalised == "GJ01AB1234"
+    assert detection.plate_ambiguity_key == ambiguity_key("GJ01AB1234")
+    route = await get_vehicle_route(db_session, "GJ 01 AB 1234")
+    assert route.total_sightings == 1
+
+
+def test_within_one_edit() -> None:
+    assert within_one_edit("GJ01AB1234", "GJ01AB1234")
+    assert within_one_edit("GJ01AB1234", "GJ01AB1284")  # substitution
+    assert within_one_edit("GJ01AB1234", "GJ01AB234")  # dropped character
+    assert within_one_edit("GJ01AB1234", "GJ01AAB1234")  # extra character
+    assert not within_one_edit("GJ01AB1234", "GJ01AB1289")
+    assert not within_one_edit("GJ01AB1234", "GJ01AB12")
+
+
+async def test_route_falls_back_to_one_edit_reads_marked_probable(
+    db_session: AsyncSession,
+) -> None:
+    """The designated plate misread at one camera by a character outside the
+    ambiguity classes must still produce a route, but one the operator is
+    told to confirm."""
+    await _make_camera(db_session)
+    await ingest_detection(db_session, _detection_in(plate_text="GJ01AB1284"))
+
+    route = await get_vehicle_route(db_session, "GJ01AB1234")
+
+    assert route.total_sightings == 1
+    assert route.points[0].match_rung == "edit_distance"
+    assert route.points[0].confirmed is False
+    assert route.points[0].plate_text == "GJ01AB1284"
+
+
+async def test_one_edit_reads_never_dilute_an_exact_route(db_session: AsyncSession) -> None:
+    await _make_camera(db_session)
+    await ingest_detection(db_session, _detection_in())
+    await ingest_detection(
+        db_session, _detection_in(event_id="01JEVT0000000000000000002", plate_text="GJ01AB1235")
+    )
+
+    route = await get_vehicle_route(db_session, "GJ01AB1234")
+
+    assert [p.plate_text for p in route.points] == ["GJ01AB1234"]
+    assert route.points[0].confirmed is True
+
+
+async def test_short_queries_do_not_use_edit_distance(db_session: AsyncSession) -> None:
+    await _make_camera(db_session)
+    await ingest_detection(db_session, _detection_in(plate_text="AB1234"))
+
+    route = await get_vehicle_route(db_session, "AB1235")
+
+    assert route.total_sightings == 0

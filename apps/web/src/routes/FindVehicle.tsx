@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowRight, Camera, Download, MapPin, Pause, Play, Search, ShieldCheck, ScanLine } from 'lucide-react'
+import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { detectionsApi, watchlistApi } from '../lib/api'
 import { ApiError } from '../lib/http'
@@ -71,10 +72,18 @@ function SightingEvidence({ point }: { point: RoutePoint }) {
           <div><dt>{t('investigation:confidence')}</dt><dd>{Math.round(point.plate_confidence * 100)}%</dd></div>
           <div><dt>{t('investigation:location')}</dt><dd>{point.location ? `${point.location.lat.toFixed(5)}, ${point.location.lon.toFixed(5)}` : t('investigation:noLocation')}</dd></div>
         </dl>
-        {point.match_rung !== 'exact' && <p className="iw-context-note">{t('findVehicle.matchedByAmbiguity')}</p>}
+        {point.match_rung !== 'exact' && <p className="iw-context-note">{matchNote(point, t)}</p>}
       </div>
     </section>
   )
+}
+
+/** Why a non-exact hop is on the route. A one-character match may be a
+ * different vehicle, so it says so and names the plate actually read. */
+function matchNote(point: RoutePoint, t: TFunction): string {
+  return point.match_rung === 'edit_distance'
+    ? t('readiness:matchedByEditDistance', { plate: point.plate_text })
+    : t('findVehicle.matchedByAmbiguity')
 }
 
 function formatTime(iso: string): string {
@@ -89,7 +98,7 @@ function formatTime(iso: string): string {
 function ConfidenceBar({ point }: { point: RoutePoint }) {
   const { t } = useTranslation()
   const pct = Math.round(point.plate_confidence * 100)
-  const tooltip = point.match_rung === 'exact' ? t('findVehicle.readClearly') : t('findVehicle.matchedByAmbiguity')
+  const tooltip = point.match_rung === 'exact' ? t('findVehicle.readClearly') : matchNote(point, t)
   return (
     <div title={tooltip} className="flex items-center gap-2">
       <div className="h-1.5 w-16 overflow-hidden rounded-full bg-bg-inset">
@@ -103,7 +112,17 @@ function ConfidenceBar({ point }: { point: RoutePoint }) {
   )
 }
 
-function ArmBoloPanel({ plate, onArmed }: { plate: string; onArmed: () => void }) {
+/** Search windows offered to the operator; the finale spans two days, so a
+ * vehicle seen yesterday must still be reachable. Mirrors the API's cap. */
+const SEARCH_WINDOWS = [24, 48, 168] as const
+type SearchWindow = (typeof SEARCH_WINDOWS)[number]
+
+function parseWindow(value: string | null): SearchWindow {
+  const hours = Number(value)
+  return (SEARCH_WINDOWS as readonly number[]).includes(hours) ? (hours as SearchWindow) : 24
+}
+
+function ArmBoloPanel({ plate, windowHours, onArmed }: { plate: string; windowHours: SearchWindow; onArmed: () => void }) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [armed, setArmed] = useState<{ retro_alerts_created: number; retro_sightings_found: number } | null>(
@@ -141,7 +160,11 @@ function ArmBoloPanel({ plate, onArmed }: { plate: string; onArmed: () => void }
   return (
     <Card className="flex flex-col items-center gap-3 p-8 text-center">
       <p className="plate-mono text-2xl font-semibold text-text-primary">{plate}</p>
-      <p className="max-w-sm text-sm text-text-secondary">{t('findVehicle.noSightingsIn24h')}</p>
+      <p className="max-w-sm text-sm text-text-secondary">
+        {windowHours === 24
+          ? t('findVehicle.noSightingsIn24h')
+          : t('readiness:noSightingsInWindow', { window: t(`readiness:window${windowHours}`) })}
+      </p>
       <Button onClick={arm} disabled={busy}>
         {busy ? t('findVehicle.arming') : t('findVehicle.watchForVehicle')}
       </Button>
@@ -150,7 +173,7 @@ function ArmBoloPanel({ plate, onArmed }: { plate: string; onArmed: () => void }
   )
 }
 
-function ExportReportButton({ plate }: { plate: string }) {
+function ExportReportButton({ plate, windowHours }: { plate: string; windowHours: SearchWindow }) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -159,7 +182,7 @@ function ExportReportButton({ plate }: { plate: string }) {
     setBusy(true)
     setError(null)
     try {
-      const { blob, filename } = await detectionsApi.movementReport(plate)
+      const { blob, filename } = await detectionsApi.movementReport(plate, windowHours)
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -190,6 +213,7 @@ export function FindVehicle() {
   const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const plateParam = searchParams.get('plate') ?? ''
+  const windowHours = parseWindow(searchParams.get('hours'))
   const [input, setInput] = useState(plateParam)
   const [route, setRoute] = useState<VehicleRoute | null>(null)
   const [loading, setLoading] = useState(false)
@@ -220,13 +244,13 @@ export function FindVehicle() {
     setLoading(true)
     setError(null)
     detectionsApi
-      .vehicleRoute(plateParam)
+      .vehicleRoute(plateParam, windowHours)
       .then((result) => { if (!cancelled) setRoute(result) })
       .catch((err) => { if (!cancelled) setError(requestMessage(err, t('findVehicle.searchFailed'))) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plateParam, refreshKey, t])
+  }, [plateParam, windowHours, refreshKey, t])
 
   // Cancel any in-flight replay if the operator starts a new search.
   useEffect(() => {
@@ -240,8 +264,19 @@ export function FindVehicle() {
   function handleSearch() {
     const trimmed = input.trim()
     if (!trimmed) return
-    setSearchParams({ plate: trimmed })
+    setSearchParams(searchFor(trimmed, windowHours))
   }
+
+  function searchFor(plate: string, hours: SearchWindow): Record<string, string> {
+    return hours === 24 ? { plate } : { plate, hours: String(hours) }
+  }
+
+  function changeWindow(hours: SearchWindow) {
+    const plate = plateParam || input.trim()
+    setSearchParams(plate ? searchFor(plate, hours) : hours === 24 ? {} : { hours: String(hours) })
+  }
+
+  const windowLabel = t(`readiness:window${windowHours}`)
 
   const locatedPoints =
     route?.points
@@ -310,19 +345,29 @@ export function FindVehicle() {
   const routeSegments = locatedPoints.slice(0, -1).map((p, i) => ({
     from: [p.location.lon, p.location.lat] as [number, number],
     to: [locatedPoints[i + 1].location.lon, locatedPoints[i + 1].location.lat] as [number, number],
-    confirmed: locatedPoints[i + 1].match_rung !== 'ambiguity_class',
+    confirmed: locatedPoints[i + 1].match_rung === 'exact',
   }))
 
   return (
     <div className="investigation-workspace">
-      <TopBar title={t('findVehicle.title')} subtitle={t('findVehicle.searchesLast24h')} />
+      <TopBar title={t('findVehicle.title')} subtitle={windowHours === 24 ? t('findVehicle.searchesLast24h') : t('readiness:searchesWindow', { window: windowLabel })} />
       <form role="search" aria-label={t('investigation:queryConsole')} onSubmit={(e) => { e.preventDefault(); handleSearch() }} className="iw-query-toolbar">
         <div className="iw-query-field">
           <label htmlFor="investigation-plate">{t('workspace.plate')}</label>
           <div><Search size={18} aria-hidden="true" /><Input id="investigation-plate" required value={input} onChange={(e) => setInput(e.target.value)} placeholder={t('findVehicle.platePlaceholder')} className="plate-mono" /></div>
         </div>
         <Button type="submit" disabled={!input.trim() || loading}>{t('findVehicle.search')}<ArrowRight size={16} /></Button>
-        <span className="iw-query-scope">{t('findVehicle.searchesLast24h')}</span>
+        <label className="iw-query-scope flex items-center gap-2">
+          <span>{t('readiness:searchWindow')}</span>
+          <select
+            aria-label={t('readiness:searchWindow')}
+            value={windowHours}
+            onChange={(e) => changeWindow(parseWindow(e.target.value))}
+            className="h-10 rounded-md border border-border-strong bg-bg-inset px-2 text-sm text-text-primary"
+          >
+            {SEARCH_WINDOWS.map((hours) => <option key={hours} value={hours}>{t(`readiness:window${hours}`)}</option>)}
+          </select>
+        </label>
         {plateParam && <Button type="button" variant="ghost" onClick={() => setSearchParams({})}>{t('findVehicle.newSearch')}</Button>}
       </form>
 
@@ -346,7 +391,7 @@ export function FindVehicle() {
 
       {route && route.total_sightings === 0 && !loading && (
         <div className="flex flex-1 items-center justify-center p-8">
-          <ArmBoloPanel plate={route.plate_normalised} onArmed={() => setRefreshKey((k) => k + 1)} />
+          <ArmBoloPanel plate={route.plate_normalised} windowHours={windowHours} onArmed={() => setRefreshKey((k) => k + 1)} />
         </div>
       )}
 
@@ -375,7 +420,7 @@ export function FindVehicle() {
                 {replaying ? <Pause size={14} /> : <Play size={14} />}
                 {replaying ? t('findVehicle.stop') : t('findVehicle.replayRoute')}
               </Button>
-              <ExportReportButton plate={route.plate_normalised} />
+              <ExportReportButton plate={route.plate_normalised} windowHours={windowHours} />
             </div>
           </div>
           <dl className="iw-route-summary">
@@ -418,7 +463,7 @@ export function FindVehicle() {
                         <ConfidenceBar point={point} />
                       </div>
                       <p className="iw-camera-name">{point.camera_name}</p>
-                      {point.match_rung === 'ambiguity_class' && (
+                      {point.match_rung !== 'exact' && (
                         <SeverityBadge severity="medium" label={t('findVehicle.probableMatch')} className="mt-1" />
                       )}
                     </div>

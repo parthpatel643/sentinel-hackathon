@@ -418,7 +418,7 @@
     "adding": "Adding…",
     "addCamera": "Add camera",
     "createError": "Could not create this camera.",
-    "bulkImportHelp": "CSV columns: camera_id, name required; department_name, site_name, lat, lon, tier, protocol, url, codec optional.",
+    "bulkImportHelp": "CSV columns: camera_id, name required; department_name, site_name, lat, lon, tier, protocol, url, codec, installed_on, amc_expires_on (YYYY-MM-DD), maintenance_status, vendor, model optional.",
     "previewDryRun": "Preview (dry run)",
     "checkingFile": "Checking…",
     "readFileError": "Could not read this file. Check it is a CSV with the expected columns.",

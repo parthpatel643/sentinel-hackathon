@@ -464,7 +464,7 @@
     "adding": "ઉમેરી રહ્યા છીએ…",
     "addCamera": "કેમેરા ઉમેરો",
     "createError": "આ કેમેરા બનાવી શકાયો નથી.",
-    "bulkImportHelp": "CSV કૉલમ: camera_id, name જરૂરી; department_name, site_name, lat, lon, tier, protocol, url, codec વૈકલ્પિક.",
+    "bulkImportHelp": "CSV કૉલમ: camera_id, name જરૂરી; department_name, site_name, lat, lon, tier, protocol, url, codec, installed_on, amc_expires_on (YYYY-MM-DD), maintenance_status, vendor, model વૈકલ્પિક.",
     "previewDryRun": "પ્રીવ્યૂ (dry run)",
     "checkingFile": "તપાસી રહ્યા છીએ…",
     "readFileError": "આ ફાઇલ વાંચી શકાયી નથી. ખાતરી કરો કે તે અપેક્ષિત કૉલમવાળો CSV છે.",

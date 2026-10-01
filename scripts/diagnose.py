@@ -123,6 +123,27 @@ def check_model() -> Result:
     return _ok(f"vehicle model present ({VEHICLE_MODEL.stat().st_size / 1e6:.1f} MB)")
 
 
+# Fetched on first use rather than shipped; on a network with no internet
+# that first use fails, so their presence is checked up front.
+_CACHED_MODELS = {
+    "plate detector": Path.home() / ".cache/open-image-models/yolo-v9-t-640-license-plate-end2end",
+    "plate OCR": Path.home() / ".cache/fast-plate-ocr/cct-s-v2-global-model",
+    "face detector": Path.home()
+    / ".cache/sentinel-platform/models/face_detection_yunet_2023mar.onnx",
+}
+
+
+def check_offline_models() -> Result:
+    missing = [name for name, path in _CACHED_MODELS.items() if not path.exists()]
+    if missing:
+        return _warn(
+            f"not cached yet: {', '.join(missing)} — the worker would download them on first "
+            "use, which fails on a network without internet",
+            "While online, run:\n      make prefetch",
+        )
+    return _ok("plate detector, plate OCR and face detector cached for offline use")
+
+
 def check_gov_credentials(settings: Settings) -> Result:
     email = settings.gov_access_email
     password = settings.gov_access_password
@@ -221,6 +242,7 @@ def check_worker_running() -> Result:
         return _fail(
             "no edge worker is running",
             "Nothing is pulling any camera, so no feed can arrive. Start one:\n"
+            "      make worker SOURCE=registry STRIDE=3          # every onboarded camera\n"
             "      make worker                                    # synthetic grid\n"
             "      make worker SOURCE=gov CAMERAS=cam06,cam30 STRIDE=3",
         )
@@ -298,6 +320,7 @@ async def main() -> int:
             ("media relay", await check_relay(settings, client)),
             ("core API", await check_api(settings, client)),
             ("vehicle model", check_model()),
+            ("offline models", check_offline_models()),
         ]
         if args.gov:
             checks.append(("gov credentials", check_gov_credentials(settings)))

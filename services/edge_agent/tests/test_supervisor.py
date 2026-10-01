@@ -194,3 +194,27 @@ async def test_the_first_connection_does_not_reassert() -> None:
             supervisor.stop()
 
     assert not called
+
+
+async def test_stop_wakes_a_camera_sleeping_in_maximum_backoff() -> None:
+    """A camera with a wrong URL sits at maximum backoff; removing or
+    correcting it must not wait that backoff out."""
+    source = FakeVideoSource(should_fail_open=True)
+    supervisor = CameraSupervisor(
+        config=CaptureConfig(camera_id="cam-stuck", url="rtsp://x"),
+        supervisor_config=SupervisorConfig(
+            initial_backoff_s=30.0, max_backoff_s=30.0, backoff_jitter=0.0
+        ),
+        capture_factory=_capture_factory(source),
+    )
+
+    async def drain() -> None:
+        async for _ in supervisor.frames():
+            pass  # pragma: no cover - never opens
+
+    task = asyncio.create_task(drain())
+    await asyncio.sleep(0.05)
+    supervisor.stop()
+
+    async with asyncio.timeout(1.0):
+        await task

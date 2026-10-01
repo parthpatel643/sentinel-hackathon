@@ -6,7 +6,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 
 .DEFAULT_GOAL := help
-.PHONY: help install up down logs ps api web worker deck seed test lint fmt types check audit secrets-scan sbom clean
+.PHONY: help install up down logs ps api web worker deck seed prefetch test lint fmt types check audit secrets-scan sbom clean
 
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -39,10 +39,11 @@ api: ## Run the core API with reload
 web: ## Run the operator console (Vite dev server)
 	cd apps/web && npm run dev
 
-worker: ## Run an edge worker (SOURCE=gov CAMERAS=cam06,cam30 STRIDE=3 for the real grid)
+worker: ## Run an edge worker (SOURCE=registry|gov|synthetic CAMERAS=a,b DEPARTMENT=Police STRIDE=3)
 	uv run --package edge-agent python -m edge_agent.worker \
 	  --source $(or $(SOURCE),synthetic) \
 	  $(if $(CAMERAS),--cameras $(CAMERAS),) \
+	  $(if $(DEPARTMENT),--department "$(DEPARTMENT)",) \
 	  $(if $(STRIDE),--frame-stride $(STRIDE),)
 
 deck: ## Build the submission deck (docs/Sentinel-Platform-Deck.pptx)
@@ -53,6 +54,9 @@ hld: ## Build the HLD PDF from docs/ (docs/Sentinel-Platform-HLD.pdf)
 
 workflow-diagram: ## Build the Workflow/Integration Diagram PDF (docs/Sentinel-Platform-Workflow-Integration-Diagram.pdf)
 	cd apps/web && npm run docs:diagram
+
+prefetch: ## Download every model the worker needs, so it runs with no internet
+	uv run --package edge-agent python scripts/prefetch_models.py
 
 doctor: ## Diagnose why the camera feed is not coming (--gov for the real grid)
 	uv run python scripts/diagnose.py $(if $(GOV),--gov,)

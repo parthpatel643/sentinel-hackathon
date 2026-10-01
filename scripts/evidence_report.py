@@ -140,9 +140,7 @@ async def _collect(
     by_source = Counter(c.source for c in cameras)
     analysed = set(
         (
-            await session.scalars(
-                select(Detection.camera_id).where(*detection_filter).distinct()
-            )
+            await session.scalars(select(Detection.camera_id).where(*detection_filter).distinct())
         ).all()
     )
 
@@ -156,7 +154,7 @@ async def _collect(
     fleet.note = (
         "A camera can be registered and healthy without producing detections — the grid is "
         "onboarded in full, while analysis runs on the subset the worker was asked to open "
-        "(the integrator guide's \"pace your load\" guidance)."
+        '(the integrator guide\'s "pace your load" guidance).'
     )
     sections.append(fleet)
 

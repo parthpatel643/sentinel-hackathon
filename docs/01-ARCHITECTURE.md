@@ -263,6 +263,13 @@ Every event carries its model versions and node identity — required for forens
 | 5 | Attribute match | white hatchback + partial `…1234` in a time-space window |
 | 6 | Appearance ReID | same vehicle embedding, plate unreadable at this camera |
 
+> **Implemented today:** continuous watchlist correlation (alerts) uses rungs 1–2.
+> Find a Vehicle's route reconstruction uses rungs 1–3, stopping at the first rung
+> that finds anything; rung 3 is Levenshtein ≤ 1, only for plate-length queries,
+> and its hops are returned as *probable* (drawn dashed, with the plate actually
+> read) because a one-character difference can be a different vehicle. Rungs 4–6
+> are design, not code.
+
 Every rung is scored and the resulting alert shows *why* it matched, in plain language. That explainability is what makes an operator trust it — and it is exactly what a jury probes.
 
 **Correlation is continuous, not query-driven:** every incoming event is evaluated against the in-memory watchlist index (Valkey-backed, versioned, hot-reloaded on change). Adding a plate to the watchlist triggers both a forward-looking arm **and** an asynchronous retro-scan of historical events — the BOLO moment.

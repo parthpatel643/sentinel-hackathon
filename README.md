@@ -24,6 +24,11 @@ documented path to ~80,000 cameras.
 > watchlist correlation, zone rules and tamper detection all verified on real
 > traffic footage. See [evidence/](evidence) for measured results, including the
 > things that did not work.
+>
+> **Phase 2 (grand finale, 12–13 Oct 2026, i-Hub Gujarat):** real CCTV at scale.
+> Cameras onboarded on the day — wizard, bulk CSV, ONVIF/NVR device discovery —
+> are analysed by `make worker SOURCE=registry` without a restart. The on-site
+> procedure is in [10 — Finale Runbook](docs/10-FINALE-RUNBOOK.md).
 
 ---
 
@@ -71,6 +76,11 @@ curl -X POST localhost:18000/api/v1/cameras/discover \
 make worker SOURCE=gov CAMERAS=cam06,cam30 STRIDE=3
 ```
 
+For **any other cameras** — a department's RTSP feeds, an ONVIF camera, an NVR —
+onboard them in the console (or `POST /api/v1/cameras/bulk-import`) and run
+`make worker SOURCE=registry STRIDE=3`. It re-reads the registry every 30
+seconds; see [GETTING-STARTED.md](GETTING-STARTED.md).
+
 > The government sandbox enforces an account-level viewing-time quota. Four
 > cameras exhaust it in under an hour, after which it returns `403 watch time
 > limit reached` and cuts every feed until consumption stops entirely for
@@ -90,7 +100,10 @@ the stack never collides with anything else on the machine; override with
 
 **Find a vehicle** — a plate goes in; a timestamped, per-camera timeline and a
 mapped route come out, with recognition confidence per sighting and route replay
-when enough sightings can be placed on the map.
+when enough sightings can be placed on the map. Searches reach back 24 hours, 48
+hours or 7 days; when nothing matches exactly, reads one character away come
+back as clearly-marked *probable* hops. The exported Movement Report (PDF + CSV +
+hash manifest) is in IST, with UTC alongside.
 
 ![Find a vehicle](docs/images/05-find-a-vehicle.png)
 
@@ -106,8 +119,11 @@ the watchlist says `GJ186705`.
 
 ![Alerts](docs/images/03-alerts.png)
 
-**Camera registry** — catalogue-driven onboarding, bulk CSV import,
-coverage-gap analysis, and per-camera health, tamper state and zone rules.
+**Camera registry** — catalogue-driven onboarding, bulk CSV import, ONVIF and
+NVR device discovery, a coverage-gap map layer, an infrastructure lifecycle
+report (ageing cameras, lapsed AMCs, maintenance, offline) with a CSV work list,
+and per-camera health, tamper state and zone rules. Stream credentials never
+leave the API: operators see `rtsp://***@host/...`.
 
 ![Cameras](docs/images/04-cameras.png)
 
@@ -134,6 +150,7 @@ Reviewers should not have to guess which parts are load-bearing.
 | **ANPR accuracy number** | **Not claimed.** Needs a hand-labelled holdout that does not exist yet; `scripts/eval_anpr.py` is built and waiting on it. |
 | Camera registry, search, alerts, evidence clips | Real, PostGIS-backed, tested against a real database. |
 | Watchlist correlation (both rungs) | Real. Exercised end-to-end on live government reads. |
+| Route search, rung 3 (one-character misreads) | Real, route search only; returned as *probable* hops. Wildcard search and appearance ReID are designed, not built. |
 | Secondary analytics (colour, tamper, zones) | Real — 208 zone events and a `moved` tamper flag on real footage. Vehicle colour is an HSV heuristic, not a trained classifier. |
 | Coarse-make (manufacturer/model) | **Out of scope.** Needs a different trained classifier; not attempted. |
 | Face recognition | **Excluded by decision** — see [00-SOLUTION-PLAN](docs/00-SOLUTION-PLAN.md). |
@@ -173,6 +190,7 @@ Reviewers should not have to guess which parts are load-bearing.
 | [07 — Driver SDK](docs/07-DRIVER-SDK.md) | Writing a camera driver; ONVIF and four vendor shims |
 | [08 — Security & Hardening](docs/08-SECURITY-HARDENING.md) | mTLS, RLS tenancy, face blurring, audit chain, supply chain, signed URLs |
 | [09 — Secondary Analytics](docs/09-SECONDARY-ANALYTICS.md) | Vehicle colour, camera tamper detection, zone rules |
+| [10 — Finale Runbook](docs/10-FINALE-RUNBOOK.md) | Phase-2 on-site procedure: what to ask organisers, onboarding real cameras, offline operation, the designated-vehicle drill, fallbacks |
 
 ### Evidence
 

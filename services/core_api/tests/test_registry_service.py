@@ -366,7 +366,9 @@ async def test_resolve_camera_stream_refuses_a_camera_that_is_down() -> None:
     happens when the upstream gateway drops. Handing the browser an HLS URL
     then leaves the tile on "Connecting…" forever, so a camera the worker has
     marked `down` must be reported unavailable, with a reason, instead."""
-    settings = Settings(relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888")
+    settings = Settings(
+        relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888"
+    )
     camera = _camera_with_rtsp("cam06", "rtsp://gateway.example/cam06", status="down")
 
     async def _unexpected_call(request: httpx.Request) -> httpx.Response:
@@ -385,7 +387,9 @@ async def test_resolve_camera_stream_still_serves_an_unknown_camera() -> None:
     """`unknown` is "nobody has looked yet", not "broken". Those paths are
     served on demand and connect on first view, so they must not be caught by
     the `down` guard above."""
-    settings = Settings(relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888")
+    settings = Settings(
+        relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888"
+    )
     camera = _camera_with_rtsp("cam18", "rtsp://localhost:8554/dev/cam18", status="unknown")
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(200)))
@@ -398,7 +402,9 @@ async def test_resolve_camera_stream_still_serves_an_unknown_camera() -> None:
 async def test_resolve_camera_stream_resolves_our_own_relay_directly() -> None:
     """A synthetic-grid camera's RTSP host matches relay_rtsp_url — no
     MediaMTX API call should even be attempted."""
-    settings = Settings(relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888")
+    settings = Settings(
+        relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888"
+    )
     camera = _camera_with_rtsp("dev-cam-01", "rtsp://localhost:8554/dev/dev-cam-01")
 
     async def _unexpected_call(request: httpx.Request) -> httpx.Response:
@@ -415,7 +421,9 @@ async def test_resolve_camera_stream_resolves_our_own_relay_directly() -> None:
 async def test_resolve_camera_stream_proxies_an_external_camera_via_relay_pull() -> None:
     """A gov-catalogue camera's RTSP host doesn't match our relay — the path
     doesn't exist yet, so it must be added as a PULL source."""
-    settings = Settings(relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888")
+    settings = Settings(
+        relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888"
+    )
     camera = _camera_with_rtsp("cam01", "rtsp://user:pass@103.250.160.189:8554/stream/cam01")
     calls: list[httpx.Request] = []
 
@@ -439,13 +447,23 @@ async def test_resolve_camera_stream_proxies_an_external_camera_via_relay_pull()
 async def test_resolve_camera_stream_reuses_an_already_registered_relay_path() -> None:
     """If the path was already added (a previous preview request, or a
     concurrent one), no POST should be attempted at all."""
-    settings = Settings(relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888")
+    settings = Settings(
+        relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888"
+    )
     camera = _camera_with_rtsp("cam02", "rtsp://user:pass@103.250.160.189:8554/stream/cam02")
 
     def _handler(request: httpx.Request) -> httpx.Response:
         assert request.method != "POST", "an existing path must never be re-added"
         assert request.method == "GET"
-        return httpx.Response(200, json={"name": "ext/cam02", "sourceOnDemand": True})
+        return httpx.Response(
+            200,
+            json={
+                "name": "ext/cam02",
+                "source": camera.profiles[0].url,
+                "sourceOnDemand": True,
+                "rtspTransport": "tcp",
+            },
+        )
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(_handler))
     result = await resolve_camera_stream(camera, settings, client=client)
@@ -459,7 +477,9 @@ async def test_resolve_camera_stream_treats_a_racing_duplicate_add_as_success() 
     """Two concurrent first-time previews can both see the path missing and
     both attempt to add it — MediaMTX's 400 'already exists' on the loser is
     the desired end state, not a failure."""
-    settings = Settings(relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888")
+    settings = Settings(
+        relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888"
+    )
     camera = _camera_with_rtsp("cam03", "rtsp://user:pass@103.250.160.189:8554/stream/cam03")
 
     def _handler(request: httpx.Request) -> httpx.Response:
@@ -477,7 +497,9 @@ async def test_resolve_camera_stream_treats_a_racing_duplicate_add_as_success() 
 async def test_resolve_camera_stream_reports_unavailable_when_the_relay_is_unreachable() -> None:
     """A MediaMTX outage must degrade to 'preview unavailable', never a 500
     on the whole Cameras screen."""
-    settings = Settings(relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888")
+    settings = Settings(
+        relay_rtsp_url="rtsp://localhost:8554", relay_hls_url="http://localhost:8888"
+    )
     camera = _camera_with_rtsp("cam04", "rtsp://user:pass@103.250.160.189:8554/stream/cam04")
 
     def _handler(request: httpx.Request) -> httpx.Response:

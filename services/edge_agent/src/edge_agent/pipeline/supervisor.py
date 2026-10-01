@@ -9,6 +9,7 @@ would fail the very first evaluation run.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import random
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
@@ -58,6 +59,10 @@ class CameraSupervisor:
     reconnects: int = field(default=0, init=False)
     _capture: RtspCapture = field(init=False)
     _stop_requested: bool = field(default=False, init=False)
+    # Wakes a reconnect backoff early, so a stop does not wait out up to 36 s
+    # of sleep on exactly the cameras most likely to be stopped (a wrong URL
+    # or password leaves a camera at maximum backoff).
+    _stop_event: asyncio.Event = field(default_factory=asyncio.Event, init=False)
 
     def __post_init__(self) -> None:
         self._capture = self.capture_factory(self.config)
@@ -109,10 +114,12 @@ class CameraSupervisor:
         jitter = backoff_s * random.uniform(
             -self.supervisor_config.backoff_jitter, self.supervisor_config.backoff_jitter
         )
-        await asyncio.sleep(max(0.0, backoff_s + jitter))
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(self._stop_event.wait(), timeout=max(0.0, backoff_s + jitter))
 
     def stop(self) -> None:
         self._stop_requested = True
+        self._stop_event.set()
 
     @property
     def measured_fps(self) -> float | None:

@@ -261,6 +261,25 @@ class Settings(BaseSettings):
         path = f"/stream/{camera_id}" if protocol == "rtsp" else f"/stream/{camera_id}/whep"
         return f"{scheme}://{email}:{password}@{host_port}{path}"
 
+    def secrets_left_at_dev_defaults(self) -> list[str]:
+        """Secrets still set to the values published in this repository.
+
+        Harmless on one laptop — `make api` binds to localhost — but the
+        moment the API is reachable from another machine (a second edge
+        laptop, a venue LAN), anyone who has read the repo could mint an
+        admin token or read the edge manifest's camera credentials."""
+        dev_defaults = {
+            name: field.default
+            for name, field in type(self).model_fields.items()
+            if isinstance(field.default, SecretStr)
+            and field.default.get_secret_value().startswith("dev-only-")
+        }
+        return sorted(
+            f"SENTINEL_{name.upper()}"
+            for name, default in dev_defaults.items()
+            if getattr(self, name).get_secret_value() == default.get_secret_value()
+        )
+
     def gov_hls_url(self, camera_id: str) -> str:
         return f"{self.gov_hls_base_url}/{camera_id}/index.m3u8"
 

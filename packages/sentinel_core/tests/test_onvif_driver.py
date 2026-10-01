@@ -176,7 +176,11 @@ async def test_discover_with_a_directed_host_returns_one_camera_descriptor() -> 
     assert descriptor.name == "MockVendor MockCam-1000"
     assert len(descriptor.profiles) == 1
     assert descriptor.profiles[0].protocol is StreamProtocol.RTSP
-    assert descriptor.profiles[0].url == MOCK_RTSP_URL
+    # GetStreamUri returns a bare URI; discovery adds the device account so
+    # the RTSP server behind it does not answer 401.
+    assert descriptor.profiles[0].url == (
+        f"rtsp://{MOCK_USERNAME}:{MOCK_PASSWORD}@127.0.0.1:8554/mock/profile1"
+    )
     assert descriptor.attributes["onvif_xaddr"] == "http://mock-cam/onvif/device_service"
 
 

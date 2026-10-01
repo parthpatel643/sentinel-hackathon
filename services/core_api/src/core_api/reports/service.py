@@ -18,13 +18,23 @@ import hashlib
 import io
 import json
 import zipfile
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 
 from fpdf import FPDF
 
 from core_api.detections.schemas import VehicleRoute
 
 __all__ = ["build_movement_report_zip"]
+
+# Evidence is stored in UTC; the officers and jury reading it work in IST.
+# India has no DST, so a fixed offset is exact and needs no tz database.
+IST = timezone(timedelta(hours=5, minutes=30), "IST")
+_HUMAN_TIME = "%d %b %Y, %H:%M:%S"
+
+
+def _ist(moment: datetime) -> str:
+    return moment.astimezone(IST).strftime(_HUMAN_TIME)
+
 
 _CSV_HEADER = [
     "hop",
@@ -33,6 +43,7 @@ _CSV_HEADER = [
     "latitude",
     "longitude",
     "observed_at_utc",
+    "observed_at_ist",
     "plate_text",
     "plate_confidence",
     "match_rung",
@@ -54,6 +65,7 @@ def _render_csv(route: VehicleRoute) -> bytes:
                 point.location.lat if point.location else "",
                 point.location.lon if point.location else "",
                 point.observed_at.isoformat(),
+                point.observed_at.astimezone(IST).isoformat(),
                 point.plate_text,
                 f"{point.plate_confidence:.3f}",
                 point.match_rung,
@@ -77,7 +89,8 @@ def _render_pdf(route: VehicleRoute, *, generated_at: datetime) -> bytes:
     pdf.cell(
         0,
         6,
-        f"Generated {generated_at.strftime('%d %b %Y, %H:%M:%S')} UTC",
+        f"Generated {_ist(generated_at)} IST ({generated_at.strftime(_HUMAN_TIME)} UTC)"
+        "  |  all times below are IST (UTC+05:30); report.csv carries both",
         new_x="LMARGIN",
         new_y="NEXT",
     )
@@ -92,8 +105,8 @@ def _render_pdf(route: VehicleRoute, *, generated_at: datetime) -> bytes:
         6,
         f"{route.total_sightings} sighting(s)"
         + (
-            f"  |  first seen {route.first_seen_at.strftime('%d %b %Y, %H:%M:%S')} UTC"
-            f"  |  last seen {route.last_seen_at.strftime('%d %b %Y, %H:%M:%S')} UTC"
+            f"  |  first seen {_ist(route.first_seen_at)} IST"
+            f"  |  last seen {_ist(route.last_seen_at)} IST"
             if route.first_seen_at and route.last_seen_at
             else ""
         ),
@@ -111,7 +124,7 @@ def _render_pdf(route: VehicleRoute, *, generated_at: datetime) -> bytes:
         "#",
         "Camera",
         "Location",
-        "Observed at (UTC)",
+        "Observed at (IST)",
         "Plate read",
         "Conf.",
         "Match",
@@ -132,7 +145,7 @@ def _render_pdf(route: VehicleRoute, *, generated_at: datetime) -> bytes:
             str(i),
             point.camera_name[:32],
             location,
-            point.observed_at.strftime("%d %b %Y, %H:%M:%S"),
+            _ist(point.observed_at),
             point.plate_text,
             f"{point.plate_confidence * 100:.0f}%",
             point.match_rung,

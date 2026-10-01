@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Camera as CameraIcon, FileUp, List, Map, Plus, RefreshCw, Search, Server } from 'lucide-react'
+import { Activity, Camera as CameraIcon, FileUp, List, Map, Plus, RefreshCw, Search, Server } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { camerasApi } from '../lib/api'
+import { camerasApi, coverageApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
 import { TopBar } from '../components/layout/TopBar'
 import { Card } from '../components/ui/Card'
@@ -13,6 +13,7 @@ import { Input } from '../components/ui/Input'
 import { RequestError } from '../components/ui/RequestError'
 import { CameraDetailModal } from '../components/CameraDetailModal'
 import { OnboardingWizard } from '../components/OnboardingWizard'
+import { CoverageLifecyclePanel } from '../components/CoverageLifecyclePanel'
 import { cameraLabel, cameraLabelWithLocality, cameraStatusColor, hasCurrentFrameRate } from '../lib/cameraStatusColor'
 import type { Camera } from '../lib/types'
 import './monitoring-workspace.css'
@@ -26,9 +27,27 @@ function fpsLabel(camera: Camera): string {
 export function Cameras() {
   const { t } = useTranslation()
   const { data: cameras, loading, error, refetch } = usePolling(() => camerasApi.list(), 10000)
-  const [view, setView] = useState<'table' | 'map'>('table')
+  const { t: tr } = useTranslation('readiness')
+  const [view, setView] = useState<'table' | 'map' | 'insights'>('table')
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
+  const [department, setDepartment] = useState('all')
+  const [showGaps, setShowGaps] = useState(false)
+  const { data: gapReport } = usePolling(
+    () => (showGaps ? coverageApi.gaps() : Promise.resolve(null)),
+    60000,
+    [showGaps],
+  )
+  const coverageGaps = useMemo<[number, number][]>(
+    () =>
+      showGaps
+        ? (gapReport?.cells ?? []).filter((cell) => !cell.covered).map((cell) => [cell.center.lon, cell.center.lat])
+        : [],
+    [showGaps, gapReport],
+  )
+  const departments = Array.from(
+    new Set((cameras ?? []).map((camera) => camera.department_name).filter((name): name is string => Boolean(name))),
+  ).sort()
   const [selected, setSelected] = useState<Camera | null>(null)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [onboardingPath, setOnboardingPath] = useState<'location' | 'bulk-import' | 'discover'>('location')
@@ -52,6 +71,7 @@ export function Cameras() {
 
   const filteredCameras = cameras?.filter((camera) =>
     (status === 'all' || camera.status === status) &&
+    (department === 'all' || camera.department_name === department) &&
     `${camera.name} ${camera.display_name ?? ''} ${camera.camera_id}`.toLowerCase().includes(query.trim().toLowerCase()),
   )
   const markers: MapMarker[] =
@@ -93,6 +113,10 @@ export function Cameras() {
       <section className="registry-inventory" aria-label={t('monitoring:registry')}>
       <div className="registry-toolbar">
         <div className="monitoring-search"><Search size={16} /><Input aria-label={t('workspace.filterCameras')} placeholder={t('workspace.filterCameras')} value={query} onChange={(e) => setQuery(e.target.value)} /></div>
+        <select aria-label={tr('departmentFilter')} value={department} onChange={(e) => setDepartment(e.target.value)} className="h-11 rounded-md border border-border-strong bg-bg-inset px-3 text-sm">
+          <option value="all">{tr('allDepartments')}</option>
+          {departments.map((name) => <option key={name} value={name}>{name}</option>)}
+        </select>
         <select aria-label={t('workspace.allStatuses')} value={status} onChange={(e) => setStatus(e.target.value)} className="h-11 rounded-md border border-border-strong bg-bg-inset px-3 text-sm">
           <option value="all">{t('workspace.allStatuses')}</option>
           {['live', 'connecting', 'degraded', 'down', 'unknown'].map((value) => <option key={value} value={value}>{t(`cameraStatus.${value}`)}</option>)}
@@ -100,13 +124,16 @@ export function Cameras() {
         <div className="registry-view-switch">
           <Button aria-pressed={view === 'table'} size="sm" variant={view === 'table' ? 'primary' : 'secondary'} onClick={() => setView('table')}><List size={15} />{t('cameras.table')}</Button>
           <Button aria-pressed={view === 'map'} size="sm" variant={view === 'map' ? 'primary' : 'secondary'} onClick={() => setView('map')}><Map size={15} />{t('cameras.map')}</Button>
+          <Button aria-pressed={view === 'insights'} size="sm" variant={view === 'insights' ? 'primary' : 'secondary'} onClick={() => setView('insights')}><Activity size={15} />{tr('insights')}</Button>
           <Button size="sm" variant="ghost" aria-label={t('monitoring:refresh')} onClick={refetch}><RefreshCw size={16} /></Button>
         </div>
       </div>
-      <div className="registry-results"><span>{cameras ? t('monitoring:results', { count: filteredCameras?.length ?? 0 }) : t('cameras.loading')}</span>{(query || status !== 'all') && <button onClick={() => { setQuery(''); setStatus('all') }}>{t('monitoring:resetFilters')}</button>}</div>
+      <div className="registry-results"><span>{cameras ? t('monitoring:results', { count: filteredCameras?.length ?? 0 }) : t('cameras.loading')}</span>{(query || status !== 'all' || department !== 'all') && <button onClick={() => { setQuery(''); setStatus('all'); setDepartment('all') }}>{t('monitoring:resetFilters')}</button>}</div>
       {Boolean(error) && <div className="p-4"><RequestError onRetry={refetch} /></div>}
 
-      {view === 'map' ? (
+      {view === 'insights' ? (
+        <CoverageLifecyclePanel department={department === 'all' ? undefined : department} />
+      ) : view === 'map' ? (
         <div className="registry-map-layout">
           <section className="registry-map-list" aria-label={t('monitoring:mapList')}>
             <h3>{t('monitoring:mapList')}</h3>
@@ -114,7 +141,12 @@ export function Cameras() {
             {cameras && filteredCameras?.length === 0 && <p className="monitoring-help">{t(cameras.length === 0 ? 'workspace.noCameras' : 'workspace.noMatchingCameras')}</p>}
           </section>
           <div className="registry-map-canvas">
-            <MapView markers={markers} className="absolute inset-0" />
+            <MapView markers={markers} coverageGaps={coverageGaps} className="absolute inset-0" />
+            <label className="registry-gap-toggle">
+              <input type="checkbox" checked={showGaps} onChange={(e) => setShowGaps(e.target.checked)} />
+              {tr('showGaps')}
+              {showGaps && gapReport && gapReport.total_cells > 0 && <span> · {tr('coverageUncovered', { count: gapReport.uncovered_cells })}</span>}
+            </label>
             {Boolean(filteredCameras?.some((camera) => !camera.location)) && <p className="registry-map-notice">{t('monitoring:noLocation', { count: filteredCameras?.filter((camera) => !camera.location).length })}</p>}
           </div>
         </div>
