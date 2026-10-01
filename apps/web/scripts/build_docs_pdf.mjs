@@ -47,6 +47,7 @@ const DOCUMENTS = [
   '07-DRIVER-SDK.md',
   '08-SECURITY-HARDENING.md',
   '09-SECONDARY-ANALYTICS.md',
+  '12-REQUIREMENTS-TRACEABILITY.md',
 ]
 
 const slug = (file) => basename(file, '.md').toLowerCase()

@@ -262,7 +262,7 @@ function bullets(s, items, { x, y, w, h, size = 12.5, color = TEXT }) {
 {
   const s = slide({ n: 8, eyebrow: 'ANPR pipeline', title: 'Detect, track, read, then vote.' })
   lede(s, 'A plate is never trusted from one frame. Reads are held until several frames agree.')
-  const steps = ['Vehicle detect', 'Track', 'Plate detect', 'Rectify', 'OCR', 'Temporal vote']
+  const steps = ['Vehicle detect', 'Track', 'Plate detect', 'OCR', 'Grammar fix', 'Temporal vote']
   const c8 = cols(6)
   steps.forEach((t, i) => {
     s.addShape(pres.shapes.RECTANGLE, { x: c8.x(i), y: 2.14, w: c8.w, h: 0.56, fill: { color: PANEL_2 } })
@@ -271,7 +271,7 @@ function bullets(s, items, { x, y, w, h, size = 12.5, color = TEXT }) {
   const facts = [
     ['~14.7 fps', 'full chain, single-threaded, Apple Silicon M2', MINT],
     ['4.0 frames', 'voted per read on real traffic (max 20)', MINT],
-    ['65% / 78%', 'exact, per crop / after voting, 81 hand-labelled plates. Below our 85% bar', AMBER],
+    ['65% / 78%', 'exact per crop / voted, 81 labelled plates; target 85%', AMBER],
   ]
   const c8b = cols(3)
   facts.forEach(([v, l, c], i) => {
