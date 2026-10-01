@@ -117,7 +117,7 @@ backend exists.
 | 2:00–2:25 | Beyond plates | Cameras table showing a camera flagged **`moved`** by tamper detection, and zone events — **186 intrusion + 22 wrong-way** on real footage. |
 | 2:25–2:50 | It survives the network | Run `uv run python scripts/chaos_drill.py --drill feed-loss` live. The camera drops, the platform notices, reconnects and recovers unattended. |
 | 2:50–3:10 | Compliance, checked not claimed | Admin → Integrator Compliance: green ticks. "These are assertions in a test suite, not a slide." |
-| 3:10–3:30 | The report | `scripts/evidence_report.py` → open `evidence/M14-EVIDENCE-RUN.md` and the CSV. End on the findings document: the quota, the double-connection issue, the accuracy number we do not claim. |
+| 3:10–3:30 | The report | `scripts/evidence_report.py` → open `evidence/M14-EVIDENCE-RUN.md` and the CSV. End on the findings document: the quota, the double-connection issue, and `evidence/ANPR-ACCURACY.md`: an accuracy number we measured ourselves, below our own bar, with its limits stated. |
 
 **Ending on the findings document is a deliberate choice.** A jury that has sat
 through ten decks of unbroken success will remember the team that showed its

@@ -271,14 +271,14 @@ function bullets(s, items, { x, y, w, h, size = 12.5, color = TEXT }) {
   const facts = [
     ['~14.7 fps', 'full chain, single-threaded, Apple Silicon M2', MINT],
     ['4.0 frames', 'voted per read on real traffic (max 20)', MINT],
-    ['No accuracy %', 'claimed — needs a hand-labelled holdout we do not have', AMBER],
+    ['65% / 78%', 'exact, per crop / after voting, 81 hand-labelled plates. Below our 85% bar', AMBER],
   ]
   const c8b = cols(3)
   facts.forEach(([v, l, c], i) => {
     card(s, { x: c8b.x(i), y: 3.02, w: c8b.w, h: 1.32, accent: c })
     stat(s, { x: c8b.x(i) + 0.26, y: 3.2, w: c8b.w - 0.5, value: v, label: l, color: c, size: 21 })
   })
-  s.addText('The third box is the one worth reading.', {
+  s.addText('The third box is measured, not estimated, and it is not yet good enough.', {
     x: M, y: 4.52, w: CONTENT_W, h: 0.35, fontSize: 12, fontFace: B, color: AMBER, italic: true, margin: 0,
   })
 }
@@ -417,7 +417,7 @@ function bullets(s, items, { x, y, w, h, size = 12.5, color = TEXT }) {
     'mTLS, RLS, audit chain, signed URLs',
   ]
   const not = [
-    'An ANPR accuracy number',
+    'ANPR accuracy beyond one camera',
     'Coarse-make classification',
     'Face recognition (excluded by choice)',
     'Government registry credentials',

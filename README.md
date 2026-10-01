@@ -147,7 +147,7 @@ Reviewers should not have to guess which parts are load-bearing.
 |---|---|
 | Capture, reconnect/backoff, PTS timing | Real. Verified against the live government grid and by [chaos drills](evidence/M15-CHAOS-DRILLS.md). |
 | ANPR (detect → track → plate → OCR → vote) | Real open-source models, no mocks. Benchmarked on Apple Silicon. |
-| **ANPR accuracy number** | **Not claimed.** Needs a hand-labelled holdout that does not exist yet; `scripts/eval_anpr.py` is built and waiting on it. |
+| **ANPR accuracy number** | **Measured, and below target.** 65% exact per crop, 78% after the multi-frame vote, on 81 hand-labelled legible plates from one camera. 79 more were unreadable to a person. See [`evidence/ANPR-ACCURACY.md`](evidence/ANPR-ACCURACY.md). |
 | Camera registry, search, alerts, evidence clips | Real, PostGIS-backed, tested against a real database. |
 | Watchlist correlation (both rungs) | Real. Exercised end-to-end on live government reads. |
 | Route search, rung 3 (one-character misreads) | Real, route search only; returned as *probable* hops. Wildcard search and appearance ReID are designed, not built. |

@@ -13,6 +13,7 @@ __all__ = [
     "AMBIGUITY_CLASSES",
     "RTO_STATE_CODES",
     "ambiguity_key",
+    "correct_plate_grammar",
     "is_valid_plate",
     "normalise_plate",
 ]
@@ -83,3 +84,61 @@ def ambiguity_key(plate: str) -> str:
     """
     normalised = normalise_plate(plate)
     return "".join(AMBIGUITY_CLASSES.get(ch, ch) for ch in normalised)
+
+
+# The reverse direction for a digit read where the grammar needs a series
+# letter. One representative per class, so a correction never changes the
+# ambiguity key: O and I are not issued as series letters, hence D and L.
+_DIGIT_AS_LETTER: dict[str, str] = {
+    "0": "D", "1": "L", "2": "Z", "5": "S", "8": "B", "6": "G", "4": "A",
+}  # fmt: skip
+
+
+def correct_plate_grammar(plate: str) -> str:
+    """Resolve letter/digit confusions using where Indian plate grammar puts
+    letters and where it puts digits.
+
+    `GJQ3JC5583` becomes `GJ03JC5583`: position three is the district number,
+    so the Q must be a 0. Only characters in the same ambiguity class are
+    swapped, so the result always has the same `ambiguity_key` as the read
+    and lands on the same rung of the matching ladder. A missing or
+    unrecognisable character is never invented.
+
+    Returns the input unchanged when it is already valid, when no layout of
+    the standard format fits, or when two layouts fit equally well with
+    different results.
+    """
+    normalised = normalise_plate(plate)
+    if is_valid_plate(normalised):
+        return normalised
+    fits: dict[int, set[str]] = {}
+    for district in (1, 2):
+        for series in (1, 2, 3):
+            if 2 + district + series + 4 != len(normalised):
+                continue
+            kinds = "LL" + "D" * district + "L" * series + "DDDD"
+            corrected = _coerce(normalised, kinds)
+            if corrected is not None and corrected[0][:2] in RTO_STATE_CODES:
+                fits.setdefault(corrected[1], set()).add(corrected[0])
+    if not fits:
+        return normalised
+    best = fits[min(fits)]
+    return next(iter(best)) if len(best) == 1 else normalised
+
+
+def _coerce(plate: str, kinds: str) -> tuple[str, int] | None:
+    out: list[str] = []
+    swaps = 0
+    for char, kind in zip(plate, kinds, strict=True):
+        if kind == "D" and not char.isdigit():
+            if char not in AMBIGUITY_CLASSES:
+                return None
+            char = AMBIGUITY_CLASSES[char]
+            swaps += 1
+        elif kind == "L" and char.isdigit():
+            if char not in _DIGIT_AS_LETTER:
+                return None
+            char = _DIGIT_AS_LETTER[char]
+            swaps += 1
+        out.append(char)
+    return "".join(out), swaps

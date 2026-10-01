@@ -178,3 +178,17 @@ def test_popularity_still_decides_when_no_read_is_a_valid_plate() -> None:
     assert voted is not None
     assert voted.plate_text == "3114473"
     assert not voted.format_valid
+
+
+def test_grammar_correction_lets_letter_digit_confusions_agree() -> None:
+    # Two frames reading the district digit as Q and O, one reading it right:
+    # uncorrected, position three would split three ways and be flagged.
+    voter = PlateVoter()
+    for text in ("GJQ3JC5583", "GJO3JC5583", "GJ03JC5583"):
+        voter.add(_candidate(text))
+
+    resolved = voter.resolve()
+    assert resolved is not None
+    assert resolved.plate_text == "GJ03JC5583"
+    assert resolved.format_valid
+    assert resolved.uncertain_positions == ()

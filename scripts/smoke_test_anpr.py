@@ -66,7 +66,7 @@ def main() -> None:
         model_versions={
             "vehicle_det": "yolo11n@ultralytics-8.4.158",
             "plate_det": "yolo-v9-t-640@open-image-models-0.6.0",
-            "ocr": "cct-s-v2-global@fast-plate-ocr-1.1.0",
+            "ocr": "cct-xs-v2-global@fast-plate-ocr-1.1.0",
         },
     )
 

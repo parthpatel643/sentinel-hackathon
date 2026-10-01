@@ -127,7 +127,7 @@ def check_model() -> Result:
 # that first use fails, so their presence is checked up front.
 _CACHED_MODELS = {
     "plate detector": Path.home() / ".cache/open-image-models/yolo-v9-t-640-license-plate-end2end",
-    "plate OCR": Path.home() / ".cache/fast-plate-ocr/cct-s-v2-global-model",
+    "plate OCR": Path.home() / ".cache/fast-plate-ocr/cct-xs-v2-global-model",
     "face detector": Path.home()
     / ".cache/sentinel-platform/models/face_detection_yunet_2023mar.onnx",
 }

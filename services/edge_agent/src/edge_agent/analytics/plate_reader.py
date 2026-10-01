@@ -16,7 +16,13 @@ from dataclasses import dataclass
 import numpy as np
 from fast_alpr import ALPR
 
-__all__ = ["FastAlprPlateReader", "PlateCandidate"]
+__all__ = ["PLATE_PAD_X", "PLATE_PAD_Y", "FastAlprPlateReader", "PlateCandidate"]
+
+# Share of the plate box added on each side before OCR. Measured on the
+# hand-labelled holdout (evidence/ANPR-ACCURACY.md) together with the OCR
+# model choice below.
+PLATE_PAD_X = 0.10
+PLATE_PAD_Y = 0.15
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,13 +69,17 @@ class FastAlprPlateReader:
     `detector_providers=("CoreMLExecutionProvider", "CPUExecutionProvider")`
     explicitly if a caller wants to opt back in for content known not to
     trigger this.
+
+    OCR is `cct-xs-v2`, not the larger `cct-s-v2`: on 81 hand-labelled
+    Gujarat plates the small model read 30 exactly where the larger one
+    read 7 (evidence/ANPR-ACCURACY.md), and it is about six times faster.
     """
 
     def __init__(
         self,
         *,
         detector_model: str = "yolo-v9-t-640-license-plate-end2end",
-        ocr_model: str = "cct-s-v2-global-model",
+        ocr_model: str = "cct-xs-v2-global-model",
         detector_providers: Sequence[str] = ("CPUExecutionProvider",),
         ocr_providers: Sequence[str] = ("CPUExecutionProvider",),
         detector_conf_thresh: float = 0.4,
@@ -86,16 +96,25 @@ class FastAlprPlateReader:
         """Detect and read every plate in `image` (a full frame or a vehicle
         ROI crop — both work; cropping to the vehicle first is cheaper and
         is what the pipeline in analytics/pipeline.py does)."""
-        results = self._alpr.predict(image)
+        height, width = image.shape[:2]
         candidates = []
-        for r in results:
-            if r.ocr is None:
+        for detection in self._alpr.detector.predict(image):
+            box = detection.bounding_box
+            # The detector's box hugs the plate tightly enough to clip the
+            # last character on small plates; OCR reads a padded crop.
+            pad_x = (box.x2 - box.x1) * PLATE_PAD_X
+            pad_y = (box.y2 - box.y1) * PLATE_PAD_Y
+            x1, y1 = max(0, int(box.x1 - pad_x)), max(0, int(box.y1 - pad_y))
+            x2, y2 = min(width, int(box.x2 + pad_x)), min(height, int(box.y2 + pad_y))
+            if x2 <= x1 or y2 <= y1:
                 continue
-            box = r.detection.bounding_box
+            ocr = self._alpr.ocr.predict(image[y1:y2, x1:x2])
+            if ocr is None:
+                continue
             candidates.append(
                 PlateCandidate(
-                    text=r.ocr.text,
-                    char_confidences=tuple(r.ocr.confidence),
+                    text=ocr.text,
+                    char_confidences=tuple(ocr.confidence),
                     bbox_xyxy=(float(box.x1), float(box.y1), float(box.x2), float(box.y2)),
                 )
             )

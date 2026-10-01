@@ -220,9 +220,8 @@ async def _collect(
     quality.note = (
         "`format_valid` is not an accuracy figure and must not be read as one. It reports "
         "whether a read matches Indian plate grammar; a partial read from distant or angled "
-        "traffic footage correctly fails it. A true accuracy number needs a hand-labelled "
-        "holdout, which this project does not yet have — see "
-        "`evidence/M2-SYNTHETIC-GRID-DISCONTINUITY-FINDING.md`."
+        "traffic footage correctly fails it. The accuracy number, measured on a hand-labelled "
+        "holdout, is in `evidence/ANPR-ACCURACY.md`."
     )
     sections.append(quality)
 

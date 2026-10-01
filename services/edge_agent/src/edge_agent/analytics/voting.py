@@ -10,10 +10,15 @@ ANPR chain (see docs/02-ANPR-PIPELINE.md section 1).
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from edge_agent.analytics.plate_reader import PlateCandidate
-from sentinel_core.plates import ambiguity_key, is_valid_plate, normalise_plate
+from sentinel_core.plates import (
+    ambiguity_key,
+    correct_plate_grammar,
+    is_valid_plate,
+    normalise_plate,
+)
 
 __all__ = ["PlateVoter", "VotedPlate"]
 
@@ -46,8 +51,15 @@ class PlateVoter:
     _candidates: list[PlateCandidate] = field(default_factory=list)
 
     def add(self, candidate: PlateCandidate) -> None:
-        if candidate.text:
-            self._candidates.append(candidate)
+        if not candidate.text:
+            return
+        # Grammar-correct each read before it votes, so `GJQ3...` and
+        # `GJ03...` from two frames agree rather than split the vote. Only
+        # same-length reads are corrected: char_confidences stay aligned.
+        corrected = correct_plate_grammar(candidate.text)
+        if corrected != candidate.text and len(corrected) == len(candidate.text):
+            candidate = replace(candidate, text=corrected)
+        self._candidates.append(candidate)
 
     @property
     def reads_seen(self) -> int:
