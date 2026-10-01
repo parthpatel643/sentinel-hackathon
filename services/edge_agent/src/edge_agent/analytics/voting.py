@@ -20,7 +20,25 @@ from sentinel_core.plates import (
     normalise_plate,
 )
 
-__all__ = ["PlateVoter", "VotedPlate"]
+__all__ = [
+    "SETTLED_AFTER_READS",
+    "SETTLED_RECHECK_EVERY",
+    "UNSETTLED_BACKOFF_AFTER",
+    "UNSETTLED_RECHECK_EVERY",
+    "PlateVoter",
+    "VotedPlate",
+]
+
+SETTLED_AFTER_READS = 6
+"""Reads after which a valid, unanimous vote stops changing in practice."""
+SETTLED_RECHECK_EVERY = 8
+"""A settled track is still read on every Nth analysed frame, so a vote that
+was settled on the wrong vehicle (a tracker id switch) keeps hearing reads."""
+UNSETTLED_BACKOFF_AFTER = 24
+"""Read attempts (three seconds at 8 fps) after which a track whose plate
+never became legible, typically parked or far away, is read less often.
+A vehicle passing through in the usual one to three seconds is unaffected."""
+UNSETTLED_RECHECK_EVERY = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +67,8 @@ class PlateVoter:
     """A position is flagged uncertain when its winning character holds less
     than this share of the weighted vote — not a guess, a disagreement."""
     _candidates: list[PlateCandidate] = field(default_factory=list)
+    _skipped: int = 0
+    _attempts: int = 0
 
     def add(self, candidate: PlateCandidate) -> None:
         if not candidate.text:
@@ -64,6 +84,41 @@ class PlateVoter:
     @property
     def reads_seen(self) -> int:
         return len(self._candidates)
+
+    def wants_read(self) -> bool:
+        """Whether this frame's plate is worth reading for this track.
+
+        The plate reader is the edge worker's most expensive stage (about
+        50 ms a vehicle on CPU, against 11 ms for vehicle detection), and a
+        vehicle waiting at a junction would otherwise be read on every
+        analysed frame long after its plate is known. Once the vote is
+        settled, only every `SETTLED_RECHECK_EVERY`th frame is read; a track
+        still unreadable after `UNSETTLED_BACKOFF_AFTER` attempts is read on
+        every `UNSETTLED_RECHECK_EVERY`th.
+        """
+        if self._settled():
+            every = SETTLED_RECHECK_EVERY
+        elif self._attempts >= UNSETTLED_BACKOFF_AFTER:
+            every = UNSETTLED_RECHECK_EVERY
+        else:
+            every = 1
+        self._skipped += 1
+        if self._skipped >= every:
+            self._skipped = 0
+            self._attempts += 1
+            return True
+        return False
+
+    def _settled(self) -> bool:
+        if len(self._candidates) < SETTLED_AFTER_READS:
+            return False
+        resolved = self.resolve()
+        return (
+            resolved is not None
+            and resolved.format_valid
+            and not resolved.uncertain_positions
+            and resolved.frames_voted >= SETTLED_AFTER_READS
+        )
 
     def resolve(self) -> VotedPlate | None:
         """The current best estimate, or None if nothing has been read yet.

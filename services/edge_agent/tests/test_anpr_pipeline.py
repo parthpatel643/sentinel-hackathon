@@ -377,3 +377,18 @@ def test_a_full_length_plate_is_still_reported() -> None:
     payload = events[0].payload
     assert isinstance(payload, AnprPayload)
     assert payload.plate_text == "GJ01AB1234"
+
+
+def test_a_settled_plate_is_not_reread_on_every_frame() -> None:
+    from edge_agent.analytics.voting import SETTLED_AFTER_READS, SETTLED_RECHECK_EVERY
+
+    frames = SETTLED_AFTER_READS + SETTLED_RECHECK_EVERY
+    detector = FakeVehicleDetector([[_car()] for _ in range(frames)])
+    reader = FakePlateReader([[_plate("GJ01AB1234")] for _ in range(frames)])
+    pipeline = AnprPipeline(detector, reader, node_id="n", model_versions={})
+
+    for i in range(frames):
+        pipeline.process_frame(_frame(i * 40.0))
+
+    # Every frame until the vote settles, then one recheck in the next eight.
+    assert reader._index == SETTLED_AFTER_READS + 1

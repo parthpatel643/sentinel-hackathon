@@ -132,8 +132,10 @@ class AnprPipeline:
         if roi.size == 0:
             return None
 
-        candidates = self._plate_reader.read(roi)
         voter = self._voters.setdefault(tracked.track_id, PlateVoter())
+        if not voter.wants_read():
+            return None  # plate already settled; nothing new to emit
+        candidates = self._plate_reader.read(roi)
         for candidate in candidates:
             voter.add(candidate)
 

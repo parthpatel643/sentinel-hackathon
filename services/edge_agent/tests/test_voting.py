@@ -192,3 +192,47 @@ def test_grammar_correction_lets_letter_digit_confusions_agree() -> None:
     assert resolved.plate_text == "GJ03JC5583"
     assert resolved.format_valid
     assert resolved.uncertain_positions == ()
+
+
+def test_an_unsettled_vote_wants_every_read() -> None:
+    voter = PlateVoter()
+    for _ in range(5):
+        assert voter.wants_read()
+        voter.add(_candidate("GJ01AB1234"))
+    assert voter.wants_read()  # five reads: not yet settled
+
+
+def test_a_settled_vote_is_rechecked_only_every_nth_frame() -> None:
+    from edge_agent.analytics.voting import SETTLED_AFTER_READS, SETTLED_RECHECK_EVERY
+
+    voter = PlateVoter()
+    for _ in range(SETTLED_AFTER_READS):
+        voter.add(_candidate("GJ01AB1234"))
+
+    decisions = [voter.wants_read() for _ in range(SETTLED_RECHECK_EVERY * 2)]
+    assert decisions.count(True) == 2
+    assert decisions[SETTLED_RECHECK_EVERY - 1] and decisions[-1]
+
+
+def test_a_disputed_or_invalid_vote_never_settles() -> None:
+    disputed = PlateVoter()
+    for text in ("GJ01AB1234", "GJ01AB1284") * 4:
+        disputed.add(_candidate(text))
+    invalid = PlateVoter()
+    for _ in range(8):
+        invalid.add(_candidate("5AU5341"))
+
+    assert all(disputed.wants_read() for _ in range(10))
+    assert all(invalid.wants_read() for _ in range(10))
+
+
+def test_a_track_that_never_becomes_legible_backs_off_but_is_still_read() -> None:
+    from edge_agent.analytics.voting import UNSETTLED_BACKOFF_AFTER, UNSETTLED_RECHECK_EVERY
+
+    voter = PlateVoter()
+    for _ in range(UNSETTLED_BACKOFF_AFTER):
+        assert voter.wants_read()
+        voter.add(_candidate("5AU5341"))
+
+    later = [voter.wants_read() for _ in range(UNSETTLED_RECHECK_EVERY * 4)]
+    assert later.count(True) == 4

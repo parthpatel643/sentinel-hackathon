@@ -14,6 +14,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
+import onnxruntime as ort
 from fast_alpr import ALPR
 
 __all__ = ["PLATE_PAD_X", "PLATE_PAD_Y", "FastAlprPlateReader", "PlateCandidate"]
@@ -83,13 +84,16 @@ class FastAlprPlateReader:
         detector_providers: Sequence[str] = ("CPUExecutionProvider",),
         ocr_providers: Sequence[str] = ("CPUExecutionProvider",),
         detector_conf_thresh: float = 0.4,
+        intra_op_threads: int = 2,
     ) -> None:
         self._alpr = ALPR(
             detector_model=detector_model,
             detector_providers=list(detector_providers),
             detector_conf_thresh=detector_conf_thresh,
+            detector_sess_options=_session_options(intra_op_threads),
             ocr_model=ocr_model,
             ocr_providers=list(ocr_providers),
+            ocr_sess_options=_session_options(intra_op_threads),
         )
 
     def read(self, image: np.ndarray) -> list[PlateCandidate]:
@@ -119,3 +123,19 @@ class FastAlprPlateReader:
                 )
             )
         return candidates
+
+
+def _session_options(intra_op_threads: int) -> ort.SessionOptions:
+    """Two threads per inference, no spin-waiting.
+
+    One reader is shared by every camera a worker runs, so reads arrive
+    concurrently. ONNX Runtime's default (all cores, busy-waiting between
+    ops) then burns CPU the cameras' decoding needs: measured on the M2 with
+    four concurrent callers, the default managed 27.5 plate reads/s at 687%
+    CPU, two non-spinning threads 30.0 reads/s at 504%.
+    """
+    options = ort.SessionOptions()
+    options.intra_op_num_threads = intra_op_threads
+    options.inter_op_num_threads = 1
+    options.add_session_config_entry("session.intra_op.allow_spinning", "0")
+    return options

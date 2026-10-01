@@ -108,6 +108,14 @@ tracking + post-processing (CPU)          ≈ negligible on GPU
 ⇒ sustained capacity ≈ 300 analysed frames/second per L4 (at ~70% utilisation headroom)
 ```
 
+**What we have measured, rather than estimated:** the same chain on a laptop CPU
+(base Apple M2, ONNX Runtime, no GPU) sustains about **16 analysed frames per
+second** on dense traffic, end to end through the real worker, with the plate
+detector the limit at about 30 plate reads per second
+([tier capacity](../evidence/TIER-CAPACITY.md)). The L4 figure above is the
+vendor-benchmark estimate this plan sizes on; the laptop figure is what the
+on-site proof of concept runs on.
+
 ### 3.2 GPUs required
 
 ```

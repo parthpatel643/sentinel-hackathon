@@ -137,6 +137,9 @@ pol-cg-01,CG Road junction,Police,CG Road,23.0300,72.5600,rtsp,rtsp://viewer:p%4
   in place and the worker restarts it with the new URL on its next resync.
 - The lifecycle columns are optional; they feed **Cameras → Coverage &
   lifecycle**.
+- A private camera needs `ownership=private`, `consent_ref` and
+  `consent_expires_on`; without current consent it is registered but never
+  viewed or analysed.
 
 **B. ONVIF cameras and NVRs.** **Cameras → Discover cameras → Discover a
 device**: choose ONVIF / Hikvision NVR / Dahua NVR, enter the address and
@@ -167,29 +170,42 @@ out of ANPR.
 
 ## 6. Capacity: be deliberate about which cameras run ANPR
 
-Measured on our laptops ([capacity findings](../evidence/M1-CAPACITY-FINDINGS.md),
-[evidence run](../evidence/M14-EVIDENCE-RUN-FINDINGS.md)): four 1080p streams
-at full frame rate saturate an 8-core machine; `STRIDE=3` cuts inference load
-by roughly two-thirds while a vehicle still gets several reads.
+Measured end to end on the base M2 ([tier capacity](../evidence/TIER-CAPACITY.md)),
+on a dense scene with a plate to read in nearly every frame: **about 16 analysed
+frames per second in total**, so 2 cameras at 8 fps or 4 cameras at 4 fps. The
+plate detector is the limit. Measure the M4 the same way during UAT
+([11-M4-UAT](./11-M4-UAT.md)) and use its figure, not this one.
+
+Every camera's **tier** in the registry decides what it costs:
+
+| Tier | Analyses | Use it for |
+|---|---|---|
+| `a_continuous` | Every frame, or every `STRIDE`-th | The few junctions the vehicle must pass. On the M2 use `STRIDE=3` (about 8 fps) |
+| `b_sampled` | `SAMPLED_FPS` frames a second (default 8), paced by the stream's own timestamps | Most roads |
+| `c_motion_gated` | `SAMPLED_FPS`, only while something moves | Quiet gates and depots |
+| `d_registry_only` | Nothing: view-only | Everything beyond capacity |
 
 - **Every camera** goes into the registry, onto the map and the live wall
   (preview is on demand and costs nothing until opened).
-- **ANPR runs on the cameras that matter for the test**: entry/exit roads and
-  junctions a vehicle must pass. Keep the rest `d_registry_only`, or select
-  them with `CAMERAS=a,b,c`.
+- **Watch the Cameras screen.** Each analysed camera shows `ANPR n fps`, and
+  `n s behind live` in red once analysis trails live by 5 s or more. A number
+  that keeps growing means the laptop is over capacity: lower `SAMPLED_FPS`, raise `STRIDE`, or move a camera down a tier.
+  The worker re-reads the registry every 30 s, so a tier change applies without
+  a restart. A camera whose analysis stops shows **stale**.
 - **Shard across both laptops by department:**
 
   | Laptop A (runs the API) | Laptop B (worker only) |
   |---|---|
   | `make up && make api && make web` | `docker compose -f infra/compose/docker-compose.yml up -d mediamtx` |
   | API reachable from B: `uv run --package core_api uvicorn core_api.app:app --host 0.0.0.0 --port 18000` | `SENTINEL_CORE_API_URL=http://<A's IP>:18000` and the same `SENTINEL_EDGE_SERVICE_TOKEN` in `.env` |
-  | `make worker SOURCE=registry DEPARTMENT=Police STRIDE=3` | `make worker SOURCE=registry DEPARTMENT=GSRTC STRIDE=3` |
+  | `make worker SOURCE=registry DEPARTMENT=Police SAMPLED_FPS=8` | `make worker SOURCE=registry DEPARTMENT=GSRTC SAMPLED_FPS=8` |
 
-  Snapshots are written on the laptop that analysed the camera, so evidence
-  images are only viewable for laptop A's cameras; routes, alerts and reports
-  cover both.
-- Watch the **Health** screen: a camera whose measured frame rate falls far
-  below its declared rate is starved — raise `STRIDE` or move it.
+  Laptop B uploads each detection's snapshots to A, so evidence images work for
+  every camera. If the link between the laptops drops, B keeps analysing and
+  queues its detections on disk (`data/edge-outbox.sqlite3`); they are replayed
+  as soon as A answers again, and the log says how many.
+- Alerts reach every open console within a second (server-sent events), with a
+  sound. If the banner does not appear, reload the page: the stream reconnects.
 
 ---
 
