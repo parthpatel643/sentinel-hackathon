@@ -49,7 +49,7 @@ make up                                          # postgres/postgis, valkey, nat
 
 # 2. database schema and a login
 cd services/core_api && uv run --project ../.. alembic upgrade head && cd ../..
-make seed                                        # admin@sentinel-platform.com / sentinel-admin-2026
+make seed                                        # local-only login: admin@sentinel-platform.com / sentinel-admin-2026
 
 # 3. a local camera grid to analyse (mixed codecs and resolutions, on purpose)
 uv run python scripts/synthetic_grid.py all

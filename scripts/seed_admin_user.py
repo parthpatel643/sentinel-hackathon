@@ -13,15 +13,18 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
+import sys
 
 from sqlalchemy import select
 
 from core_api.auth.service import hash_password
 from core_api.db.base import get_sessionmaker
 from core_api.db.models import User
+from sentinel_core.config import PUBLISHED_DEV_PASSWORD, get_settings
 
 DEFAULT_EMAIL = "admin@sentinel-platform.com"
-DEFAULT_PASSWORD = "sentinel-admin-2026"
+DEFAULT_PASSWORD = os.environ.get("SENTINEL_ADMIN_PASSWORD", PUBLISHED_DEV_PASSWORD)
 DEFAULT_NAME = "Sentinel Admin"
 
 
@@ -66,6 +69,12 @@ def main() -> None:
         "deployment beyond localhost).",
     )
     args = parser.parse_args()
+    environment = get_settings().environment
+    if environment != "local" and args.password == PUBLISHED_DEV_PASSWORD:
+        sys.exit(
+            f"SENTINEL_ENVIRONMENT={environment}: refusing to set the development password "
+            "published in the repository. Pass --password (or SENTINEL_ADMIN_PASSWORD)."
+        )
 
     asyncio.run(
         seed(args.email, args.password, args.name, args.role, reset_password=args.reset_password)

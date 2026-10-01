@@ -54,7 +54,7 @@ uv run python scripts/synthetic_grid.py all
 make worker                  # synthetic grid
 ```
 
-Sign in as `admin@sentinel-platform.com` / `sentinel-admin-2026`.
+Sign in as `admin@sentinel-platform.com` / `sentinel-admin-2026` (the local development login; never used outside a developer machine — see [10 — Finale Runbook §3](./10-FINALE-RUNBOOK.md)).
 
 | Time | Beat | On screen |
 |---|---|---|

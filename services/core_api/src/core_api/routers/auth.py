@@ -21,7 +21,7 @@ from core_api.auth.service import (
     update_user,
 )
 from core_api.db.base import get_session
-from sentinel_core.config import get_settings
+from sentinel_core.config import PUBLISHED_DEV_PASSWORD, get_settings
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -36,7 +36,15 @@ async def login_endpoint(
         # the password is wrong — distinguishing the two lets an attacker
         # enumerate valid accounts.
         raise HTTPException(status_code=401, detail="Incorrect email or password")
-    token = create_access_token(user, get_settings())
+    settings = get_settings()
+    if settings.environment != "local" and payload.password == PUBLISHED_DEV_PASSWORD:
+        raise HTTPException(
+            status_code=403,
+            detail="This account still uses the development password published in the "
+            "repository. An administrator must set a new one: "
+            "scripts/seed_admin_user.py --reset-password --password '<new password>'.",
+        )
+    token = create_access_token(user, settings)
     return TokenResponse(access_token=token)
 
 

@@ -25,16 +25,17 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from datetime import UTC, datetime, timedelta
 
 import httpx
 
-from sentinel_core.config import get_settings
+from sentinel_core.config import PUBLISHED_DEV_PASSWORD, get_settings
 
 API_BASE = "http://localhost:18000"
 DEFAULT_EMAIL = "admin@sentinel-platform.com"
-DEFAULT_PASSWORD = "sentinel-admin-2026"
+DEFAULT_PASSWORD = os.environ.get("SENTINEL_ADMIN_PASSWORD", PUBLISHED_DEV_PASSWORD)
 
 CAMERAS = [
     {

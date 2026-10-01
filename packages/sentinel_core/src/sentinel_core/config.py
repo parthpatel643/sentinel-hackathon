@@ -297,6 +297,12 @@ class Settings(BaseSettings):
         return f"{self.gov_hls_base_url}/{camera_id}/index.m3u8"
 
 
+# The demo login's password, printed in the README so a fresh clone can sign
+# in. It is a development convenience and nothing more: outside
+# environment=local the API refuses it and seed_admin_user.py will not set it.
+PUBLISHED_DEV_PASSWORD = "sentinel-admin-2026"
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()

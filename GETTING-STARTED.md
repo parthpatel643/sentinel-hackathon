@@ -105,7 +105,9 @@ make seed
 ```
 
 `make seed` prints the account it created. The default is
-`admin@sentinel-platform.com` / `sentinel-admin-2026`.
+`admin@sentinel-platform.com` / `sentinel-admin-2026` — a **local development
+login only**: with `SENTINEL_ENVIRONMENT` set to anything but `local`, the API
+refuses that password and `make seed` will not set it.
 
 **Change it before the machine is reachable by anyone else:**
 

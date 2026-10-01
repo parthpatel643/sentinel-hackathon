@@ -37,6 +37,8 @@ from typing import Any
 
 import httpx
 
+from sentinel_core.config import PUBLISHED_DEV_PASSWORD
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GRID_DIR = REPO_ROOT / "var" / "synthetic-grid"
 PIDS_PATH = GRID_DIR / "pids.json"
@@ -48,7 +50,7 @@ RELAY_RTSP_HOST = "127.0.0.1"
 RELAY_RTSP_PORT = 8554
 
 ADMIN_EMAIL = os.environ.get("SENTINEL_ADMIN_EMAIL", "admin@sentinel-platform.com")
-ADMIN_PASSWORD = os.environ.get("SENTINEL_ADMIN_PASSWORD", "sentinel-admin-2026")
+ADMIN_PASSWORD = os.environ.get("SENTINEL_ADMIN_PASSWORD", PUBLISHED_DEV_PASSWORD)
 
 # How long the scene-cut drill waits for a feed to reach its own loop point.
 # Generous, because when the cut happens is the feed's choice, not ours.

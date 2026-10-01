@@ -37,12 +37,14 @@ from typing import Any
 
 import httpx
 
+from sentinel_core.config import PUBLISHED_DEV_PASSWORD
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RESULT_PATH = REPO_ROOT / "var" / "survey" / "camera-survey.json"
 
 CORE_API_URL = os.environ.get("SENTINEL_CORE_API_URL", "http://localhost:18000")
 ADMIN_EMAIL = os.environ.get("SENTINEL_ADMIN_EMAIL", "admin@sentinel-platform.com")
-ADMIN_PASSWORD = os.environ.get("SENTINEL_ADMIN_PASSWORD", "sentinel-admin-2026")
+ADMIN_PASSWORD = os.environ.get("SENTINEL_ADMIN_PASSWORD", PUBLISHED_DEV_PASSWORD)
 
 
 @dataclass

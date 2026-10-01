@@ -29,7 +29,7 @@ from pathlib import Path
 
 import httpx
 
-from sentinel_core.config import Settings
+from sentinel_core.config import PUBLISHED_DEV_PASSWORD, Settings
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VEHICLE_MODEL = REPO_ROOT / "models" / "weights" / "yolo11n.onnx"
@@ -184,7 +184,7 @@ async def check_cameras_onboarded(settings: Settings, client: httpx.AsyncClient)
     # The registry is a human-facing endpoint and wants a real login, not the
     # machine-to-machine service token the worker uses for ingest.
     email = os.environ.get("SENTINEL_ADMIN_EMAIL", "admin@sentinel-platform.com")
-    password = os.environ.get("SENTINEL_ADMIN_PASSWORD", "sentinel-admin-2026")
+    password = os.environ.get("SENTINEL_ADMIN_PASSWORD", PUBLISHED_DEV_PASSWORD)
     # Retried once because the first request after Postgres restarts spends the
     # connection pool's now-dead connection and fails, while the next one
     # reconnects — a diagnostic that reports that single 500 as a broken login
