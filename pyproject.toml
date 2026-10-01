@@ -27,6 +27,7 @@ dev = [
     "ruff>=0.16.8",
     "types-pyyaml>=6.0",
     "pyyaml>=6.0",
+    "pypdf>=5",
 ]
 # NOTE: model export (ultralytics/torch) deliberately does NOT live in a
 # dependency group here. ultralytics pins plain `opencv-python`, which

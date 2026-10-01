@@ -112,7 +112,15 @@ async def movement_report_endpoint(
     hash manifest binding them together (docs/01-ARCHITECTURE.md §6.3/§6.5).
     'This is literally the eval-day deliverable.'"""
     route = await get_vehicle_route(session, plate, window=timedelta(hours=window_hours))
-    zip_bytes, filename = build_movement_report_zip(route, generated_by=user.email)
+    settings = get_settings()
+    snapshots = {
+        point.event_id: path
+        for point in route.points
+        if (path := await resolve_snapshot_path(session, point.event_id, settings)) is not None
+    }
+    zip_bytes, filename = build_movement_report_zip(
+        route, generated_by=user.email, snapshots=snapshots
+    )
     await record_audit_event(
         session,
         actor_email=user.email,
