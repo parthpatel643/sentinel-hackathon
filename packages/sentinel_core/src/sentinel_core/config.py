@@ -121,6 +121,11 @@ class Settings(BaseSettings):
         default="./data/snapshots",
         description="Face-blurred snapshots — the default, served-by-core_api version.",
     )
+    edge_outbox_path: str = Field(
+        default="./data/edge-outbox.sqlite3",
+        description="Where an edge worker keeps detections the API could not take, "
+        "replayed once it answers again.",
+    )
     snapshot_upload: Literal["auto", "always", "never"] = Field(
         default="auto",
         description="Whether an edge worker uploads each detection's snapshots to the core API. "

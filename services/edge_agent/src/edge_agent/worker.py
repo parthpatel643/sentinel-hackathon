@@ -45,7 +45,7 @@ import json
 import logging
 import signal
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlsplit
 
 import httpx
@@ -60,6 +60,7 @@ from edge_agent.analytics.tamper import TamperDetector
 from edge_agent.analytics.vehicle_detector import VehicleDetector
 from edge_agent.analytics.zone_rules import Zone, ZoneRuleEngine
 from edge_agent.fleet import CameraFleet
+from edge_agent.outbox import DetectionOutbox
 from edge_agent.pipeline.capture import CaptureConfig
 from edge_agent.pipeline.supervisor import CameraSupervisor
 from sentinel_core.clock import Frame, FrameTiming
@@ -414,6 +415,65 @@ def _uploads_snapshots(settings: Settings) -> bool:
     return urlsplit(settings.core_api_url).hostname not in _LOCAL_HOSTS
 
 
+OUTBOX_DRAIN_INTERVAL_S = 5.0
+
+
+async def _deliver(
+    client: httpx.AsyncClient,
+    event_id: str,
+    body: dict[str, Any],
+    *,
+    has_snapshot: bool,
+    settings: Settings,
+) -> Literal["ok", "retry", "rejected"]:
+    """Post one detection (then its snapshot). `retry` when the API could not
+    take it (unreachable, 5xx, rate-limited) so the caller queues it;
+    `rejected` when the API refused this payload, which replaying cannot fix."""
+    try:
+        response = await client.post("/api/v1/detections", json=body)
+    except httpx.TransportError as exc:
+        logger.warning("detection post failed for %s: %s", event_id, exc)
+        return "retry"
+    if response.status_code >= 500 or response.status_code == 429:
+        logger.warning("detection post for %s got HTTP %d", event_id, response.status_code)
+        return "retry"
+    if response.is_error:
+        logger.warning(
+            "API rejected detection %s (HTTP %d): %s",
+            event_id,
+            response.status_code,
+            response.text[:200],
+        )
+        return "rejected"
+    if has_snapshot:
+        await _upload_snapshot(client, event_id, settings)
+    return "ok"
+
+
+async def _drain_outbox(
+    client: httpx.AsyncClient, outbox: DetectionOutbox, settings: Settings
+) -> None:
+    """Replays queued detections oldest first. Live detections keep going
+    straight to the API meanwhile, so a backlog never delays a fresh alert."""
+    while True:
+        await asyncio.sleep(OUTBOX_DRAIN_INTERVAL_S)
+        replayed = 0
+        for item in outbox.peek():
+            outcome = await _deliver(
+                client,
+                item.event_id,
+                item.payload,
+                has_snapshot=item.has_snapshot,
+                settings=settings,
+            )
+            if outcome == "retry":
+                break  # still unreachable; try again next interval
+            outbox.remove(item.event_id)
+            replayed += outcome == "ok"
+        if replayed:
+            logger.info("replayed %d queued detection(s), %d still queued", replayed, len(outbox))
+
+
 async def _upload_snapshot(client: httpx.AsyncClient, event_id: str, settings: Settings) -> None:
     blurred = Path(settings.snapshots_dir) / f"{event_id}.jpg"
     original = Path(settings.snapshot_originals_dir) / f"{event_id}.jpg"
@@ -474,6 +534,7 @@ async def _run_camera(
     via_relay: bool = True,
     scheduler_config: SchedulerConfig | None = None,
     stop: asyncio.Event | None = None,
+    outbox: DetectionOutbox | None = None,
 ) -> None:
     camera_id = descriptor.camera_id
     settings = get_settings()
@@ -542,21 +603,26 @@ async def _run_camera(
             for event in events:
                 payload = event.payload
                 assert isinstance(payload, AnprPayload)
-                try:
-                    response = await client.post(
-                        "/api/v1/detections", json=_event_to_detection_payload(event)
-                    )
-                    response.raise_for_status()
-                    if upload_snapshots and event.evidence.snapshot_uri:
-                        await _upload_snapshot(client, event.event_id, settings)
+                body = _event_to_detection_payload(event)
+                has_snapshot = upload_snapshots and bool(event.evidence.snapshot_uri)
+                outcome = await _deliver(
+                    client, event.event_id, body, has_snapshot=has_snapshot, settings=settings
+                )
+                if outcome == "ok":
                     logger.info(
                         "%s: %s (%.2f)",
                         camera_id,
                         payload.plate_normalised,
                         payload.plate_confidence,
                     )
-                except httpx.HTTPError as exc:
-                    logger.warning("detection post failed for %s: %s", camera_id, exc)
+                elif outcome == "retry" and outbox is not None:
+                    outbox.put(event.event_id, body, has_snapshot=has_snapshot)
+                    logger.warning(
+                        "%s: queued %s for replay (%d waiting)",
+                        camera_id,
+                        payload.plate_normalised,
+                        len(outbox),
+                    )
 
             if zone_engine is not None:
                 await _evaluate_zones(client, camera_id, zone_engine, pipeline, frame)
@@ -842,6 +908,10 @@ async def main() -> None:
             )
 
         scheduler_config = SchedulerConfig(stride=args.frame_stride, sampled_fps=args.sampled_fps)
+        outbox = DetectionOutbox(Path(settings.edge_outbox_path))
+        if queued := len(outbox):
+            logger.info("%d detection(s) queued from an earlier run will be replayed", queued)
+        drain = asyncio.create_task(_drain_outbox(client, outbox, settings))
 
         async def _run(descriptor: CameraDescriptor, stop: asyncio.Event) -> None:
             await _run_camera(
@@ -852,6 +922,7 @@ async def main() -> None:
                 via_relay=via_relay,
                 scheduler_config=scheduler_config,
                 stop=stop,
+                outbox=outbox,
             )
 
         async def _on_removed(descriptor: CameraDescriptor) -> None:
@@ -882,8 +953,10 @@ async def main() -> None:
             except asyncio.CancelledError:
                 logger.info("shutting down on signal")
         finally:
+            drain.cancel()
             await fleet.cancel_all()
             await _release_warmed_paths(settings)
+            outbox.close()
 
 
 if __name__ == "__main__":

@@ -21,7 +21,13 @@ from core_api.detections.schemas import DetectionIn, DetectionOut, RoutePoint, V
 from core_api.registry.service import location_out
 from sentinel_core.plates import ambiguity_key, normalise_plate
 
-__all__ = ["get_vehicle_route", "ingest_detection", "search_detections", "within_one_edit"]
+__all__ = [
+    "detection_exists",
+    "get_vehicle_route",
+    "ingest_detection",
+    "search_detections",
+    "within_one_edit",
+]
 
 # Rung 3 only engages for plate-length queries: a short fragment is one edit
 # away from far too many real plates for the result to mean anything.
@@ -41,6 +47,15 @@ def within_one_edit(a: str, b: str) -> bool:
         return sum(x != y for x, y in zip(a, b, strict=True)) == 1
     shorter, longer = (a, b) if len(a) < len(b) else (b, a)
     return any(longer[:i] + longer[i + 1 :] == shorter for i in range(len(longer)))
+
+
+async def detection_exists(session: AsyncSession, event_id: str, observed_at: datetime) -> bool:
+    found = await session.scalar(
+        select(Detection.id).where(
+            Detection.event_id == event_id, Detection.observed_at == observed_at
+        )
+    )
+    return found is not None
 
 
 async def ingest_detection(session: AsyncSession, payload: DetectionIn) -> Detection:

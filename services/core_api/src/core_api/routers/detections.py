@@ -24,7 +24,12 @@ from core_api.auth.dependencies import (
 from core_api.auth.service import TokenPayload
 from core_api.db.base import get_session
 from core_api.detections.schemas import DetectionIn, DetectionOut, VehicleRoute
-from core_api.detections.service import get_vehicle_route, ingest_detection, search_detections
+from core_api.detections.service import (
+    detection_exists,
+    get_vehicle_route,
+    ingest_detection,
+    search_detections,
+)
 from core_api.events.broker import publish_models
 from core_api.evidence.reveal import (
     record_reveal_audit,
@@ -58,7 +63,13 @@ async def ingest_detection_endpoint(
     login — see auth/dependencies.py. `edge_identity` is set only when the
     request genuinely passed through the mTLS edge-gateway (infra/compose/
     edge_gateway/) — an additional network-layer admission signal recorded
-    for audit, on top of (not instead of) the service-token check above."""
+    for audit, on top of (not instead of) the service-token check above.
+
+    Idempotent per event: an edge worker replays detections it could not
+    deliver (edge_agent/outbox.py), and one whose first post timed out after
+    it was stored must be accepted again, not fail and block the queue."""
+    if await detection_exists(session, payload.event_id, payload.observed_at):
+        return []
     detection = await ingest_detection(session, payload)
     alerts = await correlate_detection(session, detection)
     await session.commit()
