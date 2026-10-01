@@ -105,6 +105,12 @@ class _FakeVideoSource:
             return False, None
         return True, np.zeros((48, 64, 3), dtype=np.uint8)
 
+    def grab(self) -> bool:
+        return self._opened
+
+    def retrieve(self) -> tuple[bool, np.ndarray | None]:
+        return self.read()
+
     def get(self, prop_id: int) -> float:
         return 25.0 if prop_id == 5 else 0.0  # 5 == cv2.CAP_PROP_FPS
 
