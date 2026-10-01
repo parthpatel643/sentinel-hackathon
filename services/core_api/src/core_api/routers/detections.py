@@ -4,10 +4,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import re
 from datetime import datetime, timedelta
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -135,6 +138,50 @@ async def movement_report_endpoint(
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+_EVENT_ID = re.compile(r"^[0-9A-Za-z_-]{1,64}$")
+_MAX_SNAPSHOT_BYTES = 8 * 1024 * 1024
+_JPEG_MAGIC = b"\xff\xd8\xff"
+
+
+async def _read_jpeg(upload: UploadFile) -> bytes:
+    data = await upload.read(_MAX_SNAPSHOT_BYTES + 1)
+    if len(data) > _MAX_SNAPSHOT_BYTES:
+        raise HTTPException(status_code=413, detail="snapshot larger than 8 MB")
+    if not data.startswith(_JPEG_MAGIC):
+        raise HTTPException(status_code=415, detail="snapshot is not a JPEG")
+    return data
+
+
+@router.put("/detections/{event_id}/snapshot", status_code=204)
+async def upload_snapshot_endpoint(
+    event_id: str,
+    blurred: UploadFile,
+    original: UploadFile | None = None,
+    _svc: None = Depends(require_service_token),
+) -> Response:
+    """An edge worker on another machine hands over the evidence frames it
+    wrote locally — the face-blurred one this API serves, and the original
+    only the reveal workflow may read. A worker beside the API shares its
+    snapshot directory and never calls this. The event id becomes a file
+    name, so it is held to the ULID-ish alphabet the worker uses."""
+    if not _EVENT_ID.fullmatch(event_id):
+        raise HTTPException(status_code=422, detail="invalid event id")
+    settings = get_settings()
+    files = [(Path(settings.snapshots_dir), await _read_jpeg(blurred))]
+    if original is not None:
+        files.append((Path(settings.snapshot_originals_dir), await _read_jpeg(original)))
+
+    def _write() -> None:
+        for directory, data in files:
+            directory.mkdir(parents=True, exist_ok=True)
+            partial = directory / f".{event_id}.jpg.part"
+            partial.write_bytes(data)
+            partial.replace(directory / f"{event_id}.jpg")
+
+    await asyncio.to_thread(_write)
+    return Response(status_code=204)
 
 
 @router.get("/detections/{event_id}/snapshot")

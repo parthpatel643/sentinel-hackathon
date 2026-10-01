@@ -46,6 +46,7 @@ import logging
 import signal
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 import numpy as np
@@ -402,6 +403,32 @@ async def _report_health(
             logger.warning("health report failed for %s: %s", camera_id, exc)
 
 
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
+def _uploads_snapshots(settings: Settings) -> bool:
+    """Whether evidence frames must be sent to the API rather than left in a
+    snapshot directory the API already reads (see Settings.snapshot_upload)."""
+    if settings.snapshot_upload != "auto":
+        return settings.snapshot_upload == "always"
+    return urlsplit(settings.core_api_url).hostname not in _LOCAL_HOSTS
+
+
+async def _upload_snapshot(client: httpx.AsyncClient, event_id: str, settings: Settings) -> None:
+    blurred = Path(settings.snapshots_dir) / f"{event_id}.jpg"
+    original = Path(settings.snapshot_originals_dir) / f"{event_id}.jpg"
+    if not blurred.is_file():
+        return  # the writer fails closed (no blur, no snapshot); nothing to send
+    files = {"blurred": (blurred.name, blurred.read_bytes(), "image/jpeg")}
+    if original.is_file():
+        files["original"] = (original.name, original.read_bytes(), "image/jpeg")
+    try:
+        response = await client.put(f"/api/v1/detections/{event_id}/snapshot", files=files)
+        response.raise_for_status()
+    except httpx.HTTPError as exc:
+        logger.warning("snapshot upload failed for %s: %s", event_id, exc)
+
+
 def _event_to_detection_payload(event: Event) -> dict[str, Any]:
     payload = event.payload
     # AnprPipeline only ever emits anpr.plate_read events (see
@@ -468,6 +495,7 @@ async def _run_camera(
         await _resolve_capture_url(descriptor, settings, via_relay=via_relay)
 
     scheduler = AnalysisScheduler(descriptor.tier, scheduler_config or SchedulerConfig())
+    upload_snapshots = _uploads_snapshots(settings)
     supervisor = CameraSupervisor(
         config=CaptureConfig(
             camera_id=camera_id, url=candidates[0], fallback_urls=tuple(candidates[1:])
@@ -519,6 +547,8 @@ async def _run_camera(
                         "/api/v1/detections", json=_event_to_detection_payload(event)
                     )
                     response.raise_for_status()
+                    if upload_snapshots and event.evidence.snapshot_uri:
+                        await _upload_snapshot(client, event.event_id, settings)
                     logger.info(
                         "%s: %s (%.2f)",
                         camera_id,

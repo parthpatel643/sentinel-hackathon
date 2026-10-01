@@ -39,11 +39,12 @@ api: ## Run the core API with reload
 web: ## Run the operator console (Vite dev server)
 	cd apps/web && npm run dev
 
-worker: ## Run an edge worker (SOURCE=registry|gov|synthetic CAMERAS=a,b DEPARTMENT=Police STRIDE=3)
+worker: ## Run an edge worker (SOURCE=registry|gov|synthetic CAMERAS=a,b DEPARTMENT=Police SAMPLED_FPS=8 STRIDE=3)
 	uv run --package edge-agent python -m edge_agent.worker \
 	  --source $(or $(SOURCE),synthetic) \
 	  $(if $(CAMERAS),--cameras $(CAMERAS),) \
 	  $(if $(DEPARTMENT),--department "$(DEPARTMENT)",) \
+	  $(if $(SAMPLED_FPS),--sampled-fps $(SAMPLED_FPS),) \
 	  $(if $(STRIDE),--frame-stride $(STRIDE),)
 
 deck: ## Build the submission deck (docs/Sentinel-Platform-Deck.pptx)

@@ -121,6 +121,13 @@ class Settings(BaseSettings):
         default="./data/snapshots",
         description="Face-blurred snapshots — the default, served-by-core_api version.",
     )
+    snapshot_upload: Literal["auto", "always", "never"] = Field(
+        default="auto",
+        description="Whether an edge worker uploads each detection's snapshots to the core API. "
+        "'auto' uploads when the API is on another machine (core_api_url is not localhost), "
+        "which is the only way the evidence reaches it; a worker beside the API shares its "
+        "snapshot directory and has nothing to send.",
+    )
     snapshot_originals_dir: str = Field(
         default="./data/snapshot_originals",
         description="Unblurred originals — never served directly; only the reveal-on-"

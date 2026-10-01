@@ -157,3 +157,18 @@ def test_load_meter_reports_analysed_frames_per_stream_second() -> None:
     assert rate is not None and 8.0 <= rate <= 8.7
     assert meter.latest is not None
     assert meter.latest.observed_at == epoch + timedelta(seconds=5)
+
+
+def test_snapshots_are_uploaded_only_when_the_api_is_elsewhere() -> None:
+    from edge_agent.worker import _uploads_snapshots
+    from sentinel_core.config import Settings
+
+    assert not _uploads_snapshots(Settings(core_api_url="http://localhost:18000"))
+    assert not _uploads_snapshots(Settings(core_api_url="http://127.0.0.1:18000"))
+    assert _uploads_snapshots(Settings(core_api_url="http://192.168.11.21:18000"))
+    assert _uploads_snapshots(
+        Settings(core_api_url="http://localhost:18000", snapshot_upload="always")
+    )
+    assert not _uploads_snapshots(
+        Settings(core_api_url="http://10.0.0.5:18000", snapshot_upload="never")
+    )
