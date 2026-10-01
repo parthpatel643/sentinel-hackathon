@@ -24,6 +24,7 @@ from core_api.registry.gap_analysis import compute_coverage_gaps
 from core_api.registry.lifecycle import (
     LifecycleReport,
     build_lifecycle_report,
+    consent_status,
     lifecycle_report_csv,
 )
 from core_api.registry.schemas import (
@@ -84,9 +85,12 @@ async def edge_camera_manifest_endpoint(
     camera in the registry, however it was onboarded (manual, bulk CSV,
     device discovery, catalogue), with its stream URLs intact. Service-token
     only — the one place credentialed URLs leave the API, and never to a
-    browser (see camera_to_out)."""
+    browser (see camera_to_out). A private camera whose consent has lapsed
+    is left out, so a worker re-reading the registry stops analysing it."""
     cameras = await list_cameras(session)
-    return [camera_to_out(c, reveal_credentials=True) for c in cameras]
+    return [
+        camera_to_out(c, reveal_credentials=True) for c in cameras if consent_status(c) != "lapsed"
+    ]
 
 
 @router.get("/cameras/{camera_id}", response_model=CameraOut)
@@ -173,6 +177,12 @@ async def camera_stream_endpoint(
     camera = await get_camera(session, camera_id)
     if camera is None:
         raise HTTPException(status_code=404, detail=f"no camera with id {camera_id!r}")
+    if consent_status(camera) == "lapsed":
+        return CameraStreamOut(
+            available=False,
+            reason="Private camera: the owner's consent has lapsed or was never recorded. "
+            "Renew it in the registry to view this camera.",
+        )
     return await resolve_camera_stream(camera, get_settings())
 
 

@@ -91,5 +91,5 @@ async def test_the_published_csv_template_imports_cleanly(db_session: AsyncSessi
     """The template the wizard offers for download must stay valid input."""
     result = await parse_and_import_csv(db_session, _TEMPLATE, dry_run=True)
 
-    assert result.total_rows == 4
+    assert result.total_rows == 5
     assert result.failed == 0, [r.error for r in result.rows if not r.ok]

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core_api.registry.bulk_import import parse_and_import_csv
 from core_api.registry.lifecycle import (
     build_lifecycle_report,
+    consent_status,
     lifecycle_report_csv,
     validate_lifecycle_attribute,
 )
@@ -126,3 +127,40 @@ def test_validation_messages() -> None:
     assert validate_lifecycle_attribute("vendor", "anything") is None
     assert validate_lifecycle_attribute("amc_expires_on", "soon") is not None
     assert validate_lifecycle_attribute("maintenance_status", "decommissioned") is None
+
+
+async def test_private_cameras_are_reported_by_consent_state(db_session: AsyncSession) -> None:
+    body = (
+        "camera_id,name,department_name,ownership,consent_ref,consent_expires_on\n"
+        "pc-ok,Mall atrium,Police,private,MALL/26/3,2027-06-30\n"
+        "pc-soon,Society gate,Police,private,SOC/25/9,2026-11-01\n"
+        "pc-lapsed,Shop front,Police,private,SHOP/24/1,2026-01-31\n"
+        "pc-unknown,Temple road,Police,private,,\n"
+        "pc-gov,Junction,Police,government,,\n"
+    )
+    await _import(db_session, body)
+    cameras = [c for c in await list_cameras(db_session) if c.camera_id.startswith("pc-")]
+
+    report = build_lifecycle_report(cameras, amc_warning_days=60, today=TODAY)
+
+    assert report.private_cameras == 4
+    assert (report.consent_lapsed, report.consent_expiring) == (2, 1)
+    findings = {c.camera_id: c.findings for c in report.cameras_needing_attention}
+    assert findings == {
+        "pc-soon": ["consent_expiring"],
+        "pc-lapsed": ["consent_lapsed"],
+        "pc-unknown": ["consent_lapsed"],
+    }
+    statuses = {c.camera_id: consent_status(c, today=TODAY) for c in cameras}
+    assert statuses == {
+        "pc-ok": "valid",
+        "pc-soon": "expiring",
+        "pc-lapsed": "lapsed",
+        "pc-unknown": "lapsed",
+        "pc-gov": None,
+    }
+
+
+def test_ownership_must_be_government_or_private() -> None:
+    assert validate_lifecycle_attribute("ownership", "private") is None
+    assert "ownership" in (validate_lifecycle_attribute("ownership", "society") or "")

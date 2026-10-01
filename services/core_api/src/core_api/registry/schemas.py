@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 __all__ = [
     "CameraCreate",
@@ -94,6 +94,19 @@ class CameraCreate(BaseModel):
     tier: str = "b_sampled"
     profiles: list[StreamProfileIn] = Field(default_factory=list)
     attributes: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("attributes")
+    @classmethod
+    def _lifecycle_values_are_valid(cls, attributes: dict[str, str]) -> dict[str, str]:
+        # Same rules as the bulk CSV import, so neither path can store a date
+        # or consent the lifecycle report would silently ignore.
+        from core_api.registry.lifecycle import validate_lifecycle_attribute
+
+        for key, value in attributes.items():
+            error = validate_lifecycle_attribute(key, value)
+            if error is not None:
+                raise ValueError(error)
+        return attributes
 
 
 class CameraOut(BaseModel):

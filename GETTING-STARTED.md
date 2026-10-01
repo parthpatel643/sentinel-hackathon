@@ -182,7 +182,8 @@ credentials — the console and API show them as `rtsp://***@host/...`.
 
 A minimal CSV (see the wizard's help for every column, including
 `installed_on`, `amc_expires_on`, `maintenance_status`, `vendor` and `model`
-for the lifecycle report):
+for the lifecycle report, and `ownership`, `consent_ref` and
+`consent_expires_on` for private cameras):
 
 ```csv
 camera_id,name,department_name,lat,lon,protocol,url
@@ -190,6 +191,12 @@ pol-cg-road-01,CG Road junction,Police,23.0300,72.5600,rtsp,rtsp://viewer:p%40ss
 ```
 
 Percent-encode `@`, `:`, `/`, `#` and `?` inside a password (`@` is `%40`).
+
+A private camera (a society, mall or shop sharing its view) is onboarded with
+`ownership=private` and the consent it was shared under: `consent_ref` (the
+station's consent or MoU number) and `consent_expires_on`. Without both, or
+once the date passes, the camera stays in the registry but is not viewed or
+analysed, and **Coverage & lifecycle** lists it for renewal.
 
 Before going onto a network without internet, run `make prefetch` once while
 online: the plate detector, plate OCR and face-blur models are otherwise

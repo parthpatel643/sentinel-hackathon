@@ -373,7 +373,14 @@ export interface FieldSighting {
   created_at: string
 }
 
-export type LifecycleFinding = 'ageing' | 'amc_expired' | 'amc_expiring' | 'maintenance' | 'offline'
+export type LifecycleFinding =
+  | 'ageing'
+  | 'amc_expired'
+  | 'amc_expiring'
+  | 'maintenance'
+  | 'offline'
+  | 'consent_lapsed'
+  | 'consent_expiring'
 
 export interface LifecycleCamera {
   camera_id: string
@@ -387,6 +394,9 @@ export interface LifecycleCamera {
   vendor: string | null
   model: string | null
   findings: LifecycleFinding[]
+  ownership?: 'government' | 'private' | null
+  consent_ref?: string | null
+  consent_expires_on?: string | null
 }
 
 export interface DepartmentLifecycle {
@@ -397,6 +407,8 @@ export interface DepartmentLifecycle {
   amc_expiring: number
   maintenance: number
   offline: number
+  consent_lapsed?: number
+  consent_expiring?: number
   install_date_unknown: number
 }
 
@@ -412,6 +424,10 @@ export interface LifecycleReport {
   amc_expiring: number
   maintenance: number
   offline: number
+  /** Cameras onboarded with ownership=private; consent tiles show only when > 0. */
+  private_cameras?: number
+  consent_lapsed?: number
+  consent_expiring?: number
   by_department: DepartmentLifecycle[]
   cameras_needing_attention: LifecycleCamera[]
 }

@@ -15,6 +15,8 @@ const FINDING_SEVERITY: Record<LifecycleFinding, Severity> = {
   maintenance: 'high',
   ageing: 'medium',
   amc_expiring: 'low',
+  consent_lapsed: 'high',
+  consent_expiring: 'low',
 }
 
 const FINDING_LABEL: Record<LifecycleFinding, string> = {
@@ -23,6 +25,8 @@ const FINDING_LABEL: Record<LifecycleFinding, string> = {
   amc_expiring: 'amcExpiring',
   maintenance: 'maintenance',
   offline: 'offline',
+  consent_lapsed: 'consentLapsed',
+  consent_expiring: 'consentExpiring',
 }
 
 /** Model 1's gap analysis in one place: the spatial half (grid cells no
@@ -57,6 +61,14 @@ export function CoverageLifecyclePanel({ department }: { department?: string }) 
         { key: 'maintenance', value: report.maintenance },
         { key: 'ageing', value: report.ageing },
         { key: 'amc_expiring', value: report.amc_expiring },
+        // Private (society, mall, shop) cameras are optional; their consent
+        // tiles appear only once one is onboarded.
+        ...(report.private_cameras
+          ? [
+              { key: 'consent_lapsed' as const, value: report.consent_lapsed ?? 0 },
+              { key: 'consent_expiring' as const, value: report.consent_expiring ?? 0 },
+            ]
+          : []),
       ]
     : []
 
@@ -128,7 +140,7 @@ export function CoverageLifecyclePanel({ department }: { department?: string }) 
                     <tr key={row.department_name} className="border-t border-border-subtle/60">
                       <td className="py-1.5 pr-3 text-text-primary">{row.department_name}</td>
                       <td className="py-1.5 pr-3 text-text-secondary">{row.total}</td>
-                      {tiles.map((tile) => <td key={tile.key} className="py-1.5 pr-3 text-text-secondary">{row[tile.key]}</td>)}
+                      {tiles.map((tile) => <td key={tile.key} className="py-1.5 pr-3 text-text-secondary">{row[tile.key] ?? 0}</td>)}
                     </tr>
                   ))}
                 </tbody>

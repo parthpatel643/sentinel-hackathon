@@ -370,3 +370,51 @@ async def test_the_edge_worker_still_registers_its_cameras(client: httpx.AsyncCl
     )
 
     assert response.status_code == 201, response.text
+
+
+async def _create_private_camera(
+    client: httpx.AsyncClient, camera_id: str, attributes: dict[str, str]
+) -> httpx.Response:
+    return await client.post(
+        "/api/v1/cameras",
+        json={
+            "camera_id": camera_id,
+            "name": "Society gate",
+            "department_name": "Police",
+            "tier": "d_registry_only",
+            "profiles": [{"protocol": "rtsp", "url": SECRET_URL}],
+            "attributes": {"ownership": "private", **attributes},
+        },
+    )
+
+
+async def test_a_private_camera_without_current_consent_is_not_served(
+    client: httpx.AsyncClient,
+) -> None:
+    current = {"consent_ref": "SOC/2026/0141", "consent_expires_on": "2099-01-01"}
+    assert (await _create_private_camera(client, "pvt-ok", current)).status_code == 201
+    lapsed = {"consent_ref": "SOC/2024/0007", "consent_expires_on": "2025-01-01"}
+    assert (await _create_private_camera(client, "pvt-lapsed", lapsed)).status_code == 201
+    assert (await _create_private_camera(client, "pvt-none", {})).status_code == 201
+
+    manifest = (await client.get("/api/v1/edge/cameras", headers=_service_headers())).json()
+    served = {c["camera_id"] for c in manifest}
+    assert "pvt-ok" in served
+    assert not served & {"pvt-lapsed", "pvt-none"}
+
+    stream = (await client.get("/api/v1/cameras/pvt-lapsed/stream")).json()
+    assert stream["available"] is False
+    assert "consent" in stream["reason"]
+    # Still in the registry, so the station can see it and renew consent.
+    assert (await client.get("/api/v1/cameras/pvt-lapsed")).status_code == 200
+
+
+async def test_manual_onboarding_validates_consent_attributes(
+    client: httpx.AsyncClient,
+) -> None:
+    response = await _create_private_camera(
+        client, "pvt-bad", {"consent_ref": "X", "consent_expires_on": "31/12/2026"}
+    )
+
+    assert response.status_code == 422
+    assert "YYYY-MM-DD" in response.text

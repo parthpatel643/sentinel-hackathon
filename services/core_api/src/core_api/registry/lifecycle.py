@@ -9,6 +9,12 @@ them unevenly — the Food & Civil Supplies register may have installation
 dates and nothing else, a municipal AMC register only expiry dates — and a
 report that counts what is *unknown* is more honest than a schema that
 forces a value.
+
+Private cameras (societies, malls, shops) are onboarded only "wherever
+feasible and permitted", so they carry `ownership=private`, the consent
+reference they were onboarded under and when it lapses. A private camera
+without current consent is not handed to analytics workers or viewers
+(`consent_status`); the report lists it so the owning station can renew it.
 """
 
 from __future__ import annotations
@@ -25,16 +31,28 @@ from core_api.db.models import Camera
 __all__ = [
     "LIFECYCLE_ATTRIBUTES",
     "MAINTENANCE_STATUSES",
+    "OWNERSHIP_VALUES",
     "LifecycleReport",
     "build_lifecycle_report",
+    "consent_status",
     "lifecycle_report_csv",
     "validate_lifecycle_attribute",
 ]
 
-LIFECYCLE_ATTRIBUTES = ("installed_on", "amc_expires_on", "maintenance_status", "vendor", "model")
+LIFECYCLE_ATTRIBUTES = (
+    "installed_on",
+    "amc_expires_on",
+    "maintenance_status",
+    "vendor",
+    "model",
+    "ownership",
+    "consent_ref",
+    "consent_expires_on",
+)
 MAINTENANCE_STATUSES = ("ok", "due", "under_repair", "faulty", "decommissioned")
+OWNERSHIP_VALUES = ("government", "private")
 _NEEDS_ATTENTION = {"due", "under_repair", "faulty"}
-_DATE_ATTRIBUTES = {"installed_on", "amc_expires_on"}
+_DATE_ATTRIBUTES = {"installed_on", "amc_expires_on", "consent_expires_on"}
 # India has no DST, so a fixed offset is exact and needs no tz database.
 IST = timezone(timedelta(hours=5, minutes=30), "IST")
 
@@ -49,7 +67,27 @@ def validate_lifecycle_attribute(key: str, value: str) -> str | None:
             return f"{key} must be a YYYY-MM-DD date, got {value!r}"
     if key == "maintenance_status" and value not in MAINTENANCE_STATUSES:
         return f"maintenance_status must be one of {list(MAINTENANCE_STATUSES)}, got {value!r}"
+    if key == "ownership" and value not in OWNERSHIP_VALUES:
+        return f"ownership must be one of {list(OWNERSHIP_VALUES)}, got {value!r}"
     return None
+
+
+def consent_status(
+    camera: Camera, *, today: date | None = None, warning_days: int = 60
+) -> str | None:
+    """None for a government camera; otherwise `valid`, `expiring` or
+    `lapsed`. No consent reference or expiry date counts as lapsed: consent
+    that cannot be shown does not exist."""
+    attrs = camera.attributes or {}
+    if attrs.get("ownership") != "private":
+        return None
+    as_of = today or datetime.now(IST).date()
+    expires_on = _date_attr(camera, "consent_expires_on")
+    if not attrs.get("consent_ref") or expires_on is None or expires_on < as_of:
+        return "lapsed"
+    if expires_on <= as_of + timedelta(days=warning_days):
+        return "expiring"
+    return "valid"
 
 
 def _date_attr(camera: Camera, key: str) -> date | None:
@@ -75,8 +113,12 @@ class LifecycleCamera(BaseModel):
     model: str | None = None
     findings: list[str] = Field(
         default_factory=list,
-        description="ageing | amc_expired | amc_expiring | maintenance | offline",
+        description="ageing | amc_expired | amc_expiring | maintenance | offline "
+        "| consent_lapsed | consent_expiring",
     )
+    ownership: str | None = None
+    consent_ref: str | None = None
+    consent_expires_on: date | None = None
 
 
 class DepartmentLifecycle(BaseModel):
@@ -87,6 +129,8 @@ class DepartmentLifecycle(BaseModel):
     amc_expiring: int = 0
     maintenance: int = 0
     offline: int = 0
+    consent_lapsed: int = 0
+    consent_expiring: int = 0
     install_date_unknown: int = 0
 
 
@@ -102,6 +146,9 @@ class LifecycleReport(BaseModel):
     amc_expiring: int
     maintenance: int
     offline: int
+    private_cameras: int = 0
+    consent_lapsed: int = 0
+    consent_expiring: int = 0
     by_department: list[DepartmentLifecycle]
     cameras_needing_attention: list[LifecycleCamera]
 
@@ -120,8 +167,16 @@ def build_lifecycle_report(
         lambda: DepartmentLifecycle(department_name="")
     )
     flagged: list[LifecycleCamera] = []
-    totals = {"ageing": 0, "amc_expired": 0, "amc_expiring": 0, "maintenance": 0, "offline": 0}
-    install_known = amc_known = 0
+    totals = {
+        "ageing": 0,
+        "amc_expired": 0,
+        "amc_expiring": 0,
+        "maintenance": 0,
+        "offline": 0,
+        "consent_lapsed": 0,
+        "consent_expiring": 0,
+    }
+    install_known = amc_known = private = 0
 
     for camera in cameras:
         attrs = camera.attributes or {}
@@ -153,6 +208,11 @@ def build_lifecycle_report(
             findings.append("maintenance")
         if camera.status == "down":
             findings.append("offline")
+        consent = consent_status(camera, today=as_of, warning_days=amc_warning_days)
+        if consent is not None:
+            private += 1
+            if consent in ("lapsed", "expiring"):
+                findings.append(f"consent_{consent}")
 
         for finding in findings:
             totals[finding] += 1
@@ -171,6 +231,9 @@ def build_lifecycle_report(
                     vendor=attrs.get("vendor") or None,
                     model=attrs.get("model") or None,
                     findings=findings,
+                    ownership=attrs.get("ownership") or None,
+                    consent_ref=attrs.get("consent_ref") or None,
+                    consent_expires_on=_date_attr(camera, "consent_expires_on"),
                 )
             )
 
@@ -182,6 +245,7 @@ def build_lifecycle_report(
         total_cameras=sum(d.total for d in departments.values()),
         install_date_known=install_known,
         amc_date_known=amc_known,
+        private_cameras=private,
         by_department=sorted(departments.values(), key=lambda d: d.department_name),
         cameras_needing_attention=flagged,
         **totals,
@@ -205,6 +269,9 @@ def lifecycle_report_csv(report: LifecycleReport) -> str:
             "maintenance_status",
             "vendor",
             "model",
+            "ownership",
+            "consent_ref",
+            "consent_expires_on",
             "findings",
         ]
     )
@@ -221,6 +288,9 @@ def lifecycle_report_csv(report: LifecycleReport) -> str:
                 camera.maintenance_status or "",
                 camera.vendor or "",
                 camera.model or "",
+                camera.ownership or "",
+                camera.consent_ref or "",
+                camera.consent_expires_on.isoformat() if camera.consent_expires_on else "",
                 ";".join(camera.findings),
             ]
         )
