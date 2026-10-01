@@ -146,8 +146,10 @@ device**: choose ONVIF / Hikvision NVR / Dahua NVR, enter the address and
 account, **Find streams**, check the list, **Add**. Admin role required.
 ONVIF is a real protocol implementation; the Hikvision and Dahua drivers
 follow each vendor's documented API shape but have not been tested against
-physical units ([07 — Driver SDK](./07-DRIVER-SDK.md)), so prefer ONVIF or
-plain RTSP on a device you have not used before.
+physical units, so prefer plain RTSP or ONVIF on a device you have not used
+before. URL templates, NVR channel numbering and the two ONVIF traps (a separate
+ONVIF user on Hikvision, and device clock skew) are on the field card in
+[07 — Driver SDK §6a](./07-DRIVER-SDK.md).
 
 **C. A catalogue endpoint like the sandbox.** Set `SENTINEL_GOV_CATALOGUE_URL`
 (and the RTSP/HLS host overrides in `.env.example`) and use **Discover cameras
@@ -156,12 +158,12 @@ plain RTSP on a device you have not used before.
 **Start analysis:**
 
 ```bash
-make worker SOURCE=registry STRIDE=3
+make worker SOURCE=registry            # SAMPLED_FPS=8 by default; see §6
 ```
 
-New cameras are picked up within 30 seconds, with no restart. Mark a camera
-`d_registry_only` (CSV `tier` column) to keep it on the map and live wall but
-out of ANPR.
+New cameras are picked up within 30 seconds, with no restart. Each camera's
+`tier` (CSV column) decides how much of it is analysed (§6); `d_registry_only`
+keeps it on the map and live wall but out of ANPR.
 
 **Before any demo:** open one camera on the **Live Wall**, and check the
 **Health** screen shows it live with a measured frame rate.

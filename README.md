@@ -78,8 +78,9 @@ make worker SOURCE=gov CAMERAS=cam06,cam30 STRIDE=3
 
 For **any other cameras** — a department's RTSP feeds, an ONVIF camera, an NVR —
 onboard them in the console (or `POST /api/v1/cameras/bulk-import`) and run
-`make worker SOURCE=registry STRIDE=3`. It re-reads the registry every 30
-seconds; see [GETTING-STARTED.md](GETTING-STARTED.md).
+`make worker SOURCE=registry`. It re-reads the registry every 30 seconds, and
+each camera's tier decides how much of it is analysed; see
+[GETTING-STARTED.md](GETTING-STARTED.md).
 
 > The government sandbox enforces an account-level viewing-time quota. Four
 > cameras exhaust it in under an hour, after which it returns `403 watch time

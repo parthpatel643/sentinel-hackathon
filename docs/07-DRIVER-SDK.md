@@ -138,6 +138,43 @@ discovery mechanism the way ONVIF's WS-Discovery does, and in every real
 deployment of these VMS/NVR products the operator already knows the
 Management Server or device IP being onboarded.
 
+## 6a. Field card: a real Hikvision or Dahua device on the day
+
+No physical Hikvision or Dahua unit has been on our bench. The drivers above are
+tested against mock servers built from the vendors' published APIs, which proves
+the request shapes and digest auth but not every firmware's quirks. So on a
+device we have not met, take the most standard path that works, in this order:
+
+1. **Plain RTSP in the CSV import.** No driver is involved at all; the URL is
+   handed to the relay and the worker as is.
+
+   | Vendor | Main stream (ANPR) | Sub-stream (light viewing) |
+   |---|---|---|
+   | Hikvision camera | `rtsp://user:pass@IP:554/Streaming/Channels/101` | `.../Streaming/Channels/102` |
+   | Hikvision NVR, channel N | `.../Streaming/Channels/N01` (e.g. `501` for channel 5) | `.../Streaming/Channels/N02` |
+   | Dahua camera or NVR, channel N | `rtsp://user:pass@IP:554/cam/realmonitor?channel=N&subtype=0` | `...&subtype=1` |
+
+   Percent-encode `@ : / # ?` in the password (`@` is `%40`). Check one URL
+   before importing a hundred:
+   `ffprobe -v error -rtsp_transport tcp -show_entries stream=codec_name,width,height '<url>'`.
+2. **ONVIF discovery** (**Cameras → Discover a device → ONVIF**). Two traps:
+   - Hikvision ships with ONVIF **off**, and its ONVIF account is separate
+     from the web admin account. Enable it under *Network → Advanced → Integration
+     Protocol* and add an ONVIF user.
+   - ONVIF authentication is stamped with the laptop's clock. A device clock that
+     is minutes off rejects correct credentials. Set the device to NTP, or to
+     the laptop's time, first.
+3. **The Hikvision ISAPI or Dahua CGI driver**, when you want an NVR's channel
+   list read for you. If it fails on a firmware we have not seen, fall back to
+   (1) with the channel numbers from the NVR's own screen.
+
+**H.265.** The relay passes H.265 through untouched and the worker decodes it. A
+browser tile needs the browser to decode HEVC: Safari does; Chrome on Apple
+Silicon does in recent versions. If a tile stays black for an H.265 camera,
+view it in Safari or switch that camera's main stream to H.264 on the device.
+Do **not** register the sub-stream for ANPR to fix viewing: plates need the main
+stream's resolution.
+
 ## 7. Adding a new driver (the "department 27" walkthrough)
 
 1. Implement `CameraSource`'s three async methods for the new

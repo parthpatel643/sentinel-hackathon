@@ -169,9 +169,24 @@ a Hikvision/Dahua NVR by address and account), or a catalogue sync. Point the
 worker at the registry instead:
 
 ```bash
-make worker SOURCE=registry STRIDE=3                     # every onboarded camera
-make worker SOURCE=registry DEPARTMENT=Police STRIDE=3   # one shard per department
+make worker SOURCE=registry                       # every onboarded camera
+make worker SOURCE=registry DEPARTMENT=Police     # one shard per department
 ```
+
+How much of each camera is analysed is set by its **tier** (the CSV `tier`
+column, or the wizard), not by the worker:
+
+| Tier | Analyses | Worker setting |
+|---|---|---|
+| `a_continuous` | Every frame, or every `STRIDE`-th | `STRIDE=3` analyses one frame in three |
+| `b_sampled` (default) | A fixed rate, paced by the stream's own timestamps | `SAMPLED_FPS=8` |
+| `c_motion_gated` | `SAMPLED_FPS`, only while something moves | `SAMPLED_FPS` |
+| `d_registry_only` | Nothing: map and live wall only | none |
+
+A base M2 sustains about 16 analysed frames a second of dense traffic in total
+([tier capacity](evidence/TIER-CAPACITY.md)). The Cameras screen shows each
+camera's analysed rate and, in red, how far analysis trails live when it
+falls behind.
 
 It re-reads the registry every 30 seconds (`--resync-interval`), so a camera
 onboarded while it runs starts being analysed within one interval, a corrected

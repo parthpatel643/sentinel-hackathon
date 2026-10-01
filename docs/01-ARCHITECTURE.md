@@ -373,6 +373,23 @@ Key choices:
 
 Realtime: a single authenticated WebSocket multiplexing `alerts`, `camera_health`, `detections` (filtered), and `node_status`, with per-topic subscribe/unsubscribe and server-side rate limiting.
 
+**As built for the proof of concept** (all under `/api/v1`; the live OpenAPI at
+`/api/docs` is the source of truth). Where it differs from the design above, this is
+what runs:
+
+| Group | Endpoints |
+|---|---|
+| Registry | `GET/POST /cameras` (POST admin-only), `GET /cameras/{id}`, `POST /cameras/bulk-import`, `POST /cameras/discover` (catalogue sync), `POST /cameras/discover-device` (ONVIF / Hikvision / Dahua), `GET /coverage/gaps`, `GET /coverage/lifecycle` (ageing, AMC, maintenance, private-camera consent; `?format=csv`), `GET /departments` |
+| Edge workers (service token) | `GET /edge/cameras` (manifest with credentials; lapsed-consent cameras left out), `PATCH /cameras/{id}/health` (status, analysed fps, stream position, people and vehicle counts), `POST /detections` (idempotent per event), `PUT /detections/{id}/snapshot` (evidence upload from a remote worker), `POST /zone-events` |
+| Viewing | `GET /cameras/{id}/stream` (a credential-free HLS URL via the relay, or the reason it is unavailable) |
+| Search and reports | `GET /detections`, `GET /vehicles/{plate}/route`, `GET /vehicles/{plate}/movement-report` (one ZIP: PDF, CSV, evidence frames and a SHA-256 manifest) |
+| Watchlist and alerts | `GET/POST /watchlist`, `PATCH /watchlist/{id}`, `POST /bolo` (arm + retro-scan), `GET /alerts`, `PATCH /alerts/{id}`, `POST /alerts/{id}/seal-clip` |
+| Zones | `GET/POST /cameras/{id}/zones`, `GET /zone-events`, `PATCH /zone-events/{id}` (acknowledge, resolve, false positive; audited) |
+| Evidence | `GET /detections/{id}/snapshot-url`, `POST /detections/{id}/reveal-face` (admin, reason required, audited), `GET /evidence/clips/{id}/video-url` |
+| Realtime | `GET /events/stream`: server-sent events carrying alerts and zone events to every open console |
+| Field | `GET /field/lookup/{plate}`, `GET/POST /field/sightings` |
+| Admin | `GET/POST /auth/users`, `GET /admin/audit-log`, `POST /admin/audit-log/verify`, `GET /admin/integrations` (VAHAN, SARTHI, eGujCop, AFIS, NAFIS), retention preview and execute |
+
 ---
 
 ## 9. Security, privacy & governance
