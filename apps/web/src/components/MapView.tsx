@@ -23,6 +23,13 @@ export interface MapMarker {
   /** Shown inside the dot — used by Find a Vehicle's route hops so the map
    * and the timeline list agree on hop order at a glance. */
   number?: number
+  /** Text inside the dot, overriding `number` — e.g. "3·4" for two hops at
+   * one camera. */
+  text?: string
+  /** Diameter in px (default 17, or 20 with a number). */
+  size?: number
+  /** A small always-visible label above the dot ("Start", "Latest"). */
+  chip?: string
 }
 
 export interface RouteSegment {
@@ -31,7 +38,14 @@ export interface RouteSegment {
   /** false = a "probable" hop (matched by appearance, not plate) — rendered
    * dashed, per docs/03-UX-DESIGN.md \u00a74.4. */
   confirmed: boolean
+  /** Position along the route, 0 (first hop) to 1 (latest) — drives the
+   * route's colour from earliest to latest. */
+  order?: number
 }
+
+/** `muted` fades and desaturates the basemap so an overlay (a vehicle's
+ * route) is the most prominent thing on the map. */
+export type BasemapTone = 'standard' | 'muted'
 
 interface MapViewProps {
   markers: MapMarker[]
@@ -51,6 +65,7 @@ interface MapViewProps {
   /** Centres of registry grid cells no camera covers ([lon, lat]) — the
    * gap-analysis layer on the Cameras map. */
   coverageGaps?: [number, number][]
+  basemap?: BasemapTone
 }
 
 // OpenStreetMap's raw tile server: no API key, global coverage including
@@ -94,24 +109,84 @@ const RASTER_STYLE: StyleSpecification = {
   ],
 }
 
+type Theme = 'light' | 'dark'
+
+function currentTheme(): Theme {
+  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
+}
+
+/** The basemap's look, applied to the raster layer itself rather than as a
+ * CSS filter on the whole canvas. A canvas filter also inverted and dulled
+ * everything drawn over the tiles — the route line included — which is why a
+ * vehicle's route used to blend into the map in the dark theme. Here only the
+ * tiles change: dark inverts them (brightness-min above brightness-max) and
+ * rotates hue back so water stays blue; `muted` desaturates and lowers
+ * contrast so the route is the most prominent thing on screen. */
+function basemapPaint(theme: Theme, tone: BasemapTone): Record<string, number> {
+  const muted = tone === 'muted'
+  if (theme === 'dark') {
+    return {
+      'raster-brightness-min': muted ? 0.62 : 0.9,
+      'raster-brightness-max': muted ? 0.07 : 0.04,
+      'raster-hue-rotate': 180,
+      'raster-saturation': muted ? -0.85 : -0.1,
+      'raster-contrast': muted ? -0.25 : -0.08,
+    }
+  }
+  return {
+    'raster-brightness-min': muted ? 0.22 : 0,
+    'raster-brightness-max': 1,
+    'raster-hue-rotate': 0,
+    'raster-saturation': muted ? -0.85 : 0,
+    'raster-contrast': muted ? -0.3 : 0,
+  }
+}
+
+/** The outline under the route: it separates the line from the basemap in
+ * either theme. */
+function routeCasing(theme: Theme): string {
+  return theme === 'dark' ? '#060a14' : '#ffffff'
+}
+
+// The route's colour runs from earliest to latest sighting; the same stops
+// are used for the stop pins (FindVehicle) and the map legend.
+export const ROUTE_START_COLOUR = '#22d3ee'
+export const ROUTE_END_COLOUR = '#f59e0b'
+const ROUTE_CHEVRON_IMAGE = 'route-chevron'
+
+/** A direction chevron for the route, drawn at runtime so the map needs no
+ * sprite or glyph server (it must work with no network beyond the tiles). */
+function chevronImage(): ImageData {
+  const size = 32
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const g = canvas.getContext('2d')!
+  g.lineCap = 'round'
+  g.lineJoin = 'round'
+  const path = () => {
+    g.beginPath()
+    g.moveTo(11, 8)
+    g.lineTo(21, 16)
+    g.lineTo(11, 24)
+  }
+  g.strokeStyle = 'rgba(10,16,32,0.9)'
+  g.lineWidth = 8
+  path()
+  g.stroke()
+  g.strokeStyle = '#ffffff'
+  g.lineWidth = 4
+  path()
+  g.stroke()
+  return g.getImageData(0, 0, size, size)
+}
+
 const GUJARAT_CENTER: [number, number] = [72.5714, 23.0225]
 const ROUTE_SOURCE_ID = 'find-a-vehicle-route'
 const GAPS_SOURCE_ID = 'coverage-gaps'
 // A stable default: `= []` in the signature is a new array every render, which
 // re-ran the gap-layer effect (a GeoJSON reload) on every frame of route replay.
 const NO_GAPS: [number, number][] = []
-
-/** Initial compass bearing from point A to B, in degrees — used to orient
- * the DOM-based direction-arrow markers along a route segment. */
-function bearingDegrees([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): number {
-  const toRad = (deg: number) => (deg * Math.PI) / 180
-  const toDeg = (rad: number) => (rad * 180) / Math.PI
-  const y = Math.sin(toRad(lon2 - lon1)) * Math.cos(toRad(lat2))
-  const x =
-    Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
-    Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(toRad(lon2 - lon1))
-  return (toDeg(Math.atan2(y, x)) + 360) % 360
-}
 
 /** Run `apply` as soon as the style accepts sources and layers.
  *
@@ -130,10 +205,6 @@ function whenStyleReady(map: MapLibreMap, apply: (map: MapLibreMap) => void) {
   }
 }
 
-function midpoint([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): [number, number] {
-  return [(lon1 + lon2) / 2, (lat1 + lat2) / 2]
-}
-
 export function MapView({
   markers,
   center = GUJARAT_CENTER,
@@ -144,11 +215,11 @@ export function MapView({
   onMapClick,
   fitToMarkers = false,
   coverageGaps = NO_GAPS,
+  basemap = 'standard',
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const markerRefs = useRef<Map<string, Marker>>(new Map())
-  const arrowMarkersRef = useRef<Marker[]>([])
   const vehicleMarkerRef = useRef<Marker | null>(null)
   const routeSegmentsRef = useRef<RouteSegment[]>(routeSegments)
   routeSegmentsRef.current = routeSegments
@@ -160,18 +231,15 @@ export function MapView({
   const coverageGapsRef = useRef(coverageGaps)
   coverageGapsRef.current = coverageGaps
   const [basemapOffline, setBasemapOffline] = useState(false)
+  const [theme, setTheme] = useState<Theme>(currentTheme)
   const { t } = useTranslation('readiness')
 
-  function syncArrowMarkers(map: MapLibreMap, segments: RouteSegment[]) {
-    for (const marker of arrowMarkersRef.current) marker.remove()
-    arrowMarkersRef.current = segments.map((segment) => {
-      const el = document.createElement('div')
-      el.className = 'map-route-arrow'
-      el.style.transform = `rotate(${bearingDegrees(segment.from, segment.to) - 90}deg)`
-      el.style.opacity = segment.confirmed ? '0.9' : '0.55'
-      return new Marker({ element: el }).setLngLat(midpoint(segment.from, segment.to)).addTo(map)
-    })
-  }
+  // The basemap follows the operator's theme, which is set on <html>.
+  useEffect(() => {
+    const observer = new MutationObserver(() => setTheme(currentTheme()))
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
@@ -239,8 +307,6 @@ export function MapView({
       // pins at all.
       for (const marker of placedMarkers.values()) marker.remove()
       placedMarkers.clear()
-      for (const marker of arrowMarkersRef.current) marker.remove()
-      arrowMarkersRef.current = []
       vehicleMarkerRef.current?.remove()
       vehicleMarkerRef.current = null
       map.remove()
@@ -248,6 +314,18 @@ export function MapView({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    whenStyleReady(map, (currentMap) => {
+      for (const [property, value] of Object.entries(basemapPaint(theme, basemap))) {
+        currentMap.setPaintProperty(BASEMAP_SOURCE_ID, property as 'raster-saturation', value)
+      }
+      const casing = currentMap.getLayer(`${ROUTE_SOURCE_ID}-casing`)
+      if (casing) currentMap.setPaintProperty(`${ROUTE_SOURCE_ID}-casing`, 'line-color', routeCasing(theme))
+    })
+  }, [theme, basemap])
 
   useEffect(() => {
     const map = mapRef.current
@@ -265,7 +343,8 @@ export function MapView({
         markerRefs.current.set(marker.id, existing)
       }
       const el = existing.getElement()
-      const size = marker.number != null ? 20 : 17
+      const text = marker.text ?? (marker.number != null ? String(marker.number) : '')
+      const size = marker.size ?? (text ? 20 : 17)
       el.style.width = `${size}px`
       el.style.height = `${size}px`
       el.style.borderRadius = '50%'
@@ -288,11 +367,17 @@ export function MapView({
       el.title = marker.label ?? marker.id
       el.setAttribute('aria-label', marker.label ?? marker.id)
       el.onclick = marker.onClick ?? null
-      el.textContent = marker.number != null ? String(marker.number) : ''
+      el.replaceChildren(document.createTextNode(text))
+      if (marker.chip) {
+        const chip = document.createElement('span')
+        chip.className = 'map-marker-chip'
+        chip.textContent = marker.chip
+        el.appendChild(chip)
+      }
       el.style.display = 'flex'
       el.style.alignItems = 'center'
       el.style.justifyContent = 'center'
-      el.style.fontSize = '10px'
+      el.style.fontSize = size >= 24 ? '11px' : '10px'
       el.style.fontWeight = '700'
       // The numbered route markers carry text on top of the status colour,
       // which is light by design — dark text is what stays readable on it.
@@ -311,6 +396,10 @@ export function MapView({
   // Frame the view on the markers. A single sighting has no extent to fit,
   // so it gets an explicit centre-and-zoom instead — fitBounds on a
   // zero-area bounding box zooms to maximum and lands on an empty grey tile.
+  // Keyed on positions, not on the array: callers rebuild `markers` on every
+  // render (every frame of route replay), and re-fitting each time snapped
+  // the map back and fought the operator's own zoom and pan.
+  const markerPositions = markers.map((m) => `${m.lat.toFixed(5)},${m.lon.toFixed(5)}`).join(';')
   useEffect(() => {
     const map = mapRef.current
     if (!map || !fitToMarkers || markers.length === 0) return
@@ -323,57 +412,85 @@ export function MapView({
     const bounds = new LngLatBounds()
     for (const marker of markers) bounds.extend([marker.lon, marker.lat])
     map.fitBounds(bounds, { padding: 64, maxZoom: 14, duration: 600 })
-  }, [markers, fitToMarkers])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [markerPositions, fitToMarkers])
 
-  // Route polyline (Find a Vehicle's replay map): a GeoJSON source split
-  // into per-segment LineString features carrying a `confirmed` property,
-  // rendered by two layers (solid vs. dashed) filtered on that property —
-  // MapLibre's `line-dasharray` is a per-layer paint property, not
-  // per-feature, so a single mixed-confidence route needs two layers to
-  // show confirmed and probable hops differently in one line.
+  // Route polyline (Find a Vehicle's replay map): a GeoJSON source of
+  // per-segment LineStrings carrying `confirmed` and `order`, drawn as a dark
+  // casing, a line coloured from earliest to latest, and direction chevrons
+  // repeated along it. Probable hops get a dashed layer of their own because
+  // `line-dasharray` is per layer, not per feature.
+  //
+  // Each layer is added if missing on every pass, not once alongside the
+  // source: `addSource` can succeed and the first `addLayer` then throw while
+  // the style is still loading, and a retry that only checked for the source
+  // never added the layers — the route's line silently did not draw.
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
 
     function applyRoute(currentMap: MapLibreMap) {
       const segments = routeSegmentsRef.current
-      const geojson: FeatureCollection<LineString, { confirmed: boolean }> = {
+      const geojson: FeatureCollection<LineString, { confirmed: boolean; order: number }> = {
         type: 'FeatureCollection',
         features: segments.map(
-          (segment): Feature<LineString, { confirmed: boolean }> => ({
+          (segment): Feature<LineString, { confirmed: boolean; order: number }> => ({
             type: 'Feature',
-            properties: { confirmed: segment.confirmed },
+            properties: { confirmed: segment.confirmed, order: segment.order ?? 1 },
             geometry: { type: 'LineString', coordinates: [segment.from, segment.to] },
           }),
         ),
       }
 
       const existingSource = currentMap.getSource(ROUTE_SOURCE_ID) as GeoJSONSource | undefined
-      if (existingSource) {
-        existingSource.setData(geojson)
-      } else {
-        currentMap.addSource(ROUTE_SOURCE_ID, { type: 'geojson', data: geojson })
-        currentMap.addLayer({
+      if (existingSource) existingSource.setData(geojson)
+      else currentMap.addSource(ROUTE_SOURCE_ID, { type: 'geojson', data: geojson })
+
+      if (!currentMap.hasImage(ROUTE_CHEVRON_IMAGE)) {
+        currentMap.addImage(ROUTE_CHEVRON_IMAGE, chevronImage(), { pixelRatio: 2 })
+      }
+      const colour = ['interpolate', ['linear'], ['get', 'order'], 0, ROUTE_START_COLOUR, 1, ROUTE_END_COLOUR]
+      const layers: Parameters<MapLibreMap['addLayer']>[0][] = [
+        {
+          id: `${ROUTE_SOURCE_ID}-casing`,
+          type: 'line',
+          source: ROUTE_SOURCE_ID,
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': routeCasing(currentTheme()), 'line-width': 9, 'line-opacity': 0.85 },
+        },
+        {
           id: `${ROUTE_SOURCE_ID}-solid`,
           type: 'line',
           source: ROUTE_SOURCE_ID,
           filter: ['==', ['get', 'confirmed'], true],
-          paint: { 'line-color': '#5b8cff', 'line-width': 3, 'line-opacity': 0.85 },
-        })
-        currentMap.addLayer({
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': colour as never, 'line-width': 5 },
+        },
+        {
           id: `${ROUTE_SOURCE_ID}-dashed`,
           type: 'line',
           source: ROUTE_SOURCE_ID,
           filter: ['==', ['get', 'confirmed'], false],
-          paint: {
-            'line-color': '#5b8cff',
-            'line-width': 3,
-            'line-opacity': 0.6,
-            'line-dasharray': [2, 1.5],
+          paint: { 'line-color': colour as never, 'line-width': 5, 'line-dasharray': [1.4, 1.1] },
+        },
+        {
+          id: `${ROUTE_SOURCE_ID}-chevrons`,
+          type: 'symbol',
+          source: ROUTE_SOURCE_ID,
+          layout: {
+            'symbol-placement': 'line',
+            'symbol-spacing': 90,
+            'icon-image': ROUTE_CHEVRON_IMAGE,
+            'icon-size': 1,
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true,
+            'icon-rotation-alignment': 'map',
           },
-        })
+        },
+      ]
+      for (const layer of layers) {
+        if (!currentMap.getLayer(layer.id)) currentMap.addLayer(layer)
       }
-      syncArrowMarkers(currentMap, segments)
     }
 
     whenStyleReady(map, applyRoute)

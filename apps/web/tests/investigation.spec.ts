@@ -229,3 +229,24 @@ test('alert times are the camera clock, or unknown', async ({ page }) => {
   await expect(page.getByText('Time unknown — camera clock unreadable')).toBeVisible()
   await expect(page.getByText(/Jun 13|13 Jun/)).toBeVisible()
 })
+
+test('repeat sightings at one camera share a pin, and the route marks its start and latest stop', async ({ page }) => {
+  const at = (camera_id: string, lat: number, lon: number, time: string) => ({
+    camera_id, camera_name: camera_id, location: { lat, lon }, camera_time: time, plate_text: 'GJ01AB1234',
+    plate_confidence: .95, match_rung: 'exact' as const, snapshot_uri: null, confirmed: true,
+  })
+  await page.route('**/api/v1/vehicles/GJ01AB1234/route', (route) => route.fulfill({ json: {
+    ...vehicleRoute, total_sightings: 4,
+    points: [
+      at('paldi', 23.0134, 72.5589, '2026-06-13T15:02:00Z'),
+      at('bridge', 23.03, 72.58, '2026-06-13T15:18:00Z'),
+      at('bridge', 23.03, 72.58, '2026-06-13T15:24:00Z'),
+      at('adalaj', 23.1667, 72.5833, '2026-06-13T15:58:00Z'),
+    ],
+  } }))
+  await page.goto('/find-a-vehicle?plate=GJ01AB1234')
+  const pins = page.locator('.iw-map .map-marker')
+  await expect(pins).toHaveCount(3)
+  await expect(pins.filter({ hasText: '2·3' })).toHaveCount(1)
+  await expect(page.locator('.iw-map .map-marker-chip')).toHaveText(['Start', 'Latest'])
+})

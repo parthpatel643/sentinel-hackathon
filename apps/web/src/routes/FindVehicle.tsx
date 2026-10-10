@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowRight, Camera, Download, MapPin, Pause, Play, Search, ShieldCheck, ScanLine } from 'lucide-react'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { detectionsApi, watchlistApi } from '../lib/api'
 import { ApiError } from '../lib/http'
-import { MapView, type MapMarker } from '../components/MapView'
+import { MapView, ROUTE_END_COLOUR, ROUTE_START_COLOUR, type MapMarker, type RouteSegment } from '../components/MapView'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
@@ -92,6 +92,23 @@ function infeasibleNote(point: RoutePoint, t: TFunction): string {
   return point.implied_speed_kmh != null
     ? t('readiness:infeasibleAtSpeed', { speed: Math.round(point.implied_speed_kmh) })
     : t('readiness:infeasibleClock')
+}
+
+/** Hop numbers for a shared pin: "3", "3·4", "1–8", or "2+" when many and scattered. */
+function hopLabel(hops: number[]): string {
+  const numbers = hops.map((h) => h + 1)
+  if (numbers.length === 1) return String(numbers[0])
+  const consecutive = numbers.every((n, i) => i === 0 || n === numbers[i - 1] + 1)
+  if (consecutive && numbers.length > 2) return `${numbers[0]}–${numbers[numbers.length - 1]}`
+  if (numbers.length <= 3) return numbers.join('·')
+  return `${numbers[0]}+`
+}
+
+/** A colour `t` of the way from hex `a` to hex `b`. */
+function mixColour(a: string, b: string, t: number): string {
+  const channel = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16)
+  const mixed = [0, 1, 2].map((i) => Math.round(channel(a, i) + (channel(b, i) - channel(a, i)) * t))
+  return `#${mixed.map((v) => v.toString(16).padStart(2, '0')).join('')}`
 }
 
 function formatTime(iso: string): string {
@@ -287,10 +304,15 @@ export function FindVehicle() {
 
   const windowLabel = t(`readiness:window${windowHours}`)
 
-  const locatedPoints =
-    route?.points
-      .map((p, i) => ({ ...p, index: i }))
-      .filter((p): p is typeof p & { location: NonNullable<RoutePoint['location']> } => p.location !== null) ?? []
+  // Memoised: replay re-renders this component every animation frame, and a
+  // fresh array each time made the map redraw its pins and re-fit its view.
+  const locatedPoints = useMemo(
+    () =>
+      route?.points
+        .map((p, i) => ({ ...p, index: i }))
+        .filter((p): p is typeof p & { location: NonNullable<RoutePoint['location']> } => p.location !== null) ?? [],
+    [route],
+  )
 
   const unmappedCount = (route?.points.length ?? 0) - locatedPoints.length
 
@@ -345,22 +367,66 @@ export function FindVehicle() {
     setVehiclePosition(null)
   }
 
-  const markers: MapMarker[] = locatedPoints.map((p) => ({
-    id: `${p.camera_id}-${p.index}`,
-    lat: p.location.lat,
-    lon: p.location.lon,
-    color: '#2456d6',
-    label: `${p.index + 1}. ${p.camera_name} · ${sightingTime(p, t)}`,
-    number: p.index + 1,
-    pulse: activeHopIndex === p.index,
-    onClick: () => { stopReplay(); setActiveHopIndex(p.index) },
-  }))
+  // One pin per camera position: repeat sightings at a camera share it
+  // ("3·4", "1–8") instead of stacking unreadably on the same spot. Pins are
+  // coloured along the route, earliest to latest, like the line between them.
+  const stops = useMemo(() => {
+    const byPosition = new Map<string, typeof locatedPoints>()
+    for (const point of locatedPoints) {
+      const key = `${point.location.lat.toFixed(5)},${point.location.lon.toFixed(5)}`
+      byPosition.set(key, [...(byPosition.get(key) ?? []), point])
+    }
+    const last = locatedPoints.length - 1
+    return [...byPosition.values()].map((points) => ({
+      points,
+      hops: points.map((p) => p.index),
+      order: last > 0 ? locatedPoints.indexOf(points[points.length - 1]) / last : 1,
+      isStart: points.includes(locatedPoints[0]),
+      isLatest: points.includes(locatedPoints[last]),
+    }))
+  }, [locatedPoints])
 
-  const routeSegments = locatedPoints.slice(0, -1).map((p, i) => ({
-    from: [p.location.lon, p.location.lat] as [number, number],
-    to: [locatedPoints[i + 1].location.lon, locatedPoints[i + 1].location.lat] as [number, number],
-    confirmed: locatedPoints[i + 1].match_rung === 'exact',
-  }))
+  const markers: MapMarker[] = useMemo(
+    () =>
+      stops.map((stop) => {
+        const head = stop.points[0]
+        const active = activeHopIndex ?? 0
+        return {
+          id: `stop-${head.location.lat}-${head.location.lon}`,
+          lat: head.location.lat,
+          lon: head.location.lon,
+          color: mixColour(ROUTE_START_COLOUR, ROUTE_END_COLOUR, stop.order),
+          text: hopLabel(stop.hops),
+          size: 24,
+          chip: stop.isLatest ? t('investigation:mapLatest') : stop.isStart ? t('investigation:mapStart') : undefined,
+          label: `${head.camera_name} — ${stop.points.map((p) => `${p.index + 1}: ${sightingTime(p, t)}`).join(', ')}`,
+          pulse: stop.hops.includes(active),
+          onClick: () => {
+            stopReplay()
+            // Clicking a shared pin again steps through its sightings.
+            const at = stop.hops.indexOf(active)
+            setActiveHopIndex(stop.hops[at < 0 ? 0 : (at + 1) % stop.hops.length])
+          },
+        }
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stops, activeHopIndex, t],
+  )
+
+  const routeSegments: RouteSegment[] = useMemo(() => {
+    const last = locatedPoints.length - 1
+    return locatedPoints.slice(0, -1).flatMap((p, i) => {
+      const next = locatedPoints[i + 1]
+      // Two sightings at one camera have no distance to draw or direction to show.
+      if (p.location.lat === next.location.lat && p.location.lon === next.location.lon) return []
+      return [{
+        from: [p.location.lon, p.location.lat] as [number, number],
+        to: [next.location.lon, next.location.lat] as [number, number],
+        confirmed: next.match_rung === 'exact',
+        order: (i + 1) / last,
+      }]
+    })
+  }, [locatedPoints])
 
   return (
     <div className="investigation-workspace">
@@ -449,6 +515,7 @@ export function FindVehicle() {
               <MapView
                 markers={markers}
                 routeSegments={routeSegments}
+                basemap="muted"
                 vehiclePosition={vehiclePosition}
                 fitToMarkers
                 className="absolute inset-0"
@@ -456,7 +523,8 @@ export function FindVehicle() {
               {locatedPoints.length === 0 && <p className="iw-map-empty">{t(route.points.length === 0 ? 'investigation:noTimedSightings' : 'investigation:noMappedSightings')}</p>}
               </div>
               <footer className="iw-map-footer">
-                <span><i />{t('findVehicle.exactMatch')}</span><span><i className="is-probable" />{t('findVehicle.probableMatch')}</span>
+                <span><i className="is-gradient" />{t('investigation:routeLegend')}</span><span><i />{t('findVehicle.exactMatch')}</span><span><i className="is-probable" />{t('findVehicle.probableMatch')}</span>
+                <p>{t('investigation:routeStraightLines')}</p>
                 {unmappedCount > 0 && <p>{t('findVehicle.unmappedSightings', { count: unmappedCount, total: route.points.length })}</p>}
               </footer>
             </section>

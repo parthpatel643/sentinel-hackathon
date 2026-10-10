@@ -330,14 +330,9 @@ table tbody tr:hover { background: var(--color-bg-overlay); }
   }
 }
 
-/* Darken the no-key OSM raster demo basemap to match the control-room dark
-   theme. Scoped to the canvas layer only (not `.maplibregl-marker` /
-   `.maplibregl-popup`, which are siblings in MapLibre's DOM, not
-   descendants) so markers keep their true colours. Light theme leaves the
-   basemap's own daytime colours alone. */
-[data-theme='dark'] .maplibregl-canvas-container {
-  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92);
-}
+/* The basemap's dark-theme look is applied to the raster layer itself
+   (basemapPaint in components/MapView.tsx), not as a CSS filter on the
+   canvas: a canvas filter also inverted the route drawn over the tiles. */
 
 /* Shown over the map when basemap tiles cannot be fetched (venue or police
    networks without internet) — markers, routes and gap cells still render. */
@@ -357,17 +352,22 @@ table tbody tr:hover { background: var(--color-bg-overlay); }
   text-align: center;
 }
 
-/* Find a Vehicle's route replay (components/MapView.tsx). A small filled
- * triangle, rotated per-segment to the travel bearing — deliberately a DOM
- * marker like the camera dots, not a MapLibre symbol layer, so it needs no
- * external glyph/sprite server (this demo must work with no network beyond
- * the basemap tiles themselves). */
-.map-route-arrow {
-  width: 0;
-  height: 0;
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-  border-left: 8px solid #5b8cff;
+/* "Start" / "Latest" labels above Find a Vehicle's first and last stops. */
+.map-marker-chip {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #0a1020;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
 }
 
 /* The animated "you are here" marker Replay route drives frame-by-frame. */
