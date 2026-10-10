@@ -223,7 +223,8 @@ async def check_cameras_onboarded(settings: Settings, client: httpx.AsyncClient)
         return _fail(
             "no cameras are onboarded",
             "The registry is empty, so there is nothing to show. For the government "
-            "grid, POST /api/v1/cameras/discover. For the synthetic grid, run "
+            "grid, POST /api/v1/cameras/discover (or, once it is gone, `make mirror-start "
+            "&& make worker SOURCE=mirror` for the local copy). For the synthetic grid, run "
             "`uv run python scripts/synthetic_grid.py all`.",
         )
     live = [c for c in cameras if c.get("status") == "live"]
@@ -244,6 +245,7 @@ def check_worker_running() -> Result:
             "Nothing is pulling any camera, so no feed can arrive. Start one:\n"
             "      make worker SOURCE=registry STRIDE=3          # every onboarded camera\n"
             "      make worker                                    # synthetic grid\n"
+            "      make worker SOURCE=mirror STRIDE=3             # local copy of the gov grid\n"
             "      make worker SOURCE=gov CAMERAS=cam06,cam30 STRIDE=3",
         )
     return _ok(f"{len(running)} worker process(es) running")

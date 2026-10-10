@@ -13,16 +13,18 @@ design this milestone does not implement; the alert's own detection
 snapshot remains the only "before" artefact until that's built.
 
 Sealing follows whichever relay path actually carries the camera: `dev/<id>`
-for the synthetic grid, which publishes straight into the relay, and
-`ext/<id>` for external (government) cameras, which `sentinel_core.relay`
+for the synthetic grid and `mirror/<id>` for the recorded copy of the
+government grid, which both publish straight into the relay, and `ext/<id>`
+for external (government) cameras, which `sentinel_core.relay`
 republishes as PULL sources. Resolving that per camera matters — assuming
 `dev/` meant sealing a government camera failed with "No recordings
 directory for camera at data/recordings/dev/cam06" while the camera was
 streaming perfectly well.
 
 The two are toggled differently because MediaMTX patches config *entries*,
-not the paths they match: `dev/*` is one wildcard entry in mediamtx.yml, so
-a dev camera is toggled through that pattern, while `ext/*` paths are added
+not the paths they match: `dev/*` and `mirror/*` are wildcard entries in
+mediamtx.yml, so those cameras are toggled through their pattern, while
+`ext/*` paths are added
 individually at runtime and are patched directly — which also means
 recording one government camera no longer starts recording every other one.
 """
@@ -69,15 +71,18 @@ def relay_path_for_camera(camera: Camera, settings: Settings) -> str:
 async def _patch_relay_recording(settings: Settings, path: str, *, record: bool) -> None:
     """Toggle recording for one relay path.
 
-    The target depends on how the path got there. `dev/*` paths are matched
-    by a single wildcard entry in mediamtx.yml, and MediaMTX patches config
-    *entries*, not the paths they match — so a dev camera has to be toggled
-    through that pattern. `ext/*` paths are added individually at runtime,
-    so they are patched directly, which also means recording one government
-    camera no longer starts recording every other one.
+    The target depends on how the path got there. `dev/*` and `mirror/*`
+    paths are matched by wildcard entries in mediamtx.yml, and MediaMTX
+    patches config *entries*, not the paths they match — so those cameras
+    have to be toggled through their pattern. `ext/*` paths are added
+    individually at runtime, so they are patched directly, which also means
+    recording one government camera no longer starts recording every other one.
     """
-    dev_prefix = settings.evidence_dev_relay_path_pattern
-    target = dev_prefix if path.startswith("dev/") else path
+    wildcards = {
+        "dev/": settings.evidence_dev_relay_path_pattern,
+        "mirror/": settings.evidence_mirror_relay_path_pattern,
+    }
+    target = next((p for prefix, p in wildcards.items() if path.startswith(prefix)), path)
     async with httpx.AsyncClient(timeout=5.0) as client:
         await client.patch(
             f"{settings.relay_api_url}/v3/config/paths/patch/{target}",

@@ -110,6 +110,11 @@ class Settings(BaseSettings):
         "recording is toggled on this whole pattern (not per-camera) because that is the "
         "only path entry that exists in mediamtx.yml's config today.",
     )
+    evidence_mirror_relay_path_pattern: str = Field(
+        default="~^mirror/.*$",
+        description="Same as evidence_dev_relay_path_pattern, for the local copy of the "
+        "government grid that scripts/gov_mirror.py publishes under mirror/*.",
+    )
 
     # --- Face-blurred snapshots (M12) ---------------------------------------
     # Same shared-host-path reasoning as recordings_dir above: the edge

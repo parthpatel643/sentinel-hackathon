@@ -12,10 +12,15 @@ wrong.
 
 from __future__ import annotations
 
+import httpx
 import pytest
 
 from core_api.db.models import Camera, StreamProfile
-from core_api.evidence.service import _recording_dir_for_path, relay_path_for_camera
+from core_api.evidence.service import (
+    _patch_relay_recording,
+    _recording_dir_for_path,
+    relay_path_for_camera,
+)
 from sentinel_core.config import Settings
 
 
@@ -71,3 +76,33 @@ def test_localhost_and_loopback_are_the_same_relay(settings: Settings) -> None:
     for host in ("localhost", "127.0.0.1"):
         camera = _camera("dev-cam-02", f"rtsp://{host}:8554/dev/dev-cam-02")
         assert relay_path_for_camera(camera, settings) == "dev/dev-cam-02"
+
+
+def test_a_mirrored_government_camera_keeps_its_mirror_path(settings: Settings) -> None:
+    """The local copy of the government grid publishes straight into the
+    relay too, so it resolves like the synthetic grid, not like ext/."""
+    camera = _camera("cam06", "rtsp://127.0.0.1:8554/mirror/cam06")
+    assert relay_path_for_camera(camera, settings) == "mirror/cam06"
+
+
+@pytest.mark.parametrize(
+    ("path", "target"),
+    [
+        ("dev/dev-cam-01", "~^dev/.*$"),
+        ("mirror/cam06", "~^mirror/.*$"),
+        ("ext/cam06", "ext/cam06"),
+    ],
+)
+async def test_recording_is_toggled_on_the_config_entry_that_owns_the_path(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, path: str, target: str
+) -> None:
+    """MediaMTX patches config entries, not the paths they match: a path
+    published under a wildcard entry has no entry of its own to patch."""
+    patched: list[str] = []
+
+    async def fake_patch(self: httpx.AsyncClient, url: str, **_: object) -> None:
+        patched.append(url)
+
+    monkeypatch.setattr(httpx.AsyncClient, "patch", fake_patch)
+    await _patch_relay_recording(settings, path, record=True)
+    assert patched == [f"http://localhost:9997/v3/config/paths/patch/{target}"]

@@ -16,6 +16,9 @@
 # against a real camera path. (IP-restriction was tried first, but Docker
 # Desktop's VM networking presents host connections to the container under a
 # NAT address, not loopback, so a credential is the portable boundary here.)
+# `mirror/*` is the same arrangement for our local copy of the government
+# grid (scripts/gov_mirror.py): footage already recorded to disk, replayed
+# into this relay under its own path-scoped credential.
 # tests/test_compliance.py asserts no OTHER publish permission exists anywhere.
 
 logLevel: info
@@ -46,6 +49,16 @@ authInternalUsers:
     permissions:
       - action: publish
         path: "~^dev/.*$"
+  # mirror/*-only credential for our local copy of the government grid
+  # (scripts/gov_mirror.py) — recordings already captured to disk, replayed
+  # into THIS local relay. Same terms as dev-grid: a throwaway fixture login,
+  # path-scoped so it can never touch a real camera path.
+  - user: gov-mirror
+    pass: gov-mirror-local-only
+    ips: []
+    permissions:
+      - action: publish
+        path: "~^mirror/.*$"
 
 # --- Protocols --------------------------------------------------------------
 rtsp: yes
@@ -89,4 +102,8 @@ paths:
   # exercised against the same quirks as the government feeds without touching
   # their gateway. Populated by scripts/synthetic_grid.py.
   ~^dev/.*$:
+    source: publisher
+  # Local copy of the government grid: one recorded loop per camera, replayed
+  # by scripts/gov_mirror.py so nothing depends on the remote gateway.
+  ~^mirror/.*$:
     source: publisher

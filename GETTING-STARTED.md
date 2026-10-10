@@ -300,6 +300,45 @@ them, quietly draining the quota. A `kill -9` cannot be caught, so if that
 happens the *next* startup sweeps up whatever was left pinned. Either way it
 self-corrects; you should never need to clean up by hand.
 
+### The local copy (when the grid is gone)
+
+The government grid is being taken down, so a copy of it lives in
+`data/gov-mirror/` (gitignored): one clip per camera, recorded as the grid
+sent it (stream copy, never re-encoded), with the same camera ids, names and
+map positions. Nothing in this path contacts the remote.
+
+```bash
+make up                         # the relay must be running
+make mirror-start               # replay all 30 clips under rtsp://localhost:8554/mirror/<id>
+make worker SOURCE=mirror CAMERAS=cam06,cam24 STRIDE=3
+make mirror-stop
+```
+
+To register them in the console instead, onboard the RTSP URLs from
+`data/gov-mirror/catalogue.json` and run `make worker SOURCE=registry`.
+
+While the remote is still reachable, the copy can be extended — `make
+mirror-capture` records every camera to `data/gov-mirror/raw/` (resumable;
+it pauses itself through quota cooldowns), and `make mirror` stitches the
+recording into clips and rewrites the catalogue. Pass `--max-minutes N` to
+`scripts/gov_mirror.py capture` for longer clips.
+
+What the copy is, and is not:
+
+- **6–17 minutes per camera**, not the grid's full recordings — the viewing
+  quota caps what one account can record. `data/gov-mirror/manifest.json`
+  lists each clip's length, codec, resolution and frame rate.
+- **A few continuous stretches of each clip, back to back.** The grid drops
+  connections every minute or two and its timeline moves on during a quota
+  cooldown, so footage is stitched by matching what it shows; stretches that
+  match nothing are kept as separate sections, with a scene cut between them.
+- **As patchy as the grid sent it.** Many cameras delivered only a few
+  frames a second of a nominal 25; the manifest's `delivery.missing_pct`
+  says how much of each clip is gaps.
+- **Seamless at the loop point.** It is replayed with ffmpeg's
+  `-stream_loop`, which does not reset timestamps the way the real grid did
+  (see [the M2 finding](evidence/M2-SYNTHETIC-GRID-DISCONTINUITY-FINDING.md)).
+
 ---
 
 ## 6. Development

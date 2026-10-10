@@ -9,7 +9,7 @@ and OCR models are loaded once and shared across every camera's pipeline —
 they are stateless inference engines; only the tracker/voter state in each
 `AnprPipeline` instance is per-camera.
 
-Three camera sources, selected with `--source`:
+Four camera sources, selected with `--source`:
 
 - `synthetic` (default): the M1 local RTSP grid
   (`scripts/synthetic_grid.py`) — 8 cameras, unlimited concurrency, no
@@ -19,6 +19,9 @@ Three camera sources, selected with `--source`:
   writing. The integrator guide explicitly asks integrators to "pace your
   load" and open only the cameras being processed, so this defaults to a
   small `--limit` rather than opening all 30 RTSP connections at once.
+- `mirror`: the local copy of that grid (`scripts/gov_mirror.py`) — one
+  recorded loop per camera, replayed from the local relay under `mirror/*`,
+  so the government cameras can still be analysed once the remote is gone.
 - `registry`: whatever the core API's camera registry holds — every camera
   onboarded by the wizard, bulk CSV, device discovery or a catalogue sync,
   from any department or vendor. This is the source for real deployments
@@ -34,6 +37,7 @@ README/docs/05-DELIVERY-PLAN.md):
     uv run --package edge-agent python -m edge_agent.worker
     uv run --package edge-agent python -m edge_agent.worker --source gov --limit 4
     uv run --package edge-agent python -m edge_agent.worker --source gov --cameras cam01,cam04
+    uv run --package edge-agent python -m edge_agent.worker --source mirror --cameras cam06
     uv run --package edge-agent python -m edge_agent.worker --source registry --frame-stride 3
 """
 
@@ -93,6 +97,7 @@ _WARMED_RELAY_PATHS: set[str] = set()
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SYNTHETIC_CATALOGUE = REPO_ROOT / "var" / "synthetic-grid" / "catalogue.json"
+MIRROR_CATALOGUE = REPO_ROOT / "data" / "gov-mirror" / "catalogue.json"
 VEHICLE_MODEL = REPO_ROOT / "models" / "weights" / "yolo11n.onnx"
 MODEL_VERSIONS = {
     "vehicle_det": "yolo11n@ultralytics-8.4.158",
@@ -104,15 +109,27 @@ DEFAULT_GOV_LIMIT = 4
 DEFAULT_RESYNC_INTERVAL_S = 30.0
 
 
-def _load_synthetic_descriptors() -> list[CameraDescriptor]:
-    if not SYNTHETIC_CATALOGUE.exists():
-        raise SystemExit(
-            f"no catalogue at {SYNTHETIC_CATALOGUE}. Run:\n"
-            "    uv run python scripts/synthetic_grid.py generate\n"
-            "    uv run python scripts/synthetic_grid.py start"
-        )
-    raw: list[dict[str, Any]] = json.loads(SYNTHETIC_CATALOGUE.read_text())
+def _load_catalogue_file(path: Path, how_to_build: str) -> list[CameraDescriptor]:
+    if not path.exists():
+        raise SystemExit(f"no catalogue at {path}. Run:\n{how_to_build}")
+    raw: list[dict[str, Any]] = json.loads(path.read_text())
     return [CameraDescriptor.model_validate(entry) for entry in raw]
+
+
+def _load_synthetic_descriptors() -> list[CameraDescriptor]:
+    return _load_catalogue_file(
+        SYNTHETIC_CATALOGUE,
+        "    uv run python scripts/synthetic_grid.py generate\n"
+        "    uv run python scripts/synthetic_grid.py start",
+    )
+
+
+def _load_mirror_descriptors() -> list[CameraDescriptor]:
+    return _load_catalogue_file(
+        MIRROR_CATALOGUE,
+        "    uv run python scripts/gov_mirror.py assemble\n"
+        "    uv run python scripts/gov_mirror.py start",
+    )
 
 
 def _descriptor_from_registry(raw: dict[str, Any]) -> CameraDescriptor | None:
@@ -756,16 +773,17 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--source",
-        choices=["synthetic", "gov", "registry"],
+        choices=["synthetic", "gov", "mirror", "registry"],
         default="synthetic",
         help="synthetic: local M1 RTSP grid (default). gov: the real Sentinel Camera Grid. "
+        "mirror: the local recorded copy of that grid (scripts/gov_mirror.py). "
         "registry: every camera onboarded into the core API, re-read periodically.",
     )
     parser.add_argument(
         "--limit",
         type=int,
         default=None,
-        help=f"cap on concurrent cameras (default: unlimited for synthetic, "
+        help=f"cap on concurrent cameras (default: unlimited for synthetic and mirror, "
         f"{DEFAULT_GOV_LIMIT} for gov — see the integrator guide's 'pace your load' note).",
     )
     parser.add_argument(
@@ -821,6 +839,8 @@ async def _load_descriptors(
     """The source's camera list and its default --limit."""
     if args.source == "synthetic":
         return _load_synthetic_descriptors(), None
+    if args.source == "mirror":
+        return _load_mirror_descriptors(), None
     if args.source == "registry":
         try:
             return await _fetch_registry_descriptors(client), None
@@ -911,8 +931,8 @@ async def main() -> None:
         )
 
         if args.source != "registry":
-            # Registry cameras exist by definition; catalogue and synthetic
-            # ones need their FK target created before detections arrive.
+            # Registry cameras exist by definition; catalogue, mirror and
+            # synthetic ones need their FK target created before detections arrive.
             for descriptor in descriptors:
                 await _register_camera(client, descriptor)
 

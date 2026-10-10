@@ -76,6 +76,18 @@ curl -X POST localhost:18000/api/v1/cameras/discover \
 make worker SOURCE=gov CAMERAS=cam06,cam30 STRIDE=3
 ```
 
+The government grid is being taken down. A **local copy** of all 30 cameras
+(a 6–17 minute recording of each, replayed from the local relay) runs with no
+remote at all:
+
+```bash
+make mirror-start                                # replay data/gov-mirror under mirror/<id>
+make worker SOURCE=mirror CAMERAS=cam06,cam24 STRIDE=3
+```
+
+What the copy holds, and how to extend it while the remote still answers, is
+in [GETTING-STARTED.md](GETTING-STARTED.md#the-local-copy-when-the-grid-is-gone).
+
 For **any other cameras** — a department's RTSP feeds, an ONVIF camera, an NVR —
 onboard them in the console (or `POST /api/v1/cameras/bulk-import`) and run
 `make worker SOURCE=registry`. It re-reads the registry every 30 seconds, and

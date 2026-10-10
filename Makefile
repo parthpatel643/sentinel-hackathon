@@ -6,7 +6,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 
 .DEFAULT_GOAL := help
-.PHONY: help install up down logs ps api web worker deck seed dr-drill uat prefetch test lint fmt types check audit secrets-scan sbom clean
+.PHONY: help install up down logs ps api web worker mirror-capture mirror mirror-start mirror-stop deck seed dr-drill uat prefetch test lint fmt types check audit secrets-scan sbom clean
 
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -39,13 +39,27 @@ api: ## Run the core API with reload
 web: ## Run the operator console (Vite dev server)
 	cd apps/web && npm run dev
 
-worker: ## Run an edge worker (SOURCE=registry|gov|synthetic CAMERAS=a,b DEPARTMENT=Police SAMPLED_FPS=8 STRIDE=3)
+worker: ## Run an edge worker (SOURCE=registry|gov|mirror|synthetic CAMERAS=a,b DEPARTMENT=Police SAMPLED_FPS=8 STRIDE=3)
 	uv run --package edge-agent python -m edge_agent.worker \
 	  --source $(or $(SOURCE),synthetic) \
 	  $(if $(CAMERAS),--cameras $(CAMERAS),) \
 	  $(if $(DEPARTMENT),--department "$(DEPARTMENT)",) \
 	  $(if $(SAMPLED_FPS),--sampled-fps $(SAMPLED_FPS),) \
 	  $(if $(STRIDE),--frame-stride $(STRIDE),)
+
+# The government grid is going away; these keep a local copy of it. Only
+# mirror-capture touches the remote (and is resumable); the rest is offline.
+mirror-capture: ## Record the government grid to data/gov-mirror (resumable; needs .env credentials)
+	uv run python scripts/gov_mirror.py capture
+
+mirror: ## Stitch the recording into one clip per camera + the mirror catalogue
+	uv run python scripts/gov_mirror.py assemble
+
+mirror-start: ## Replay the local copy into the relay under mirror/* (then: make worker SOURCE=mirror)
+	uv run python scripts/gov_mirror.py start
+
+mirror-stop: ## Stop replaying the local copy
+	uv run python scripts/gov_mirror.py stop
 
 deck: ## Build the submission deck (docs/Sentinel-Platform-Deck.pptx)
 	NODE_PATH=$$(npm root -g) node scripts/build_deck.mjs

@@ -53,13 +53,18 @@ def test_hls_is_available_as_a_fallback(relay_config: dict[str, Any]) -> None:
 # --- DON'T: publish to the gateway or call its control API ------------------
 
 
+_LOCAL_PUBLISH_SCOPES = frozenset({"~^dev/.*$", "~^mirror/.*$"})
+
+
 def test_relay_grants_no_unscoped_publish_permission(relay_config: dict[str, Any]) -> None:
     """'Consume only. Do not push streams to any path.'
 
     Real cameras are always pull sources (`source: rtsp://...`), so no publish
-    grant is ever needed for them. The only permitted publish grant is for our
-    own local synthetic test grid, and it must be scoped to the `dev/*` path —
-    never a blanket grant that could reach a real camera path.
+    grant is ever needed for them. The only permitted publish grants are for
+    footage we replay from our own disk into our own local relay — the
+    synthetic test grid under `dev/*` and the recorded copy of the government
+    grid under `mirror/*` — never a blanket grant that could reach a real
+    camera path.
     """
     for user in relay_config["authInternalUsers"]:
         for permission in user["permissions"]:
@@ -67,7 +72,7 @@ def test_relay_grants_no_unscoped_publish_permission(relay_config: dict[str, Any
                 continue
             path = permission.get("path")
             assert path, "a publish permission with no path restriction is a blanket grant"
-            assert path == "~^dev/.*$", f"unexpected publish scope: {path!r}"
+            assert path in _LOCAL_PUBLISH_SCOPES, f"unexpected publish scope: {path!r}"
 
 
 def test_the_dev_publish_permission_uses_a_dedicated_non_anonymous_credential(
@@ -75,11 +80,18 @@ def test_the_dev_publish_permission_uses_a_dedicated_non_anonymous_credential(
 ) -> None:
     """The synthetic-grid publisher must never ride on the anonymous `any`
     user — a dedicated credential keeps it structurally separate from every
-    other permission grant, including if `any` is extended later."""
+    other permission grant, including if `any` is extended later. Each local
+    publish scope gets its own credential, so one can never reach the other's
+    paths."""
+    scopes_per_user: list[set[str]] = []
     for user in relay_config["authInternalUsers"]:
-        if any(p["action"] == "publish" for p in user["permissions"]):
+        scopes = {p.get("path") for p in user["permissions"] if p["action"] == "publish"}
+        if scopes:
             assert user["user"] != "any", "publish must not be granted to the anonymous user"
             assert user.get("pass"), "dev-grid credential must be a real (if non-secret) password"
+            assert len(scopes) == 1, f"{user['user']} can publish to more than one scope"
+            scopes_per_user.append(scopes)
+    assert len(scopes_per_user) == len(set().union(*scopes_per_user))
 
 
 def test_publishing_protocols_are_disabled(relay_config: dict[str, Any]) -> None:
