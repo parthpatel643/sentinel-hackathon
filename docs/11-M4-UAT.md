@@ -112,4 +112,5 @@ resetting the dev database (runbook §10).
 
 | Date | Machine | Part 1 report | Capacity (8 fps / 4 fps) | Part 2 failures | Notes |
 |---|---|---|---|---|---|
+| 2026-10-08 | M4 | `make uat QUICK=1`: 7/7 pass (preflight, lint, types, pytest, web build, Playwright 16/16, DR drill); logs in the M4's `var/uat/`, not yet copied to `evidence/uat-m4/` | **Not measured** (QUICK skips the curve) | Part 2 not yet run | Still to do: full `make uat` twice for capacity, then Part 2 A–N |
 | | M4 | `evidence/uat-m4/report.md` | | | |

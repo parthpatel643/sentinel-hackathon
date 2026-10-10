@@ -204,6 +204,8 @@ Reviewers should not have to guess which parts are load-bearing.
 | [08 — Security & Hardening](docs/08-SECURITY-HARDENING.md) | mTLS, RLS tenancy, face blurring, audit chain, supply chain, signed URLs |
 | [09 — Secondary Analytics](docs/09-SECONDARY-ANALYTICS.md) | Vehicle colour, camera tamper detection, zone rules |
 | [10 — Finale Runbook](docs/10-FINALE-RUNBOOK.md) | Phase-2 on-site procedure: what to ask organisers, onboarding real cameras, offline operation, the designated-vehicle drill, fallbacks |
+| [13 — Showcase Prep](docs/13-SHOWCASE-PREP.md) | The 20-minute on-site evaluation: run-of-show, pitch script, plate-yield triage, 80K walkthrough, cost impact, Q&A, cheat card |
+| [14 — Appearance ReID](docs/14-APPEARANCE-REID-DESIGN.md) | Matching a vehicle whose plate is not read: design, effort, risk and go/no-go |
 
 ### Evidence
 
