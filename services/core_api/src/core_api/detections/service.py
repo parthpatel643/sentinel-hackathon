@@ -81,6 +81,7 @@ async def ingest_detection(session: AsyncSession, payload: DetectionIn) -> Detec
         bbox_height=payload.bbox.height if payload.bbox else None,
         pts_ms=payload.pts_ms,
         observed_at=payload.observed_at,
+        camera_time=payload.camera_time,
         snapshot_uri=payload.snapshot_uri,
         node_id=payload.node_id,
         model_versions=payload.model_versions,
@@ -135,20 +136,20 @@ async def get_vehicle_route(
     they may be a different vehicle whose plate differs by one character, so
     the console draws them as probable and the operator confirms each
     against its snapshot. Partial/wildcard (rung 4) is a documented next step.
+
+    A sighting's time is the clock the camera burned into its evidence frame
+    and nothing else. Sightings whose clock could not be read are returned in
+    `untimed`: real sightings, but they cannot be placed on a timeline.
     """
     normalised = normalise_plate(plate_query)
     since = datetime.now(UTC) - window
 
-    # The window is bounded by when *we* recorded the sighting, not by the
-    # timestamp burned into the frame. Those are different clocks and only
-    # one of them is ours: `observed_at` is the scene's own time, which is
-    # what belongs in evidence, but it is only as trustworthy as the camera
-    # that produced it. A camera with a mis-set clock — routine in a large
-    # estate, and the reason time sync matters here at all — would otherwise
-    # drop out of "seen in the last 24 hours" entirely, making a vehicle
-    # unfindable precisely because one camera was wrong. Ordering stays on
-    # `observed_at`: a route is a journey through the scene, so it must be
-    # told in the scene's order.
+    # The window is a search scope bounded by when *we* recorded the
+    # sighting, not a time we report. The camera's clock is the only time a
+    # sighting is reported with, but a camera with a mis-set clock — or a
+    # replayed recording from June — would otherwise drop out of "the last
+    # 24 hours" entirely, making a vehicle unfindable precisely because of
+    # what one camera's clock says. Ordering is by the camera's clock.
     exact_query = (
         select(Detection, Camera)
         .join(Camera, Camera.camera_id == Detection.camera_id)
@@ -192,21 +193,29 @@ async def get_vehicle_route(
             rows = (await session.execute(near_query)).all()
             match_rung = "edit_distance"
 
-    points = [
+    sightings = [
         _route_point(detection, camera, match_rung, confirmed=match_rung != "edit_distance")
         for detection, camera in rows
     ]
+    points = sorted((p for p in sightings if p.camera_time is not None), key=_camera_order)
+    untimed = [p for p in sightings if p.camera_time is None]
     if match_rung in ("exact", "ambiguity_class"):
         points = await _bridge_unread_hops(session, normalised, rows, points, since=since)
     _mark_feasibility(points)
 
     return VehicleRoute(
         plate_normalised=normalised,
-        total_sightings=len(points),
-        first_seen_at=points[0].observed_at if points else None,
-        last_seen_at=points[-1].observed_at if points else None,
+        total_sightings=len(points) + len(untimed),
+        first_seen_at=points[0].camera_time if points else None,
+        last_seen_at=points[-1].camera_time if points else None,
         points=points,
+        untimed=untimed,
     )
+
+
+def _camera_order(point: RoutePoint) -> tuple[datetime, str]:
+    assert point.camera_time is not None
+    return point.camera_time, point.event_id
 
 
 def _route_point(
@@ -217,6 +226,7 @@ def _route_point(
         camera_id=camera.camera_id,
         camera_name=camera.name,
         location=location_out(camera.location),
+        camera_time=detection.camera_time,
         observed_at=detection.observed_at,
         plate_text=detection.plate_text,
         plate_confidence=detection.plate_confidence,
@@ -259,10 +269,11 @@ def _km_between(a: RoutePoint, b: RoutePoint) -> float | None:
 
 
 def _speed_kmh(a: RoutePoint, b: RoutePoint) -> float | None:
+    """Speed implied between two timed sightings, by the cameras' clocks."""
     km = _km_between(a, b)
-    if km is None:
+    if km is None or a.camera_time is None or b.camera_time is None:
         return None
-    hours = (b.observed_at - a.observed_at).total_seconds() / 3600
+    hours = (b.camera_time - a.camera_time).total_seconds() / 3600
     if km < 0.05:
         return 0.0
     return math.inf if hours <= 0 else km / hours
@@ -291,7 +302,9 @@ async def _bridge_unread_hops(
     shares the target's last four characters and is at most three edits
     away, made by a vehicle of the same class and colour as every confirmed
     sighting, and reachable at road speed from the confirmed hops either side
-    of it. Returned as probable — an operator confirms each on its frame."""
+    of it. Returned as probable — an operator confirms each on its frame.
+    Only reads with a camera clock can be bridged: reachability is a
+    question about time."""
     classes = {d.vehicle_class for d, _ in rows}
     colours = {d.vehicle_colour for d, _ in rows}
     if len(classes) != 1 or len(colours) != 1 or None in classes or None in colours:
@@ -314,18 +327,16 @@ async def _bridge_unread_hops(
     ).all()
     bridged = list(points)
     for detection, camera in candidates:
-        if detection.event_id in known:
+        if detection.event_id in known or detection.camera_time is None:
             continue
         if _edit_distance(detection.plate_normalised, normalised) > BRIDGE_MAX_EDITS:
             continue
         candidate = _route_point(detection, camera, "partial_attribute", confirmed=False)
-        before = [p for p in points if p.observed_at <= candidate.observed_at]
-        after = [p for p in points if p.observed_at > candidate.observed_at]
+        before = [p for p in points if _camera_order(p) <= _camera_order(candidate)]
+        after = [p for p in points if _camera_order(p) > _camera_order(candidate)]
         neighbours = ([before[-1]] if before else []) + ([after[0]] if after else [])
-        speeds = [
-            _speed_kmh(*sorted((n, candidate), key=lambda p: p.observed_at)) for n in neighbours
-        ]
+        speeds = [_speed_kmh(*sorted((n, candidate), key=_camera_order)) for n in neighbours]
         if neighbours and all(s is not None and s <= BRIDGE_MAX_SPEED_KMH for s in speeds):
             bridged.append(candidate)
-    bridged.sort(key=lambda p: (p.observed_at, p.event_id))
+    bridged.sort(key=_camera_order)
     return bridged

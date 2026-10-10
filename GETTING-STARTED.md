@@ -22,7 +22,7 @@ and container downloads.
 | **Python** | **3.13+** | enforced by `pyproject.toml` | handled by `uv` — see below |
 | **Node** | 20+ | operator console (Vite + React) | `brew install node` |
 | **ffmpeg** | 6+ | RTSP capture and evidence clips | `brew install ffmpeg` |
-| **tesseract** | 5+ | *optional* — reads the camera's burned-in clock | `brew install tesseract` |
+| **tesseract** | 5+ | **required for sighting times** — reads the camera's burned-in clock | `brew install tesseract` |
 
 You do **not** need a GPU. The ANPR models run on CPU — CoreML on Apple
 silicon, ONNX elsewhere.
@@ -32,12 +32,13 @@ from `pyproject.toml` and downloads a matching interpreter into the project's
 own environment, so a machine whose system `python3` is much older is fine —
 verified here on a host still running 3.9.
 
-> **On tesseract being optional.** Without it, detections fall back to
-> stamping the time *we processed* the frame. That is fine for a local demo,
-> but note the government feeds replay archived footage, so their burned-in
-> clocks read months in the past — with tesseract installed you get the
-> scene's real time, which is what belongs in evidence. It degrades with a
-> single warning rather than failing.
+> **On tesseract.** The clock a camera burns into its frames is the only
+> time a sighting is ever reported with — not the stream's PTS, not when we
+> processed the frame. A reading is used only when a second reading of the
+> same camera's clock agrees with it, so a misread digit is never shown.
+> Without tesseract nothing can be read, and every sighting is recorded as
+> *time unknown — camera clock unreadable*: searchable, but kept off the
+> timed route. The worker still runs, with a single warning.
 
 Check everything at once:
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PlateLookupMatch(BaseModel):
@@ -19,7 +19,10 @@ class PlateLookupOut(BaseModel):
     plate_normalised: str
     status: str
     matches: list[PlateLookupMatch]
-    last_seen_at: datetime | None
+    last_seen_at: datetime | None = Field(
+        description="The camera's clock on the latest sighting. Null with a camera name: seen "
+        "there, time unknown (the camera's clock was unreadable)."
+    )
     last_seen_camera_name: str | None
 
 

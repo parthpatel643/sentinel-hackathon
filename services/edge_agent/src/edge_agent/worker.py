@@ -554,6 +554,7 @@ def _event_to_detection_payload(event: Event) -> dict[str, Any]:
         ),
         "pts_ms": event.pts_ms,
         "observed_at": event.observed_at.isoformat(),
+        "camera_time": event.camera_time.isoformat() if event.camera_time else None,
         "node_id": event.pipeline.node_id,
         "model_versions": event.pipeline.models,
         "snapshot_uri": event.evidence.snapshot_uri,
@@ -737,6 +738,8 @@ async def _evaluate_zones(
     zone_events = zone_engine.update(
         positions | people, now_s=frame.timing.pts_ms / 1000.0, people=frozenset(people)
     )
+    # The camera's clock on the frame that fired them; unknown if unreadable.
+    camera_time = pipeline.camera_time_of(frame) if zone_events else None
     for zone_event in zone_events:
         try:
             response = await client.post(
@@ -754,6 +757,7 @@ async def _evaluate_zones(
                     "dwell_time_s": zone_event.dwell_time_s,
                     "heading_deg": zone_event.heading_deg,
                     "observed_at": frame.observed_at.isoformat(),
+                    "camera_time": camera_time.isoformat() if camera_time else None,
                 },
             )
             response.raise_for_status()

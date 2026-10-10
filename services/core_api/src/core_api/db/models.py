@@ -203,6 +203,11 @@ class Detection(Base):
     bbox_height: Mapped[int | None]
 
     pts_ms: Mapped[float]
+    camera_time: Mapped[datetime | None] = mapped_column(
+        comment="The clock burned into the evidence frame by the camera, confirmed by another "
+        "reading of the same clock. The only time a sighting is reported with; NULL is time "
+        "unknown. observed_at is processing time: ordering and partitioning only."
+    )
 
     snapshot_uri: Mapped[str | None]
     node_id: Mapped[str]
@@ -269,6 +274,14 @@ class Alert(Base):
     sighting_count: Mapped[int] = mapped_column(default=1)
     first_seen_at: Mapped[datetime]
     last_seen_at: Mapped[datetime]
+    first_seen_camera_time: Mapped[datetime | None] = mapped_column(
+        comment="The camera's clock on the alert's earliest sighting. NULL is time unknown; "
+        "first_seen_at is processing time, for deduplication only."
+    )
+    last_seen_camera_time: Mapped[datetime | None] = mapped_column(
+        comment="The camera's clock on the alert's latest sighting. NULL is time unknown; "
+        "last_seen_at is processing time, for deduplication only."
+    )
 
     resolved_by: Mapped[str | None]
     resolution_note: Mapped[str | None]
@@ -439,6 +452,10 @@ class ZoneEvent(Base):
     dwell_time_s: Mapped[float | None]
     heading_deg: Mapped[float | None]
     observed_at: Mapped[datetime]
+    camera_time: Mapped[datetime | None] = mapped_column(
+        comment="The clock burned into the frame that fired this event, confirmed by another "
+        "reading of the same clock. NULL is time unknown; observed_at is processing time."
+    )
     status: Mapped[str] = mapped_column(
         default="new",
         server_default="new",

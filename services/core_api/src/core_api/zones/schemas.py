@@ -63,7 +63,11 @@ class ZoneEventIn(BaseModel):
     object_class: Literal["vehicle", "person"] = "vehicle"
     dwell_time_s: float | None = None
     heading_deg: float | None = None
-    observed_at: datetime
+    observed_at: datetime = Field(description="Processing time. Ordering only; never display it.")
+    camera_time: datetime | None = Field(
+        default=None,
+        description="The camera's clock on the frame that fired the event; null is time unknown",
+    )
 
 
 class ZoneEventOut(BaseModel):
@@ -76,7 +80,11 @@ class ZoneEventOut(BaseModel):
     object_class: str = "vehicle"
     dwell_time_s: float | None
     heading_deg: float | None
-    observed_at: datetime
+    observed_at: datetime = Field(description="Processing time. Ordering only; never display it.")
+    camera_time: datetime | None = Field(
+        default=None,
+        description="The camera's clock on the frame that fired the event; null is time unknown",
+    )
     status: str = "new"
     resolved_by: str | None = None
 

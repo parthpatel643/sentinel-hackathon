@@ -115,6 +115,7 @@ async def test_record_and_list_zone_events(db_session: AsyncSession) -> None:
             track_id="42",
             dwell_time_s=15.0,
             observed_at=datetime.now(UTC),
+            camera_time=datetime(2026, 6, 17, 12, 34, 42, tzinfo=UTC),
         ),
     )
 
@@ -125,6 +126,7 @@ async def test_record_and_list_zone_events(db_session: AsyncSession) -> None:
     assert zone_name == "Loading Bay"
     assert event.track_id == "42"
     assert event.dwell_time_s == 15.0
+    assert event.camera_time == datetime(2026, 6, 17, 12, 34, 42, tzinfo=UTC)
 
 
 async def test_list_zone_events_filters_by_camera(db_session: AsyncSession) -> None:

@@ -107,9 +107,10 @@ export function LiveWallTile({ camera, latestDetection, onOpen }: LiveWallTilePr
   }, [camera.camera_id, inView, t])
 
   // Recency is judged against `ingested_at` — our own clock — not
-  // `observed_at`, which is the time burned into the frame by the camera.
-  // Those cameras replay archived footage, so `observed_at` sits months in
-  // the past and a live read would never have looked recent at all.
+  // `camera_time`, the time burned into the frame by the camera. Those
+  // cameras replay archived footage, so `camera_time` sits months in the
+  // past and a live read would never have looked recent at all. Neither
+  // is shown here; the tile only flags that a read just happened.
   const recentRead =
     latestDetection && now - new Date(latestDetection.ingested_at).getTime() < 30_000 ? latestDetection : undefined
 

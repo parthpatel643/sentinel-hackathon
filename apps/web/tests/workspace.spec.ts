@@ -244,9 +244,10 @@ test('map controls follow language changes without a reload', async ({ page }) =
       plate_normalised: 'GJ01AB1234', total_sightings: 2,
       first_seen_at: '2026-06-15T10:00:00Z', last_seen_at: '2026-06-15T10:05:00Z',
       points: [
-        { camera_id: 'cam-1', camera_name: 'Riverfront', location: { lat: 23.02, lon: 72.57 }, observed_at: '2026-06-15T10:00:00Z', plate_text: 'GJ01AB1234', plate_confidence: .97, match_rung: 'exact', snapshot_uri: null, confirmed: true },
-        { camera_id: 'cam-2', camera_name: 'East Gate', location: { lat: 23.04, lon: 72.59 }, observed_at: '2026-06-15T10:05:00Z', plate_text: 'GJ01AB1234', plate_confidence: .88, match_rung: 'ambiguity_class', snapshot_uri: null, confirmed: false },
+        { camera_id: 'cam-1', camera_name: 'Riverfront', location: { lat: 23.02, lon: 72.57 }, camera_time: '2026-06-15T10:00:00Z', plate_text: 'GJ01AB1234', plate_confidence: .97, match_rung: 'exact', snapshot_uri: null, confirmed: true },
+        { camera_id: 'cam-2', camera_name: 'East Gate', location: { lat: 23.04, lon: 72.59 }, camera_time: '2026-06-15T10:05:00Z', plate_text: 'GJ01AB1234', plate_confidence: .88, match_rung: 'ambiguity_class', snapshot_uri: null, confirmed: false },
       ],
+      untimed: [],
     } }))
     await page.goto('/find-a-vehicle')
     await page.locator('#investigation-plate').fill('GJ01AB1234')

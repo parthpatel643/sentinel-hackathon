@@ -34,7 +34,7 @@ Email `sentinel.hackathon@gujarat.gov.in` (helpdesk +91 95370 89982, Mon–Sat
 | Codecs and resolutions (H.264/H.265, 1080p/4K)? | Sets `STRIDE` and how many cameras one laptop can analyse (§6). |
 | Network: wired Ethernet or Wi-Fi? Is there internet? Which outbound ports reach the cameras (554, 8554, 80)? Any proxy or VPN? | Offline preparation (§3) and the first connectivity test (§4). |
 | Can two of our laptops reach each other on that network? | Needed to shard analysis across machines (§6). |
-| Are the feeds live, or recorded footage replayed? If replayed, are the cameras' burned-in clocks correct? | Route times come from the scene clock; replayed footage from different days will not line up across cameras (see [the cross-camera finding](../evidence/CROSS-CAMERA-TRACKING-FINDINGS.md)). |
+| Do the feeds carry a burned-in date/time overlay? Are the feeds live, or recorded footage replayed, and are the cameras' clocks correct? | A sighting's time comes **only** from the camera's burned-in clock. A camera with no readable overlay produces *time unknown* sightings that cannot be placed on the timed route. Replayed footage from different days will not line up across cameras (see [the cross-camera finding](../evidence/CROSS-CAMERA-TRACKING-FINDINGS.md)). |
 | May detections and snapshots stay on our laptops after the event, or must they be deleted? | Retention and the post-event reset (§9). |
 | Display: HDMI or USB-C to the projector? Power at the table? | Physical kit. |
 
@@ -231,6 +231,11 @@ Rehearse this until it takes under two minutes.
 6. **Probable** hops (dashed, amber) are reads one character away or in an
    OCR-ambiguity class. Show the plate actually read and confirm it against the
    snapshot in front of the jury rather than letting them find it.
+   **Time unknown** sightings are listed under the timeline as *Seen here —
+   camera clock unreadable* (U1, U2…). They are real reads of the plate, but
+   the camera's burned-in clock could not be read on that frame, so they have
+   no place on the route and no other time is shown for them. Say so before a
+   juror asks.
 7. **Watch for this vehicle** arms a forward BOLO and re-checks every past
    detection immediately — the alert banner proves correlation is live.
 8. **Export report**: the Movement Report ZIP (PDF and CSV in IST with UTC

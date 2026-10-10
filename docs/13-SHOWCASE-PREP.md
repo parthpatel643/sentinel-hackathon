@@ -14,7 +14,9 @@ end to end against the repository.
 ## 0. The five things that matter most before Monday
 
 1. **Email the organisers today** (§1 of the runbook): feed format, camera count,
-   coordinates, live vs replayed, network. The helpdesk is Mon–Sat 10:00–18:00,
+   coordinates, live vs replayed, network — and **whether every feed carries a
+   burned-in date/time overlay**: a sighting's time now comes only from that
+   clock, so a camera without one cannot contribute to the timed route. The helpdesk is Mon–Sat 10:00–18:00,
    so **Saturday 10 Oct is the last working day to get an answer.**
 2. **Prove a real cross-camera route once, end to end, on footage we control.**
    It has never been shown on time-aligned real video
@@ -413,11 +415,18 @@ Use the highest rung that works, and **say which rung you are on.**
    to end (search, map, timeline, evidence, BOLO retro-hit, a live forward alert
    on every clip loop, Movement Report with matching hashes), but **only cam06
    yields valid plates**, so the route is single-camera. The same car reappears
-   each time the clip loops (~16.5 min). Hop times are *replay* time, not the
-   burned-in scene date: the degraded footage starves the overlay-clock reader,
-   so it never corroborates. Say so if a juror compares the frame to the report.
+   each time the clip loops (~16.5 min).
+   **Times (10 Oct, after the camera-clock change):** a sighting's time is only
+   ever the clock burned into its own evidence frame. cam06's frames are too
+   damaged for that clock to be read (6–12% of seconds, 0 of 8 reads timed in a
+   13-minute run), so **its plates show as "time unknown — camera clock
+   unreadable"**, listed under the timeline and in the report's "Also seen"
+   section. cam30 shows the clock working: 65 of 115 reads timed, e.g.
+   `GJ39C8018` at 08 Aug 2026 21:10:33 — the time visible in its snapshot.
+   Say plainly why cam06 is untimed before a juror asks.
    Good demo plates: `GJ11CD8389` (one-character twin `GJ11CD8889`, same white
-   car), `GJ11S7924`, `GJ03MH7800` (search `GJO3MH78OO` for the ambiguity rung).
+   car), `GJ11S7924`, `GJ03MH7800` (search `GJO3MH78OO` for the ambiguity rung);
+   `GJ39C8018` on cam30 for a timed sighting.
 5. Recorded own-car video (§6.5) and the demo videos from local disk.
 
 ---

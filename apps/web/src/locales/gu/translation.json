@@ -65,6 +65,8 @@
     "add": "ઉમેરો",
     "unknown": "—",
     "notAvailable": "ઉપલબ્ધ નથી",
+    "timeUnknown": "સમય અજ્ઞાત — કૅમેરાની ઘડિયાળ વાંચી શકાઈ નથી",
+    "timeUnknownShort": "સમય અજ્ઞાત",
     "active": "સક્રિય",
     "deactivated": "નિષ્ક્રિય",
     "noExpiry": "કોઈ સમાપ્તિ નથી",
@@ -525,6 +527,7 @@
       },
       "lastSeen": "{{date}} એ છેલ્લે જોાયું",
       "lastSeenAt": "{{date}} એ {{camera}} પર છેલ્લે જોાયું",
+      "lastSeenAtTimeUnknown": "છેલ્લે {{camera}} પર જોયું — સમય અજ્ઞાત, કૅમેરાની ઘડિયાળ વાંચી શકાઈ નથી",
       "noSightings": "રેકોર્ડમાં જોવાની કોઈ ઘટના નથી.",
       "lookupAnother": "બીજી નંબર પ્લેટ તપાસો"
     },

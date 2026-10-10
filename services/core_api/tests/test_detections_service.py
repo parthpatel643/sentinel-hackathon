@@ -37,6 +37,9 @@ def _detection_in(**overrides: object) -> DetectionIn:
         "node_id": "edge-local-01",
     }
     defaults.update(overrides)
+    # A readable camera clock unless a test says otherwise; pass
+    # camera_time=None for a sighting whose clock could not be read.
+    defaults.setdefault("camera_time", defaults["observed_at"])
     return DetectionIn.model_validate(defaults)
 
 
@@ -173,13 +176,11 @@ async def test_a_route_is_found_even_when_the_camera_clock_is_badly_wrong(
 ) -> None:
     """The search window is measured against our own clock, not the camera's.
 
-    `observed_at` carries the time burned into the frame, which is the scene's
-    time and belongs in evidence — but it is only as good as the camera that
-    produced it. Government feeds replay archived footage and report dates
-    months old; a camera with a mis-set clock does the same, and that is
-    routine across a large estate. Window on that and the vehicle silently
-    becomes unfindable precisely because one camera was wrong, which is the
-    opposite of what an operator asking "seen in the last 24 hours" wants.
+    The camera's clock is the only time a sighting is reported with, but it is
+    only as good as the camera. Government feeds replay archived footage and
+    report dates months old; a camera with a mis-set clock does the same.
+    Window on it and the vehicle silently becomes unfindable precisely because
+    one camera was wrong.
     """
     await upsert_camera(
         db_session,
@@ -195,7 +196,7 @@ async def test_a_route_is_found_even_when_the_camera_clock_is_badly_wrong(
         attributes={},
         profiles=[],
     )
-    # Ingested now; the frame claims it happened three months ago.
+    # Processed now; the frame's clock says three months ago.
     await ingest_detection(
         db_session,
         _detection_in(
@@ -203,15 +204,82 @@ async def test_a_route_is_found_even_when_the_camera_clock_is_badly_wrong(
             plate_text="GJ09ZZ9911",
             plate_normalised="GJ09ZZ9911",
             plate_ambiguity_key=ambiguity_key("GJ09ZZ9911"),
-            observed_at=ANCHOR - timedelta(days=90),
+            observed_at=ANCHOR,
+            camera_time=ANCHOR - timedelta(days=90),
         ),
     )
 
     route = await get_vehicle_route(db_session, "GJ09ZZ9911")
 
     assert len(route.points) == 1, "a stale camera clock must not hide a fresh sighting"
-    # The evidence timestamp itself is left exactly as the camera reported it.
-    assert route.points[0].observed_at == ANCHOR - timedelta(days=90)
+    # The time reported is exactly what the camera's clock said.
+    assert route.points[0].camera_time == ANCHOR - timedelta(days=90)
+    assert route.first_seen_at == ANCHOR - timedelta(days=90)
+
+
+async def test_the_route_follows_the_cameras_clocks_not_processing_order(
+    db_session: AsyncSession,
+) -> None:
+    """Footage is not processed in the order it was filmed — a replayed
+    recording, a backlog, a second worker. The route is told in the order the
+    cameras' clocks give."""
+    await _make_camera(db_session, "det-cam-01")
+    await _make_camera(db_session, "det-cam-02")
+    await ingest_detection(
+        db_session,
+        _detection_in(
+            event_id="evt-processed-first",
+            camera_id="det-cam-02",
+            observed_at=ANCHOR,
+            camera_time=ANCHOR - timedelta(hours=2),
+        ),
+    )
+    await ingest_detection(
+        db_session,
+        _detection_in(
+            event_id="evt-processed-second",
+            camera_id="det-cam-01",
+            observed_at=ANCHOR + timedelta(minutes=1),
+            camera_time=ANCHOR - timedelta(hours=3),
+        ),
+    )
+
+    route = await get_vehicle_route(db_session, "GJ01AB1234")
+
+    assert [p.camera_id for p in route.points] == ["det-cam-01", "det-cam-02"]
+    assert route.first_seen_at == ANCHOR - timedelta(hours=3)
+    assert route.last_seen_at == ANCHOR - timedelta(hours=2)
+
+
+async def test_a_sighting_with_an_unreadable_clock_is_kept_off_the_timed_route(
+    db_session: AsyncSession,
+) -> None:
+    """Nothing stands in for the camera's clock. A sighting whose clock could
+    not be read is still a sighting — counted and returned — but it has no
+    place on a timeline, and no processing time is reported for it."""
+    await _make_camera(db_session, "det-cam-01")
+    await _make_camera(db_session, "det-cam-02")
+    await ingest_detection(db_session, _detection_in(event_id="evt-timed", camera_id="det-cam-01"))
+    await ingest_detection(
+        db_session,
+        _detection_in(
+            event_id="evt-untimed",
+            camera_id="det-cam-02",
+            observed_at=ANCHOR + timedelta(minutes=5),
+            camera_time=None,
+        ),
+    )
+
+    route = await get_vehicle_route(db_session, "GJ01AB1234")
+
+    assert route.total_sightings == 2
+    assert [p.event_id for p in route.points] == ["evt-timed"]
+    assert [p.event_id for p in route.untimed] == ["evt-untimed"]
+    assert route.untimed[0].camera_time is None
+    assert route.last_seen_at == ANCHOR, "an untimed sighting has no time to be last at"
+    serialised = route.model_dump(mode="json")
+    assert "observed_at" not in serialised["untimed"][0]
+    assert "observed_at" not in serialised["points"][0]
 
 
 async def test_ingest_derives_search_keys_from_the_plate_text_not_the_producer(

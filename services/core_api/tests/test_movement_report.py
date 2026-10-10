@@ -19,6 +19,9 @@ from core_api.detections.schemas import RoutePoint, VehicleRoute
 from core_api.registry.schemas import GeoPointOut
 from core_api.reports.service import build_movement_report_zip
 
+# When the footage was processed — never the time a report shows.
+PROCESSED_AT = datetime(2026, 10, 10, 6, 0, 0, tzinfo=UTC)
+
 
 def _sample_route() -> VehicleRoute:
     points = [
@@ -26,7 +29,8 @@ def _sample_route() -> VehicleRoute:
             camera_id="cam-01",
             camera_name="Sarkhej Circle",
             location=GeoPointOut(lat=23.0225, lon=72.5714),
-            observed_at=datetime(2026, 9, 22, 10, 0, 0, tzinfo=UTC),
+            camera_time=datetime(2026, 9, 22, 10, 0, 0, tzinfo=UTC),
+            observed_at=PROCESSED_AT,
             plate_text="GJ01AB1234",
             plate_confidence=0.94,
             match_rung="exact",
@@ -37,7 +41,8 @@ def _sample_route() -> VehicleRoute:
             camera_id="cam-02",
             camera_name="Ellisbridge",
             location=GeoPointOut(lat=23.0289, lon=72.5589),
-            observed_at=datetime(2026, 9, 22, 10, 12, 0, tzinfo=UTC),
+            camera_time=datetime(2026, 9, 22, 10, 12, 0, tzinfo=UTC),
+            observed_at=PROCESSED_AT,
             plate_text="GJ01AB1234",
             plate_confidence=0.88,
             match_rung="exact",
@@ -48,8 +53,8 @@ def _sample_route() -> VehicleRoute:
     return VehicleRoute(
         plate_normalised="GJ01AB1234",
         total_sightings=len(points),
-        first_seen_at=points[0].observed_at,
-        last_seen_at=points[-1].observed_at,
+        first_seen_at=points[0].camera_time,
+        last_seen_at=points[-1].camera_time,
         points=points,
     )
 
@@ -118,17 +123,72 @@ def test_empty_route_still_produces_a_valid_pdf() -> None:
     assert manifest["point_count"] == 0
 
 
-def test_csv_carries_both_utc_and_ist_for_every_hop() -> None:
+def test_csv_carries_the_camera_clock_in_utc_and_ist_for_every_hop() -> None:
     zip_bytes, _ = build_movement_report_zip(_sample_route(), generated_by="test@example.com")
 
     with zipfile.ZipFile(BytesIO(zip_bytes)) as archive:
-        rows = list(csv.DictReader(io.StringIO(archive.read("report.csv").decode())))
+        csv_text = archive.read("report.csv").decode()
+        rows = list(csv.DictReader(io.StringIO(csv_text)))
 
-    assert rows[0]["observed_at_utc"] == "2026-09-22T10:00:00+00:00"
-    assert rows[0]["observed_at_ist"] == "2026-09-22T15:30:00+05:30"
+    assert rows[0]["camera_clock"] == "read"
+    assert rows[0]["camera_time_utc"] == "2026-09-22T10:00:00+00:00"
+    assert rows[0]["camera_time_ist"] == "2026-09-22T15:30:00+05:30"
     for row in rows:
-        utc = datetime.fromisoformat(row["observed_at_utc"])
-        assert datetime.fromisoformat(row["observed_at_ist"]) == utc
+        utc = datetime.fromisoformat(row["camera_time_utc"])
+        assert datetime.fromisoformat(row["camera_time_ist"]) == utc
+    assert "2026-10-10" not in csv_text, "processing time must never appear in a report"
+
+
+def _route_with_an_untimed_sighting() -> VehicleRoute:
+    route = _sample_route()
+    untimed = route.points[1].model_copy(
+        update={
+            "event_id": "01JREPORTUNTIMED000000001",
+            "camera_id": "cam-09",
+            "camera_name": "Janpath",
+            "camera_time": None,
+        }
+    )
+    return route.model_copy(update={"untimed": [untimed], "total_sightings": 3})
+
+
+def test_a_sighting_with_an_unreadable_clock_is_listed_as_time_unknown(tmp_path: Path) -> None:
+    """It is a real sighting, so the report includes it — labelled, off the
+    route, with its evidence frame, and with no other time in its place."""
+    route = _route_with_an_untimed_sighting()
+    snapshots = {"01JREPORTUNTIMED000000001": _jpeg(tmp_path / "u.jpg", 90)}
+
+    zip_bytes, _ = build_movement_report_zip(
+        route, generated_by="test@example.com", snapshots=snapshots
+    )
+
+    with zipfile.ZipFile(BytesIO(zip_bytes)) as archive:
+        rows = list(csv.DictReader(io.StringIO(archive.read("report.csv").decode())))
+        manifest = json.loads(archive.read("manifest.json"))
+        names = archive.namelist()
+        text = "\n".join(
+            page.extract_text() for page in PdfReader(BytesIO(archive.read("report.pdf"))).pages
+        )
+
+    untimed = [r for r in rows if r["camera_clock"] == "unreadable"]
+    assert [(r["hop"], r["camera_id"]) for r in untimed] == [("U1", "cam-09")]
+    assert untimed[0]["camera_time_utc"] == untimed[0]["camera_time_ist"] == ""
+    assert manifest["untimed_count"] == 1
+    assert manifest["point_count"] == 3
+    assert "evidence/untimed-01-01JREPORTUNTIMED000000001.jpg" in names
+    assert "camera clock unreadable" in text
+    assert "2026-10-10" not in text
+
+
+def test_the_pdf_reports_sighting_times_by_the_cameras_clock() -> None:
+    zip_bytes, _ = build_movement_report_zip(_sample_route(), generated_by="test@example.com")
+
+    with zipfile.ZipFile(BytesIO(zip_bytes)) as archive:
+        text = PdfReader(BytesIO(archive.read("report.pdf"))).pages[0].extract_text()
+
+    assert "Camera clock (IST)" in text
+    assert "22 Sep 2026, 15:30:00" in text
+    assert "10 Oct 2026, 11:30:00" not in text, "processing time must never appear"
 
 
 def _route_with_events() -> VehicleRoute:
@@ -138,7 +198,7 @@ def _route_with_events() -> VehicleRoute:
             "camera_id": "cam-03",
             "camera_name": "Paldi",
             "location": GeoPointOut(lat=23.0105, lon=72.5640),
-            "observed_at": datetime(2026, 9, 22, 10, 30, 0, tzinfo=UTC),
+            "camera_time": datetime(2026, 9, 22, 10, 30, 0, tzinfo=UTC),
             "match_rung": "edit_distance",
             "confirmed": False,
         }

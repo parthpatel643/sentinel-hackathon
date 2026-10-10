@@ -56,6 +56,9 @@ def _detection_in(**overrides: object) -> DetectionIn:
         "node_id": "edge-local-01",
     }
     defaults.update(overrides)
+    # A readable camera clock unless a test says otherwise; pass
+    # camera_time=None for a sighting whose clock could not be read.
+    defaults.setdefault("camera_time", defaults["observed_at"])
     return DetectionIn.model_validate(defaults)
 
 
@@ -314,3 +317,34 @@ async def test_retro_scan_merges_in_scene_order_and_counts_each_alert_once(
         (ANCHOR, ANCHOR + timedelta(minutes=1), 2),
         (ANCHOR + timedelta(minutes=40), ANCHOR + timedelta(minutes=41), 2),
     ]
+
+
+async def test_an_alert_reports_its_sightings_by_the_cameras_clock(
+    db_session: AsyncSession,
+) -> None:
+    """An alert's first and last seen are the camera's clock on its first and
+    last sightings. Processing time only decides which sighting is which; a
+    latest sighting whose clock was unreadable makes last seen unknown."""
+    await _make_camera(db_session)
+    await create_watchlist_entry(
+        db_session, WatchlistEntryCreate(plate="GJ01AB1234", entry_type="stolen")
+    )
+    scene = ANCHOR - timedelta(days=100)
+
+    first = await ingest_detection(
+        db_session, _detection_in(event_id="evt-1", observed_at=ANCHOR, camera_time=scene)
+    )
+    [alert] = await correlate_detection(db_session, first)
+    assert alert.first_seen_camera_time == scene
+    assert alert.last_seen_camera_time == scene
+
+    later = await ingest_detection(
+        db_session,
+        _detection_in(
+            event_id="evt-2", observed_at=ANCHOR + ALERT_DEDUP_WINDOW / 2, camera_time=None
+        ),
+    )
+    [merged] = await correlate_detection(db_session, later)
+    assert merged.id == alert.id
+    assert merged.first_seen_camera_time == scene
+    assert merged.last_seen_camera_time is None

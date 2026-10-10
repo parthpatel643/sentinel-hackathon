@@ -10,6 +10,8 @@ factory throughout this codebase.
 from __future__ import annotations
 
 import logging
+from collections import deque
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
@@ -39,7 +41,28 @@ logger = logging.getLogger(__name__)
 # shortest read that could still resolve to a real registration.
 MIN_REPORTABLE_PLATE_CHARS = 6
 
+# Frames per track kept as candidate evidence frames — each one a frame in
+# which the track was matched and the camera's clock was read. The newest
+# confirmed one wins, so a few is plenty; each holds a full-resolution image.
+CLOCK_FRAMES_PER_TRACK = 4
+
 __all__ = ["AnprPipeline", "PlateReaderPort", "SnapshotWriterPort", "VehicleDetectorPort"]
+
+
+@dataclass(frozen=True, slots=True)
+class _ClockFrame:
+    """A frame in which a track was seen and the camera's clock was read."""
+
+    pts_ms: float
+    image: np.ndarray
+    bbox_xyxy: tuple[float, float, float, float]
+
+
+@dataclass(frozen=True, slots=True)
+class _Evidence:
+    image: np.ndarray
+    bbox_xyxy: tuple[float, float, float, float]
+    camera_time: datetime | None
 
 
 class VehicleDetectorPort(Protocol):
@@ -89,10 +112,10 @@ class AnprPipeline:
         self._roi_margin = roi_margin
         self._min_roi_side = min_roi_side
         self._snapshot_writer = snapshot_writer
-        # Reads the camera's own burned-in clock. When it can, that becomes the
-        # event's observed_at — see _build_event.
+        # Reads the camera's own burned-in clock: the only time a sighting is
+        # reported with. See _evidence_for.
         self._frame_clock = frame_clock
-        self._camera_time: datetime | None = None
+        self._clock_frames: dict[int, deque[_ClockFrame]] = {}
         self._voters: dict[int, PlateVoter] = {}
         self._last_emitted: dict[int, str] = {}
         # M13: the most recent frame's tracked vehicles, exposed for a
@@ -106,11 +129,6 @@ class AnprPipeline:
         self.last_tracked_people: list[TrackedVehicle] = []
 
     def process_frame(self, frame: Frame[np.ndarray]) -> list[Event]:
-        # Once per frame, not once per event: several vehicles can be read
-        # from one frame and they all share the camera's clock.
-        if self._frame_clock is not None:
-            self._camera_time = self._frame_clock.read(frame.image, pts_ms=frame.timing.pts_ms)
-
         if frame.timing.is_discontinuity:
             # The scene just cut (a loop point in the test grid, or a real
             # camera reboot). A track surviving across it would silently
@@ -119,6 +137,11 @@ class AnprPipeline:
             self._people_tracker.reset()
             self._voters.clear()
             self._last_emitted.clear()
+            self._clock_frames.clear()
+            if self._frame_clock is not None:
+                # The PTS origin moved, so readings either side of the cut
+                # cannot be compared.
+                self._frame_clock.reset()
 
         detections = self._vehicle_detector.detect(frame.image)
         vehicle_detections = [d for d in detections if d.vehicle_class != PERSON]
@@ -126,6 +149,7 @@ class AnprPipeline:
         tracked_vehicles = self._tracker.update(vehicle_detections)
         self.last_tracked_vehicles = tracked_vehicles
         self.last_tracked_people = self._people_tracker.update(people)
+        self._remember_clock_frame(frame, tracked_vehicles)
 
         events = [
             event
@@ -205,22 +229,70 @@ class AnprPipeline:
             y1, y2 = max(0, cy - half_y), min(height, cy + half_y)
         return image[y1:y2, x1:x2]
 
+    def _remember_clock_frame(
+        self, frame: Frame[np.ndarray], tracked_vehicles: list[TrackedVehicle]
+    ) -> None:
+        """Read the camera's clock (at most once a second) and, when it was
+        read on this frame, keep the frame as a candidate evidence frame for
+        every vehicle matched in it. The clock is read whether or not a
+        vehicle is in shot: every reading is something a later one can be
+        confirmed against. While a vehicle in shot has no clock frame yet it
+        is read more often (capped per second), because a damaged frame's
+        overlay is often unreadable and that vehicle's sighting needs one."""
+        if self._frame_clock is None:
+            return
+        pts_ms = frame.timing.pts_ms
+        eager = any(not self._clock_frames.get(t.track_id) for t in tracked_vehicles)
+        reading = self._frame_clock.observe(frame.image, pts_ms=pts_ms, eager=eager)
+        if reading is None:
+            return
+        for tracked in tracked_vehicles:
+            frames = self._clock_frames.setdefault(
+                tracked.track_id, deque(maxlen=CLOCK_FRAMES_PER_TRACK)
+            )
+            frames.append(_ClockFrame(pts_ms, frame.image, tracked.detection.bbox_xyxy))
+
+    def _evidence_for(self, frame: Frame[np.ndarray], tracked: TrackedVehicle) -> _Evidence:
+        """The frame a sighting is evidenced by, and the time the camera
+        printed on it.
+
+        The newest frame of this vehicle whose clock reading is confirmed
+        becomes the snapshot, so the time reported is the time visible in the
+        evidence image. Failing that, the clock is read on the current frame.
+        If neither is confirmed the time is unknown — nothing else stands in
+        for the camera's clock.
+        """
+        if self._frame_clock is None:
+            return _Evidence(frame.image, tracked.detection.bbox_xyxy, None)
+        for candidate in reversed(self._clock_frames.get(tracked.track_id, ())):
+            camera_time = self._frame_clock.verified(candidate.pts_ms)
+            if camera_time is not None:
+                return _Evidence(candidate.image, candidate.bbox_xyxy, camera_time)
+        return _Evidence(frame.image, tracked.detection.bbox_xyxy, self.camera_time_of(frame))
+
+    def camera_time_of(self, frame: Frame[np.ndarray]) -> datetime | None:
+        """The camera's confirmed clock on exactly this frame, or None. Also
+        used by the worker for zone events, which have no other time."""
+        if self._frame_clock is None:
+            return None
+        pts_ms = frame.timing.pts_ms
+        self._frame_clock.read_now(frame.image, pts_ms=pts_ms)
+        return self._frame_clock.verified(pts_ms)
+
     def _build_event(
         self, frame: Frame[np.ndarray], tracked: TrackedVehicle, voted: VotedPlate
     ) -> Event:
-        x1, y1, x2, y2 = tracked.detection.bbox_xyxy
+        evidence = self._evidence_for(frame, tracked)
+        x1, y1, x2, y2 = evidence.bbox_xyxy
         event = Event(
             type=EventType.ANPR_PLATE_READ,
             camera_id=frame.camera_id,
             pts_ms=frame.timing.pts_ms,
             stream_epoch=frame.timing.stream_epoch,
-            # The camera's own burned-in time when it is readable, because
-            # that is when the scene happened; the PTS-derived time says when
-            # we processed it, which for looped recordings can be months
-            # later. Nothing is lost by preferring it — pts_ms and
-            # stream_epoch above still reconstruct the processing clock
-            # exactly.
-            observed_at=self._camera_time or frame.observed_at,
+            # When we processed the footage: internal ordering only. The
+            # time the sighting is reported with is camera_time.
+            observed_at=frame.observed_at,
+            camera_time=evidence.camera_time,
             payload=AnprPayload(
                 plate_text=voted.plate_text,
                 plate_normalised=voted.plate_normalised,
@@ -243,7 +315,7 @@ class AnprPipeline:
             # (not just the plate ROI) — bystanders elsewhere in shot get
             # the same default privacy protection as the vehicle's own
             # occupants. See snapshot_writer.py/face_blur.py.
-            snapshot_uri = self._snapshot_writer.write(event.event_id, frame.image)
+            snapshot_uri = self._snapshot_writer.write(event.event_id, evidence.image)
             if snapshot_uri:
                 event = event.model_copy(
                     update={"evidence": EvidenceRef(snapshot_uri=snapshot_uri)}
@@ -276,3 +348,5 @@ class AnprPipeline:
             del self._voters[stale_id]
         for stale_id in set(self._last_emitted) - active:
             del self._last_emitted[stale_id]
+        for stale_id in set(self._clock_frames) - active:
+            del self._clock_frames[stale_id]

@@ -58,14 +58,17 @@ export function FieldLookup() {
           </div>
           <Link className="field-primary-link" to={`/field/report?plate=${encodeURIComponent(result.plate_normalised)}`}>{t('management:reportVehicle')}</Link>
           <p className="mt-5 text-center text-sm leading-relaxed text-text-secondary">
-            {result.last_seen_at
-              ? result.last_seen_camera_name
+            {/* The camera's burned-in clock, or plainly unknown — never another time. */}
+            {result.last_seen_camera_name
+              ? result.last_seen_at
                 ? t('field.lookup.lastSeenAt', {
                     date: formatIst(result.last_seen_at),
                     camera: result.last_seen_camera_name,
                   })
-                : t('field.lookup.lastSeen', { date: formatIst(result.last_seen_at) })
-              : t('field.lookup.noSightings')}
+                : t('field.lookup.lastSeenAtTimeUnknown', { camera: result.last_seen_camera_name })
+              : result.last_seen_at
+                ? t('field.lookup.lastSeen', { date: formatIst(result.last_seen_at) })
+                : t('field.lookup.noSightings')}
           </p>
         </div>
         <button

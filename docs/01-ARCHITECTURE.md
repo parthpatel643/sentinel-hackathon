@@ -52,9 +52,9 @@
 **Consequences.** A solo maintainer holds one mental model. Python's throughput ceiling is mitigated by process-per-camera-group workers, hardware decode, ONNX Runtime releasing the GIL during inference, and pushing fan-out to NATS. Where Python genuinely cannot keep up (relay, bus), we are using compiled off-the-shelf components.
 **Rejected.** Go/Java services for throughput: correct at a large team, wrong for one person with a fixed calendar.
 
-### ADR-005 — PTS is the only clock
+### ADR-005 — PTS is the only processing clock
 **Decision.** Frames are wrapped in a `Frame(pts_ms, stream_epoch, monotonic_seq, …)` value object; analytics code has no access to `time.time()` for measurement.
-**Consequences.** Trackers, dwell/speed estimates and route timelines stay correct despite the gateway's GOP-replay burst on connect. Mapping PTS → absolute wall time happens once, at the edge, via a per-stream epoch anchor with drift correction, and that anchor is recorded with every event for forensic defensibility.
+**Consequences.** Trackers, dwell/speed estimates and processing order stay correct despite the gateway's GOP-replay burst on connect. Mapping PTS → absolute wall time happens once, at the edge, via a per-stream epoch anchor with drift correction, and that anchor is recorded with every event for forensic defensibility.
 
 ### ADR-006 — One primary datastore
 **Decision.** PostgreSQL 17 + PostGIS (spatial) + TimescaleDB (detection/health hypertables) + `pg_trgm` (fuzzy plate search). OpenSearch is documented in the scale plan, not deployed now.
@@ -63,6 +63,10 @@
 ### ADR-007 — Mobile as an installable PWA
 **Decision.** One React codebase, three shells (Console / Field / Admin). Mobile ships as an installable PWA with Web Push and an offline queue.
 **Consequences.** No app-store/signing overhead, instant demo on any judge's phone via URL, offline-capable via service worker. Native-only capabilities (background geolocation, native notifications on iOS < 16.4) are the accepted trade.
+
+### ADR-008 — The camera's clock is the only time a sighting is reported with
+**Decision.** A sighting's time is the clock the camera burned into its evidence frame (`camera_time`), read by OCR in any corner and format, and used only when another reading of the same clock agrees with it after allowing for the footage between them. The evidence frame is chosen as the newest frame of that vehicle with such a reading, so the reported time is the one visible in the snapshot. PTS-derived `observed_at` remains for ordering, deduplication and partitioning, and is never displayed.
+**Consequences.** Replayed and stitched recordings report the scene's own date and time. A sighting whose clock cannot be read is *time unknown*: searchable and listed, but off the timed route, with no other time in its place. Route order, speed checks, alert first/last seen, zone events, the console and the Movement Report all follow the camera's clock. A camera with no overlay contributes untimed sightings only — an integration prerequisite to confirm with each department.
 
 ---
 
@@ -227,7 +231,8 @@ Temporal voting is the single biggest accuracy lever: one vehicle seen over 20 f
   "device_geo": {"lat": 23.0225, "lon": 72.5714},
   "pts_ms": 1843200,                // authoritative stream time
   "stream_epoch": "2026-09-22T09:14:03.221Z",
-  "observed_at": "2026-09-22T09:44:46.421Z",  // derived: epoch + pts, NOT arrival
+  "observed_at": "2026-09-22T09:44:46.421Z",  // derived: epoch + pts, NOT arrival — processing time, never reported
+  "camera_time": "2026-06-17T12:35:28Z",      // the camera's burned-in clock on the evidence frame, or null
   "payload": {
     "plate_text": "GJ01AB1234",
     "plate_normalised": "GJ01AB1234",
@@ -295,7 +300,7 @@ sequenceDiagram
     API->>S: fuzzy plate query + ambiguity classes
     S-->>API: N sightings (camera, pts, snapshot, conf)
     API->>R: build route(sightings)
-    R->>R: sort by observed_at, pair consecutive hops
+    R->>R: sort by camera_time (burned-in clock), pair consecutive hops
     R->>R: feasibility check — distance / Δt vs max plausible speed
     R->>R: attach appearance-ReID bridges for unread-plate hops
     R-->>API: ordered route + per-edge confidence + anomalies

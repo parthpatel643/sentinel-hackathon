@@ -118,6 +118,7 @@ async def _upsert_alert(
     rung: str,
     confidence: float,
     observed_at: datetime,
+    camera_time: datetime | None,
 ) -> Alert:
     # The window is checked on both sides: a sighting merges into an open
     # alert only if it falls within the dedup window of that alert's span.
@@ -144,8 +145,14 @@ async def _upsert_alert(
 
     if existing is not None:
         existing.sighting_count += 1
-        existing.first_seen_at = min(existing.first_seen_at, observed_at)
-        existing.last_seen_at = max(existing.last_seen_at, observed_at)
+        # Processing time decides which sighting is first and last; the
+        # camera's clock on that sighting is what is reported, unknown or not.
+        if observed_at < existing.first_seen_at:
+            existing.first_seen_at = observed_at
+            existing.first_seen_camera_time = camera_time
+        if observed_at > existing.last_seen_at:
+            existing.last_seen_at = observed_at
+            existing.last_seen_camera_time = camera_time
         existing.match_confidence = max(existing.match_confidence, confidence)
         existing.priority_score = _priority_score(entry.priority, existing.match_confidence, rung)
         await session.flush()
@@ -162,6 +169,8 @@ async def _upsert_alert(
         sighting_count=1,
         first_seen_at=observed_at,
         last_seen_at=observed_at,
+        first_seen_camera_time=camera_time,
+        last_seen_camera_time=camera_time,
     )
     session.add(alert)
     await session.flush()
@@ -187,6 +196,7 @@ async def correlate_detection(session: AsyncSession, detection: Detection) -> li
             rung=rung,
             confidence=detection.plate_confidence,
             observed_at=detection.observed_at,
+            camera_time=detection.camera_time,
         )
         for entry, rung in matches
     ]
@@ -219,6 +229,7 @@ async def retro_scan(session: AsyncSession, entry: WatchlistEntry) -> list[Alert
             rung=rung,
             confidence=detection.plate_confidence,
             observed_at=detection.observed_at,
+            camera_time=detection.camera_time,
         )
         alerts[alert.id] = alert
     # One entry per alert, however many sightings merged into it.

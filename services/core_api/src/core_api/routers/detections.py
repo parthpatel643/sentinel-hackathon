@@ -129,7 +129,7 @@ async def movement_report_endpoint(
     settings = get_settings()
     snapshots = {
         point.event_id: path
-        for point in route.points
+        for point in [*route.points, *route.untimed]
         if (path := await resolve_snapshot_path(session, point.event_id, settings)) is not None
     }
     zip_bytes, filename = build_movement_report_zip(

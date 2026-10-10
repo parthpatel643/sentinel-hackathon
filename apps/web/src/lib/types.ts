@@ -94,7 +94,10 @@ export interface ZoneEvent {
   object_class?: 'vehicle' | 'person'
   dwell_time_s: number | null
   heading_deg: number | null
+  /** Processing time — ordering only, never display it. */
   observed_at: string
+  /** The camera's burned-in clock on the frame that fired it; null is time unknown. */
+  camera_time: string | null
   status?: ZoneEventStatus
   resolved_by?: string | null
 }
@@ -218,12 +221,17 @@ export interface Detection {
   frames_voted: number
   vehicle_class: string | null
   vehicle_track_id: string | null
+  /**
+   * The clock the camera burned into the evidence frame — the only time to
+   * show for a sighting. Null: the clock was unreadable, so the time is unknown.
+   */
+  camera_time: string | null
+  /** When the edge processed the footage. Ordering only — never display it. */
   observed_at: string
   /**
-   * When we recorded the detection, as opposed to `observed_at`, which is the
-   * scene's own time taken from the camera's burned-in clock. The two can be
-   * months apart — the government feeds replay archived footage — and only
-   * this one is measured against our clock, so recency must be judged by it.
+   * When we recorded the detection. The camera's clock can be months behind —
+   * the government feeds replay archived footage — so recency is judged by
+   * this one. Never display it as the sighting's time.
    */
   ingested_at: string
   snapshot_uri: string | null
@@ -238,7 +246,8 @@ export interface RoutePoint {
   camera_id: string
   camera_name: string
   location: GeoPoint | null
-  observed_at: string
+  /** The clock visible in this sighting's evidence frame; null in `VehicleRoute.untimed`. */
+  camera_time: string | null
   plate_text: string
   plate_confidence: number
   match_rung: MatchRung
@@ -253,9 +262,14 @@ export interface RoutePoint {
 export interface VehicleRoute {
   plate_normalised: string
   total_sightings: number
+  /** The camera's clock on the earliest timed sighting. */
   first_seen_at: string | null
+  /** The camera's clock on the latest timed sighting. */
   last_seen_at: string | null
+  /** Sightings with a readable camera clock, in that clock's order. */
   points: RoutePoint[]
+  /** Sightings whose camera clock was unreadable: real, but off the timeline. */
+  untimed: RoutePoint[]
 }
 
 export type EntryType = 'stolen_vehicle' | 'wanted_vehicle' | 'missing_person' | 'suspect' | 'bolo' | string
@@ -294,8 +308,14 @@ export interface Alert {
   priority_score: number
   status: AlertStatus
   sighting_count: number
+  /** Processing time of the earliest sighting — ordering only, never display it. */
   first_seen_at: string
+  /** Processing time of the latest sighting — ordering only, never display it. */
   last_seen_at: string
+  /** The camera's clock on the earliest sighting; null is time unknown. */
+  first_seen_camera_time: string | null
+  /** The camera's clock on the latest sighting; null is time unknown. */
+  last_seen_camera_time: string | null
   resolved_by: string | null
   resolution_note: string | null
   created_at: string
@@ -361,6 +381,7 @@ export interface PlateLookup {
   plate_normalised: string
   status: string
   matches: PlateLookupMatch[]
+  /** The camera's clock on the latest sighting. Null with a camera name: time unknown. */
   last_seen_at: string | null
   last_seen_camera_name: string | null
 }

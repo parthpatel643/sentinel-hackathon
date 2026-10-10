@@ -5,7 +5,7 @@ once a test ends."""
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -77,6 +77,7 @@ async def test_lookup_plate_includes_the_last_sighting(db_session: AsyncSession)
                 "plate_confidence": 0.9,
                 "pts_ms": 1000.0,
                 "observed_at": NOW,
+                "camera_time": NOW - timedelta(days=100),
                 "node_id": "edge-local-01",
             }
         ),
@@ -84,7 +85,37 @@ async def test_lookup_plate_includes_the_last_sighting(db_session: AsyncSession)
 
     result = await lookup_plate(db_session, "GJ01AB1234")
 
-    assert result.last_seen_at == NOW
+    assert result.last_seen_at == NOW - timedelta(days=100), "the camera's clock, not ours"
+    assert result.last_seen_camera_name == "Field Test Camera"
+
+
+async def test_a_sighting_with_an_unreadable_clock_is_where_but_not_when(
+    db_session: AsyncSession,
+) -> None:
+    """An officer still needs to know the vehicle was seen at that camera;
+    the time is unknown, and no other time is offered in its place."""
+    await _make_camera(db_session)
+    await ingest_detection(
+        db_session,
+        DetectionIn.model_validate(
+            {
+                "event_id": "evt-field-lookup-untimed",
+                "camera_id": "field-cam-01",
+                "plate_text": "GJ01AB1234",
+                "plate_normalised": "GJ01AB1234",
+                "plate_ambiguity_key": "GJ01AB1234",
+                "plate_confidence": 0.9,
+                "pts_ms": 1000.0,
+                "observed_at": NOW,
+                "camera_time": None,
+                "node_id": "edge-local-01",
+            }
+        ),
+    )
+
+    result = await lookup_plate(db_session, "GJ01AB1234")
+
+    assert result.last_seen_at is None
     assert result.last_seen_camera_name == "Field Test Camera"
 
 

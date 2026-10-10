@@ -40,14 +40,25 @@ def _ist(moment: datetime) -> str:
     return moment.astimezone(IST).strftime(_HUMAN_TIME)
 
 
+# Every sighting time in this report is the clock the camera burned into the
+# evidence frame. A sighting whose clock could not be read says so, and is
+# given no other time in its place.
+TIME_UNKNOWN = "time unknown - camera clock unreadable"
+
+
+def _camera_ist(point: RoutePoint) -> str:
+    return _ist(point.camera_time) if point.camera_time else TIME_UNKNOWN
+
+
 _CSV_HEADER = [
     "hop",
     "camera_id",
     "camera_name",
     "latitude",
     "longitude",
-    "observed_at_utc",
-    "observed_at_ist",
+    "camera_clock",
+    "camera_time_utc",
+    "camera_time_ist",
     "plate_text",
     "plate_confidence",
     "match_rung",
@@ -62,16 +73,19 @@ def _render_csv(route: VehicleRoute) -> bytes:
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(_CSV_HEADER)
-    for i, point in enumerate(route.points, start=1):
+    rows = [(str(i), p) for i, p in enumerate(route.points, start=1)]
+    rows += [(f"U{i}", p) for i, p in enumerate(route.untimed, start=1)]
+    for hop, point in rows:
         writer.writerow(
             [
-                i,
+                hop,
                 point.camera_id,
                 point.camera_name,
                 point.location.lat if point.location else "",
                 point.location.lon if point.location else "",
-                point.observed_at.isoformat(),
-                point.observed_at.astimezone(IST).isoformat(),
+                "read" if point.camera_time else "unreadable",
+                point.camera_time.isoformat() if point.camera_time else "",
+                point.camera_time.astimezone(IST).isoformat() if point.camera_time else "",
                 point.plate_text,
                 f"{point.plate_confidence:.3f}",
                 point.match_rung,
@@ -186,9 +200,12 @@ def _draw_route_sketch(
 
 
 def _render_evidence(pdf: FPDF, route: VehicleRoute, snapshots: Mapping[str, Path]) -> None:
-    """A face-blurred snapshot per hop, captioned — the frame behind each
-    line of the table, so the report stands on its own without the console."""
-    hops = [(i, p) for i, p in enumerate(route.points, start=1) if p.event_id in snapshots]
+    """A face-blurred snapshot per sighting, captioned — the frame behind each
+    line of the tables, so the report stands on its own without the console.
+    The time in each caption is the clock visible in that frame."""
+    hops = [(str(i), p) for i, p in enumerate(route.points, start=1)]
+    hops += [(f"U{i}", p) for i, p in enumerate(route.untimed, start=1)]
+    hops = [(label, p) for label, p in hops if p.event_id in snapshots]
     if not hops:
         return
     pdf.add_page()
@@ -214,7 +231,8 @@ def _render_evidence(pdf: FPDF, route: VehicleRoute, snapshots: Mapping[str, Pat
         pdf.cell(width, 4, f"#{index}  {point.plate_text}  ({point.plate_confidence * 100:.0f}%)")
         pdf.set_xy(cell_x, row_y + 53)
         pdf.set_font("Helvetica", "", 7.5)
-        pdf.cell(width, 4, f"{point.camera_name[:36]}  |  {_ist(point.observed_at)} IST")
+        when = f"{_ist(point.camera_time)} IST" if point.camera_time else TIME_UNKNOWN
+        pdf.cell(width, 4, f"{point.camera_name[:30]}  |  {when}")
         if column == per_row - 1 or slot == len(hops) - 1:
             pdf.set_y(row_y + 60)
 
@@ -235,7 +253,8 @@ def _render_pdf(
         0,
         6,
         f"Generated {_ist(generated_at)} IST ({generated_at.strftime(_HUMAN_TIME)} UTC)"
-        "  |  all times below are IST (UTC+05:30); report.csv carries both",
+        "  |  sighting times are each camera's own burned-in clock, in IST (UTC+05:30); "
+        "report.csv carries UTC too",
         new_x="LMARGIN",
         new_y="NEXT",
     )
@@ -260,7 +279,7 @@ def _render_pdf(
     )
     pdf.ln(6)
 
-    if not route.points:
+    if not route.points and not route.untimed:
         pdf.set_font("Helvetica", "I", 10)
         pdf.cell(0, 6, "No sightings in the reconstructed window.", new_x="LMARGIN", new_y="NEXT")
         return bytes(pdf.output())
@@ -273,8 +292,8 @@ def _render_pdf(
     pdf.cell(
         0,
         5,
-        "Route drawn to scale from camera coordinates (no basemap). Solid: confirmed reads; "
-        "dashed: probable (OCR-ambiguity or one-character match) - confirm against the evidence.",
+        "Route drawn to scale from camera coordinates (no basemap), sightings with a readable "
+        "camera clock only. Solid: confirmed reads; dashed: probable - confirm on the evidence.",
         new_x="LMARGIN",
         new_y="NEXT",
     )
@@ -285,7 +304,7 @@ def _render_pdf(
         "#",
         "Camera",
         "Location",
-        "Observed at (IST)",
+        "Camera clock (IST)",
         "Plate read",
         "Conf.",
         "Match",
@@ -306,7 +325,7 @@ def _render_pdf(
             str(i),
             point.camera_name[:32],
             location,
-            _ist(point.observed_at),
+            _camera_ist(point),
             point.plate_text,
             f"{point.plate_confidence * 100:.0f}%",
             point.match_rung,
@@ -317,9 +336,58 @@ def _render_pdf(
             pdf.cell(width, 7, value, border=1)
         pdf.ln()
 
+    if route.untimed:
+        _render_untimed(pdf, route)
     if snapshots:
         _render_evidence(pdf, route, snapshots)
     return bytes(pdf.output())
+
+
+def _render_untimed(pdf: FPDF, route: VehicleRoute) -> None:
+    """Sightings whose camera clock could not be read: real, and listed, but
+    not on the route — no other time may stand in for the camera's."""
+    pdf.ln(5)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(
+        0,
+        7,
+        f"Also seen - camera clock unreadable, time unknown ({len(route.untimed)})",
+        new_x="LMARGIN",
+        new_y="NEXT",
+    )
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.set_text_color(90, 90, 90)
+    pdf.cell(
+        0,
+        5,
+        "The camera's burned-in clock could not be read on these frames, so they are not "
+        "placed on the route. Confirm each against its evidence frame.",
+        new_x="LMARGIN",
+        new_y="NEXT",
+    )
+    pdf.set_text_color(0, 0, 0)
+    headers = ["#", "Camera", "Location", "Camera clock", "Plate read", "Conf.", "Match"]
+    widths = [10, 55, 45, 76, 35, 18, 28]
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_fill_color(230, 230, 230)
+    for header, width in zip(headers, widths, strict=True):
+        pdf.cell(width, 8, header, border=1, fill=True)
+    pdf.ln()
+    pdf.set_font("Helvetica", "", 9)
+    for i, point in enumerate(route.untimed, start=1):
+        location = f"{point.location.lat:.4f}, {point.location.lon:.4f}" if point.location else "-"
+        row = [
+            f"U{i}",
+            point.camera_name[:32],
+            location,
+            TIME_UNKNOWN,
+            point.plate_text,
+            f"{point.plate_confidence * 100:.0f}%",
+            point.match_rung,
+        ]
+        for value, width in zip(row, widths, strict=True):
+            pdf.cell(width, 7, value, border=1)
+        pdf.ln()
 
 
 def build_movement_report_zip(
@@ -337,10 +405,12 @@ def build_movement_report_zip(
     pdf_bytes = _render_pdf(route, generated_at=generated_at, snapshots=snapshots)
     csv_bytes = _render_csv(route)
     evidence: dict[str, bytes] = {}
-    for index, point in enumerate(route.points, start=1):
+    named = [(f"hop-{i:02d}", p) for i, p in enumerate(route.points, start=1)]
+    named += [(f"untimed-{i:02d}", p) for i, p in enumerate(route.untimed, start=1)]
+    for label, point in named:
         path = snapshots.get(point.event_id)
         if path is not None:
-            evidence[f"evidence/hop-{index:02d}-{point.event_id}.jpg"] = path.read_bytes()
+            evidence[f"evidence/{label}-{point.event_id}.jpg"] = path.read_bytes()
 
     pdf_sha256 = hashlib.sha256(pdf_bytes).hexdigest()
     csv_sha256 = hashlib.sha256(csv_bytes).hexdigest()
@@ -354,6 +424,8 @@ def build_movement_report_zip(
         "generated_at": generated_at.isoformat(),
         "generated_by": generated_by,
         "point_count": route.total_sightings,
+        "untimed_count": len(route.untimed),
+        "time_basis": "each camera's own burned-in clock; untimed sightings: unreadable",
         "first_seen_at": route.first_seen_at.isoformat() if route.first_seen_at else None,
         "last_seen_at": route.last_seen_at.isoformat() if route.last_seen_at else None,
         "files": {

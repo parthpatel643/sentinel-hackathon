@@ -145,7 +145,15 @@ class Event(BaseModel):
     pts_ms: float = Field(description="Authoritative stream time for this event")
     stream_epoch: datetime = Field(description="Absolute time of the current leg's PTS origin")
     observed_at: datetime = Field(
-        description="stream_epoch + pts_ms. Never the arrival time of the frame."
+        description="stream_epoch + pts_ms. Never the arrival time of the frame. When we "
+        "processed the footage — internal ordering and partitioning only, never shown as "
+        "the time of a sighting."
+    )
+    camera_time: datetime | None = Field(
+        default=None,
+        description="The clock burned into the evidence frame by the camera, confirmed by "
+        "another reading of the same clock. The only time a sighting is reported with; "
+        "None means the camera's clock could not be read (time unknown).",
     )
     emitted_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

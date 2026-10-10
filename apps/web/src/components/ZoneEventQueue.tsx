@@ -72,7 +72,7 @@ export function ZoneEventQueue({ highlightId }: { highlightId?: string | null })
                   {event.object_class === 'person' && <span className="font-normal text-text-secondary"> · {t('zonePerson')}</span>}
                 </strong>
                 <small>
-                  {event.camera_id} · {formatIst(event.observed_at, i18n.language)}
+                  {event.camera_id} · {event.camera_time ? formatIst(event.camera_time, i18n.language) : tc('common.timeUnknownShort')}
                   {event.dwell_time_s != null && ` · ${t('zoneDwell', { seconds: Math.round(event.dwell_time_s) })}`}
                   {' · '}{tc(`investigation:status_${event.status ?? 'new'}`)}
                 </small>

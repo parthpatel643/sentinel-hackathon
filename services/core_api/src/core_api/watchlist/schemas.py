@@ -61,8 +61,18 @@ class AlertOut(BaseModel):
     priority_score: float
     status: str
     sighting_count: int
-    first_seen_at: datetime
-    last_seen_at: datetime
+    first_seen_at: datetime = Field(
+        description="Processing time of the earliest sighting. Ordering only; never display it."
+    )
+    last_seen_at: datetime = Field(
+        description="Processing time of the latest sighting. Ordering only; never display it."
+    )
+    first_seen_camera_time: datetime | None = Field(
+        description="The camera's clock on the earliest sighting; null is time unknown"
+    )
+    last_seen_camera_time: datetime | None = Field(
+        description="The camera's clock on the latest sighting; null is time unknown"
+    )
     resolved_by: str | None
     resolution_note: str | None
     created_at: datetime

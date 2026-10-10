@@ -10,7 +10,7 @@ import { useAuth } from '../lib/AuthContext'
 import { hasCurrentFrameRate } from '../lib/cameraStatusColor'
 import { VideoOff } from 'lucide-react'
 import '../routes/monitoring-workspace.css'
-import { formatIst, formatIstTime } from '../lib/time'
+import { formatIst } from '../lib/time'
 
 const PRESET_REGIONS: { key: string; polygon: number[][] }[] = [
   { key: 'fullFrame', polygon: [[0, 0], [1, 0], [1, 1], [0, 1]] },
@@ -149,7 +149,7 @@ function ZoneRulesSection({ camera }: { camera: Camera }) {
           <ul className="flex flex-col gap-1 text-xs text-text-secondary">
             {events.slice(0, 5).map((e) => (
               <li key={e.id}>
-                {formatIstTime(e.observed_at, undefined, { second: '2-digit' })} — {e.zone_name ?? e.zone_id} (
+                {e.camera_time ? formatIst(e.camera_time, undefined, { second: '2-digit' }) : t('common.timeUnknownShort')} — {e.zone_name ?? e.zone_id} (
                 {e.rule_type}
                 {e.dwell_time_s != null ? `, ${e.dwell_time_s.toFixed(0)}s` : ''})
               </li>

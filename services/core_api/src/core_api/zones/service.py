@@ -58,6 +58,7 @@ async def record_zone_event(session: AsyncSession, payload: ZoneEventIn) -> Zone
         dwell_time_s=payload.dwell_time_s,
         heading_deg=payload.heading_deg,
         observed_at=payload.observed_at,
+        camera_time=payload.camera_time,
     )
     session.add(event)
     await session.flush()

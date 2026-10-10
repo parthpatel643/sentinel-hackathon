@@ -74,7 +74,9 @@ function AlertCard({ alert, camera, myPosition }: { alert: Alert; camera: Camera
           <p className="plate-mono break-all text-xl font-semibold text-text-primary">{alert.plate_text}</p>
           <p className="mt-1 break-words text-sm text-text-secondary">{camera?.name ?? alert.camera_id}</p>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-secondary">
-            <time dateTime={alert.last_seen_at}>{formatTime(alert.last_seen_at)}</time>
+            {alert.last_seen_camera_time
+              ? <time dateTime={alert.last_seen_camera_time}>{formatTime(alert.last_seen_camera_time)}</time>
+              : <span>{t('common.timeUnknown')}</span>}
             {distanceKm != null && (
               <span className="font-medium text-accent">{t('field.alerts.kmAway', { distance: distanceKm.toFixed(1) })}</span>
             )}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ArrowRight, Bell, Film, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { alertsApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
 import { TopBar } from '../components/layout/TopBar'
@@ -28,6 +29,11 @@ const FILTERS: { key: string; status?: AlertStatus }[] = [
 
 function formatTime(iso: string, language: string): string {
   return formatIst(iso, language)
+}
+
+/** A sighting's time is the camera's burned-in clock; nothing stands in for it. */
+function cameraTime(iso: string | null, language: string, t: TFunction): string {
+  return iso ? formatTime(iso, language) : t('common.timeUnknown')
 }
 
 function severityForAlert(alert: Alert): Severity {
@@ -167,8 +173,8 @@ function AlertDetail({
       <dl className="iw-facts iw-alert-facts">
         <div><dt>{t('investigation:camera')}</dt><dd>{alert.camera_id}</dd></div>
         <div><dt>{t('investigation:confidence')}</dt><dd>{Math.round(alert.match_confidence * 100)}%</dd></div>
-        <div><dt>{t('investigation:firstSeen')}</dt><dd>{formatTime(alert.first_seen_at, i18n.language)}</dd></div>
-        <div><dt>{t('investigation:lastSeen')}</dt><dd>{formatTime(alert.last_seen_at, i18n.language)}</dd></div>
+        <div><dt>{t('investigation:firstSeen')}</dt><dd>{cameraTime(alert.first_seen_camera_time, i18n.language, t)}</dd></div>
+        <div><dt>{t('investigation:lastSeen')}</dt><dd>{cameraTime(alert.last_seen_camera_time, i18n.language, t)}</dd></div>
         <div><dt>{t('investigation:watchlistReference')}</dt><dd>{alert.watchlist_entry_id}</dd></div>
         {alert.resolution_note && <div><dt>{t('investigation:resolutionNote')}</dt><dd>{alert.resolution_note}</dd></div>}
       </dl>
@@ -270,7 +276,9 @@ export function Alerts() {
             {alerts && !error && !filteredAlerts.length && <div className="iw-queue-empty"><ShieldCheck size={28} /><h3>{t(loadedAlerts?.length ? 'investigation:noFilterMatches' : 'alerts.noAlerts')}</h3><p>{t(loadedAlerts?.length ? 'investigation:adjustFilters' : 'workspace.queueDescription')}</p>{(query || severity !== 'all') && <Button variant="secondary" onClick={() => { setQuery(''); setSeverity('all') }}>{t('investigation:clearFilters')}</Button>}</div>}
             <ol className="iw-queue-list">
               {filteredAlerts.map((alert) => <li key={alert.id}><button className={`iw-queue-row ${selected?.id === alert.id ? 'is-selected' : ''}`} aria-pressed={selected?.id === alert.id} onClick={() => selectAlert(alert.id)}>
-                <span className="iw-queue-row-top"><SeverityBadge severity={severityForAlert(alert)} /><time dateTime={alert.last_seen_at}>{formatTime(alert.last_seen_at, i18n.language)}</time></span>
+                <span className="iw-queue-row-top"><SeverityBadge severity={severityForAlert(alert)} />{alert.last_seen_camera_time
+                  ? <time dateTime={alert.last_seen_camera_time}>{formatTime(alert.last_seen_camera_time, i18n.language)}</time>
+                  : <span title={t('common.timeUnknown')}>{t('common.timeUnknownShort')}</span>}</span>
                 <span className="iw-queue-plate plate-mono">{alert.plate_text}<ArrowRight size={16} /></span>
                 <span className="iw-queue-camera">{alert.camera_id} · {t('alerts.sighting', { count: alert.sighting_count })}</span>
                 <span className="iw-queue-status">{t(`investigation:status_${alert.status}`)} · {t(alert.match_rung === 'exact' ? 'alerts.exactMatch' : 'findVehicle.probableMatch')}</span>

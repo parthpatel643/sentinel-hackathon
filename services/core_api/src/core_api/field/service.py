@@ -61,7 +61,10 @@ async def lookup_plate(session: AsyncSession, plate_query: str) -> PlateLookupRe
         session, plate_normalised=plate_normalised, plate_ambiguity_key=ambiguity_key(plate_query)
     )
     route = await get_vehicle_route(session, plate_query)
-    last_point = route.points[-1] if route.points else None
+    # The latest sighting on the camera's clock; failing any, the most recent
+    # untimed one — its camera is still news to an officer, its time unknown.
+    sightings = route.points or route.untimed
+    last_point = sightings[-1] if sightings else None
 
     # "clear" only if nothing matches at all; otherwise the single highest-
     # priority entry's type drives the full-screen verdict colour/icon.
@@ -83,7 +86,7 @@ async def lookup_plate(session: AsyncSession, plate_query: str) -> PlateLookupRe
             }
             for entry, rung in matches
         ],
-        last_seen_at=last_point.observed_at if last_point else None,
+        last_seen_at=last_point.camera_time if last_point else None,
         last_seen_camera_name=last_point.camera_name if last_point else None,
     )
 

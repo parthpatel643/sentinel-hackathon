@@ -65,6 +65,8 @@
     "add": "जोड़ें",
     "unknown": "—",
     "notAvailable": "उपलब्ध नहीं",
+    "timeUnknown": "समय अज्ञात — कैमरा घड़ी पढ़ी नहीं जा सकी",
+    "timeUnknownShort": "समय अज्ञात",
     "active": "सक्रिय",
     "deactivated": "निष्क्रिय",
     "noExpiry": "कोई समाप्ति नहीं",
@@ -525,6 +527,7 @@
       },
       "lastSeen": "{{date}} को अंतिम बार देखा गया",
       "lastSeenAt": "{{date}} को {{camera}} पर अंतिम बार देखा गया",
+      "lastSeenAtTimeUnknown": "अंतिम बार {{camera}} पर देखा गया — समय अज्ञात, कैमरा घड़ी पढ़ी नहीं जा सकी",
       "noSightings": "रिकॉर्ड में देखे जाने की कोई घटना नहीं है।",
       "lookupAnother": "एक और नंबर प्लेट जाँचें"
     },

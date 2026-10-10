@@ -65,6 +65,8 @@
     "add": "Add",
     "unknown": "—",
     "notAvailable": "Not available",
+    "timeUnknown": "Time unknown — camera clock unreadable",
+    "timeUnknownShort": "Time unknown",
     "active": "Active",
     "deactivated": "Deactivated",
     "noExpiry": "No expiry",
@@ -479,6 +481,7 @@
       },
       "lastSeen": "Last seen {{date}}",
       "lastSeenAt": "Last seen {{date}} at {{camera}}",
+      "lastSeenAtTimeUnknown": "Last seen at {{camera}} — time unknown, camera clock unreadable",
       "noSightings": "No sightings on file.",
       "lookupAnother": "Look up another plate"
     },

@@ -6,15 +6,17 @@ const vehicleRoute: VehicleRoute = {
   plate_normalised: 'GJ01AB1234', total_sightings: 2,
   first_seen_at: '2026-09-23T09:00:00Z', last_seen_at: '2026-09-23T09:10:00Z',
   points: [
-    { camera_id: 'river', camera_name: 'Riverfront', location: { lat: 23.02, lon: 72.57 }, observed_at: '2026-09-23T09:00:00Z', plate_text: 'GJ01AB1234', plate_confidence: .96, match_rung: 'exact', snapshot_uri: null, confirmed: true },
-    { camera_id: 'gate', camera_name: 'East Gate', location: null, observed_at: '2026-09-23T09:10:00Z', plate_text: 'GJ01A81234', plate_confidence: .74, match_rung: 'ambiguity_class', snapshot_uri: null, confirmed: false },
+    { camera_id: 'river', camera_name: 'Riverfront', location: { lat: 23.02, lon: 72.57 }, camera_time: '2026-09-23T09:00:00Z', plate_text: 'GJ01AB1234', plate_confidence: .96, match_rung: 'exact', snapshot_uri: null, confirmed: true },
+    { camera_id: 'gate', camera_name: 'East Gate', location: null, camera_time: '2026-09-23T09:10:00Z', plate_text: 'GJ01A81234', plate_confidence: .74, match_rung: 'ambiguity_class', snapshot_uri: null, confirmed: false },
   ],
+  untimed: [],
 }
 const alertFixture = (id: string, plate: string, priority: number): Alert => ({
   id, plate_text: plate, camera_id: `camera-${id}`,
   watchlist_entry_id: 'watch-1', detection_event_id: 'detection-1', match_rung: 'exact', match_confidence: .96,
   priority_score: priority, status: 'new', sighting_count: 2,
   first_seen_at: '2026-09-23T09:00:00Z', last_seen_at: '2026-09-23T09:10:00Z',
+  first_seen_camera_time: '2026-06-13T15:30:00Z', last_seen_camera_time: null,
   resolved_by: null, resolution_note: null, created_at: '2026-09-23T09:00:00Z',
 })
 
@@ -205,4 +207,25 @@ test('localized workspaces retain content and fit both themes on a phone', async
       }
     }
   }
+})
+
+test('a sighting whose camera clock was unreadable is listed off the timeline as time unknown', async ({ page }) => {
+  await page.route('**/api/v1/vehicles/GJ01AB1234/route', (route) => route.fulfill({ json: {
+    ...vehicleRoute, total_sightings: 3,
+    untimed: [{ camera_id: 'janpath', camera_name: 'Janpath', location: null, camera_time: null, plate_text: 'GJ01AB1234', plate_confidence: .9, match_rung: 'exact', snapshot_uri: null, confirmed: true }],
+  } }))
+  await page.goto('/find-a-vehicle?plate=GJ01AB1234')
+  const untimed = page.getByRole('region', { name: 'Seen here — camera clock unreadable' })
+  await expect(untimed).toBeVisible()
+  await untimed.getByRole('button', { name: /Janpath/ }).click()
+  const evidence = page.getByRole('region', { name: 'Sighting evidence' })
+  await expect(evidence.getByRole('heading', { name: 'Janpath' })).toBeVisible()
+  await expect(evidence).toContainText('Time unknown — camera clock unreadable')
+})
+
+test('alert times are the camera clock, or unknown', async ({ page }) => {
+  await page.route('**/api/v1/alerts**', (route) => route.fulfill({ json: [alertFixture('a1', 'GJ01AB1234', .9)] }))
+  await page.goto('/alerts')
+  await expect(page.getByText('Time unknown — camera clock unreadable')).toBeVisible()
+  await expect(page.getByText(/Jun 13|13 Jun/)).toBeVisible()
 })

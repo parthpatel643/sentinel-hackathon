@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 import numpy as np
 
+from edge_agent.analytics.frame_clock import FrameClockReader
 from edge_agent.analytics.pipeline import AnprPipeline
 from edge_agent.analytics.plate_reader import PlateCandidate
 from edge_agent.analytics.vehicle_detector import VehicleDetection
@@ -407,3 +408,144 @@ def test_people_are_tracked_apart_from_vehicles_and_never_read() -> None:
     assert len(pipeline.last_tracked_vehicles) == 1
     assert [p.detection.vehicle_class for p in pipeline.last_tracked_people] == ["person"]
     assert reader._index == 1  # the plate reader saw the car only
+
+
+# --- The camera's clock: the only time a sighting is reported with ----------
+
+
+def _clock_reader(overlays: dict[int, str]) -> FrameClockReader:
+    """A clock reader whose OCR sees `overlays[marker]` on a frame whose
+    top-left pixel is `marker` — each test frame shows its own clock."""
+    clock = FrameClockReader()
+    clock._ocr = lambda image: overlays.get(int(image[0, 0, 0]))  # type: ignore[method-assign, assignment]
+    return clock
+
+
+def _marked_frame(pts_ms: float, marker: int, **kwargs: bool) -> Frame[np.ndarray]:
+    frame = _frame(pts_ms, **kwargs)
+    frame.image[0, 0, 0] = marker
+    return frame
+
+
+class _RecordingSnapshotWriter:
+    def __init__(self) -> None:
+        self.images: list[np.ndarray] = []
+
+    def write(self, event_id: str, frame_image: np.ndarray) -> str:
+        self.images.append(frame_image)
+        return f"snapshot://{event_id}"
+
+
+def test_a_sighting_takes_its_time_and_snapshot_from_a_frame_whose_clock_was_read() -> None:
+    """The plate resolves on a frame whose overlay is unreadable. The newest
+    earlier frame of the same vehicle with a confirmed clock becomes the
+    evidence: its image, its box, and the time printed on it — so the time
+    reported is the time visible in the snapshot."""
+    clock = _clock_reader({1: "17-06-2026 18:04:42", 2: "17-06-2026 18:04:43"})
+    writer = _RecordingSnapshotWriter()
+    detector = FakeVehicleDetector([[_car(100.0)], [_car(110.0)], [_car(120.0)]])
+    reader = FakePlateReader([[], [], [_plate("GJ01AB1234")]])
+    pipeline = AnprPipeline(
+        detector, reader, node_id="n", model_versions={}, snapshot_writer=writer, frame_clock=clock
+    )
+
+    frames = [_marked_frame(1000.0, 1), _marked_frame(2000.0, 2), _marked_frame(3000.0, 3)]
+    events = pipeline.process_frame(frames[0])
+    events += pipeline.process_frame(frames[1])
+    box_on_second_frame = pipeline.last_tracked_vehicles[0].detection.bbox_xyxy
+    events += pipeline.process_frame(frames[2])
+
+    assert len(events) == 1
+    event = events[0]
+    assert event.camera_time == datetime(2026, 6, 17, 12, 34, 43, tzinfo=UTC)
+    assert writer.images[0] is frames[1].image
+    payload = event.payload
+    assert isinstance(payload, AnprPayload)
+    assert payload.bbox is not None
+    assert payload.bbox.x == int(box_on_second_frame[0])
+
+
+def test_with_no_readable_clock_the_time_is_unknown() -> None:
+    """Nothing stands in for the camera's clock: not the stream's PTS, not
+    when we processed the frame. The processing time stays on observed_at
+    for internal ordering only."""
+    pipeline = AnprPipeline(
+        FakeVehicleDetector([[_car()]]),
+        FakePlateReader([[_plate("GJ01AB1234")]]),
+        node_id="n",
+        model_versions={},
+        frame_clock=_clock_reader({}),
+    )
+    events = pipeline.process_frame(_marked_frame(1000.0, 1))
+    assert len(events) == 1
+    assert events[0].camera_time is None
+    assert events[0].observed_at == ANCHOR
+
+
+def test_an_unconfirmed_reading_is_not_a_time() -> None:
+    """One reading with nothing to agree with could be a misread digit."""
+    pipeline = AnprPipeline(
+        FakeVehicleDetector([[_car()]]),
+        FakePlateReader([[_plate("GJ01AB1234")]]),
+        node_id="n",
+        model_versions={},
+        frame_clock=_clock_reader({1: "17-06-2026 18:04:42"}),
+    )
+    events = pipeline.process_frame(_marked_frame(1000.0, 1))
+    assert events[0].camera_time is None
+
+
+def test_the_sightings_own_frame_is_read_when_no_earlier_frame_was() -> None:
+    """The once-a-second read happened on a frame without this vehicle; the
+    plate resolves later in the same second. Its own frame's clock is read
+    and confirmed by the earlier reading."""
+    clock = _clock_reader({1: "17-06-2026 18:04:42", 2: "17-06-2026 18:04:42"})
+    pipeline = AnprPipeline(
+        FakeVehicleDetector([[], [_car()]]),
+        FakePlateReader([[_plate("GJ01AB1234")]]),
+        node_id="n",
+        model_versions={},
+        frame_clock=clock,
+    )
+    pipeline.process_frame(_marked_frame(1000.0, 1))
+    events = pipeline.process_frame(_marked_frame(1500.0, 2))
+    assert events[0].camera_time == datetime(2026, 6, 17, 12, 34, 42, tzinfo=UTC)
+
+
+def test_a_stream_discontinuity_forgets_earlier_clock_readings() -> None:
+    """After a scene cut the PTS origin moves, so a reading before it cannot
+    confirm one after it."""
+    clock = _clock_reader({1: "17-06-2026 18:04:42", 2: "17-06-2026 18:04:43"})
+    pipeline = AnprPipeline(
+        FakeVehicleDetector([[], [_car()]]),
+        FakePlateReader([[_plate("GJ01AB1234")]]),
+        node_id="n",
+        model_versions={},
+        frame_clock=clock,
+    )
+    pipeline.process_frame(_marked_frame(1000.0, 1))
+    events = pipeline.process_frame(_marked_frame(2000.0, 2, discontinuity=True))
+    assert events[0].camera_time is None
+
+
+def test_camera_time_of_reads_a_frame_for_events_with_no_vehicle_evidence() -> None:
+    """Zone events have no snapshot; their time is the clock on the frame
+    that fired them, confirmed the same way."""
+    clock = _clock_reader({1: "17-06-2026 18:04:42", 2: "17-06-2026 18:04:43"})
+    pipeline = AnprPipeline(
+        FakeVehicleDetector([]),
+        FakePlateReader([]),
+        node_id="n",
+        model_versions={},
+        frame_clock=clock,
+    )
+    pipeline.process_frame(_marked_frame(1000.0, 1))
+    assert pipeline.camera_time_of(_marked_frame(2000.0, 2)) == datetime(
+        2026, 6, 17, 12, 34, 43, tzinfo=UTC
+    )
+    assert (
+        AnprPipeline(
+            FakeVehicleDetector([]), FakePlateReader([]), node_id="n", model_versions={}
+        ).camera_time_of(_marked_frame(2000.0, 2))
+        is None
+    )
