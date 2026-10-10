@@ -10,6 +10,7 @@
  * Usage:
  *   npm run screenshots           (from apps/web)
  *   SHOT_PLATE=GJ186705 npm run screenshots
+ *   SHOT_OUT_DIR=../../docs/images/pitch npm run screenshots   (elsewhere than docs/images)
  *
  * Requires a running stack (core_api, the web app, and ideally a worker so
  * the screens have real data in them).
@@ -21,7 +22,9 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const OUT_DIR = resolve(HERE, '..', '..', '..', 'docs', 'images')
+const OUT_DIR = process.env.SHOT_OUT_DIR
+  ? resolve(process.env.SHOT_OUT_DIR)
+  : resolve(HERE, '..', '..', '..', 'docs', 'images')
 
 const WEB_URL = process.env.SHOT_WEB_URL ?? 'http://localhost:5173'
 const API_URL = process.env.SHOT_API_URL ?? 'http://localhost:18000'

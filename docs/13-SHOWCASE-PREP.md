@@ -91,6 +91,8 @@ Ordered by how badly each could hurt in front of the jury.
 
 ## 4. The 20 minutes
 
+Slides: [Sentinel-Finale-Pitch.pptx](./Sentinel-Finale-Pitch.pptx) — 17 slides, speaker notes carry the script below. Rebuild with `make pitch`; slide numbers below refer to it.
+
 Three roles, fixed in rehearsal:
 
 - **Narrator** — faces the jury, tells the story, never touches the laptop.
@@ -99,15 +101,15 @@ Three roles, fixed in rehearsal:
 
 | Time | Segment | On screen | Rubric area |
 |---|---|---|---|
-| 0:00–1:00 | **Hook** | Deck slide 1 | Presentation |
+| 0:00–1:00 | **Hook** | Slides 1–2 | Presentation |
 | 1:00–2:30 | **Model choice and the rejected option** | Slides 3–4: hybrid M1+M2+M3, selective M4; 160 Gbps vs 140 Mbps | Presentation, Architecture |
-| 2:30–5:00 | **Today's cameras, onboarded and live** | Cameras map → Health → Live Wall | Test case: onboard, integrate, GIS |
-| 5:00–10:00 | **The designated vehicle** (live) | Search → route → replay → hop evidence → BOLO → alert → Movement Report | Test case: track, alerts, route |
-| 10:00–11:30 | **When the plate is not readable** | Probable hops, ambiguity search, feasibility flag | Bonus: multi-camera correlation |
-| 11:30–12:30 | **Beyond ANPR; trust and privacy** | Zones/people/tamper; blurred snapshot + reveal-with-reason; Audit → Verify chain | Analytics, bonus: security |
-| 12:30–16:30 | **Scaling to 80,000** | Architecture slide, then the tiering table | Scalability & PoC readiness |
-| 16:30–18:30 | **Cost and impact** | Cost slide | Scalability, Presentation |
-| 18:30–19:30 | **Rollout and the ask** | Phased rollout slide | PoC readiness |
+| 2:30–5:00 | **Today's cameras, onboarded and live** | Slides 5–6, then live: Cameras map → Health → Live Wall | Test case: onboard, integrate, GIS |
+| 5:00–10:00 | **The designated vehicle** (live) | Slides 7–8, then live: search → route → replay → hop evidence → BOLO → alert → Movement Report | Test case: track, alerts, route |
+| 10:00–11:30 | **When the plate is not readable** | Slide 9; live: probable hops, ambiguity search, feasibility flag | Bonus: multi-camera correlation |
+| 11:30–12:30 | **Beyond ANPR; trust and privacy** | Slides 10–11; live: blurred snapshot + reveal-with-reason; Audit → Verify chain | Analytics, bonus: security |
+| 12:30–16:30 | **Scaling to 80,000** | Slides 12–13 | Scalability & PoC readiness |
+| 16:30–18:30 | **Cost and impact** | Slides 14–15 | Scalability, Presentation |
+| 18:30–19:30 | **Rollout and the ask** | Slides 16–17 | PoC readiness |
 | 19:30–20:00 | Buffer | — | — |
 
 **If the jury gives the vehicle number at the start, do the drill first** and

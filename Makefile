@@ -6,7 +6,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 
 .DEFAULT_GOAL := help
-.PHONY: help install up down logs ps api web worker mirror-capture mirror mirror-start mirror-stop deck seed dr-drill uat prefetch test lint fmt types check audit secrets-scan sbom clean
+.PHONY: help install up down logs ps api web worker mirror-capture mirror mirror-start mirror-stop deck pitch seed dr-drill uat prefetch test lint fmt types check audit secrets-scan sbom clean
 
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -63,6 +63,9 @@ mirror-stop: ## Stop replaying the local copy
 
 deck: ## Build the submission deck (docs/Sentinel-Platform-Deck.pptx)
 	NODE_PATH=$$(npm root -g) node scripts/build_deck.mjs
+
+pitch: ## Build the on-site pitch deck (docs/Sentinel-Finale-Pitch.pptx)
+	NODE_PATH=$$(npm root -g) node scripts/build_pitch_deck.mjs
 
 hld: ## Build the HLD PDF from docs/ (docs/Sentinel-Platform-HLD.pdf)
 	cd apps/web && npm run docs:pdf
