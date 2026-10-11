@@ -613,31 +613,97 @@ async function tieringSlide() {
 async function whySlide() {
   const s = frame({
     eyebrow: 'Why Sentinel',
-    title: 'Designed for how Gujarat actually works',
-    notes: 'Six reasons this fits. Nothing is ripped out. Nothing locks the State to one vendor — open standards and documented APIs throughout. It keeps working when the network does not. It speaks the languages officers use. It is ready for the national and state databases. And it is secure by design: encrypted links, department-scoped access and a tamper-evident log.',
+    title: 'What sets Sentinel apart',
+    notes: 'This is the answer to “why you”. Three things, each with its proof. One: it is already proven on Gujarat’s own cameras — we connected the government grid from its live catalogue and measured plate reading on its footage, not on demo videos. Two: the evidence holds up — every time is the camera’s own, every stop has its frame, nothing is ever guessed, and the record cannot be quietly changed. Three: it fits what Gujarat already owns — any vendor, nothing replaced, analysis in each district so it keeps working when links drop. Then point at the strip: Gujarati, the State’s databases, open standards, and no face recognition.',
   })
-  const reasons = [
-    ['LuRecycle', 'No rip and replace', 'Uses the cameras, recorders and VMS already installed.'],
-    ['LuLockOpen', 'No vendor lock-in', 'Open standards, open-source components, documented APIs.'],
-    ['LuWifiOff', 'Works when links drop', 'Districts keep reading and alerting; nothing is lost.'],
-    ['LuLanguages', 'Speaks Gujarati', 'The whole console in English, Hindi and Gujarati.'],
-    ['LuPlugZap', 'Ready to integrate', 'VAHAN, SARTHI, eGujCop, AFIS and NAFIS connectors built.'],
-    ['LuShieldCheck', 'Secure by design', 'Encrypted links, scoped access, tamper-evident logging.'],
+  panel(s, M, 1.7, CW, 0.95, TINT, 'C9D7F7')
+  text(s, 'Sentinel traces a vehicle across every department’s cameras — on the systems Gujarat already owns, with evidence that holds up.', {
+    x: M + 0.35, y: 1.8, w: CW - 0.7, h: 0.75, fontFace: H, fontSize: 18, bold: true, color: BLUE, valign: 'middle',
+  })
+  const pillars = [
+    ['LuMapPinned', SAFFRON, 'Proven on Gujarat’s own cameras',
+      'Not a lab demonstration: built and tested on the government’s own camera grid.',
+      'All 30 grid cameras onboarded from the live catalogue; plate reading measured on 81 hand-checked plates from that footage.'],
+    ['LuGavel', BLUE, 'Evidence that holds up',
+      'Every sighting carries the camera’s own time, its frame, and a record no one can quietly change.',
+      'Times read off the frame — “time unknown” when unreadable, never a guess; impossible journeys flagged; reports digitally sealed.'],
+    ['LuPuzzle', BLUE, 'Fits what Gujarat already owns',
+      'Any vendor’s cameras and VMS, nothing replaced, analysis in each district.',
+      'RTSP, ONVIF, Hikvision and Dahua; about 1,000× less network than centralising; keeps alerting offline for 72 hours.'],
   ]
-  const cw = 3.55
-  for (const [i, [ic, title, body]] of reasons.entries()) {
-    const x = M + (i % 2) * (cw + 0.3)
-    const y = 1.9 + Math.floor(i / 2) * 1.6
-    card(s, x, y, cw, 1.38)
-    await badge(s, ic, x + 0.25, y + 0.27, 0.54, i === 3 ? SAFFRON : BLUE)
-    text(s, title, { x: x + 0.95, y: y + 0.24, w: cw - 1.15, h: 0.36, fontFace: H, fontSize: 14, bold: true })
-    text(s, body, { x: x + 0.95, y: y + 0.6, w: cw - 1.15, h: 0.7, fontSize: 12, color: MUTED })
+  const cw = (CW - 2 * 0.3) / 3
+  for (const [i, [ic, color, title, claim, proof]] of pillars.entries()) {
+    const x = M + i * (cw + 0.3)
+    const y = 2.95
+    card(s, x, y, cw, 3.35)
+    await badge(s, ic, x + 0.3, y + 0.3, 0.66, color)
+    text(s, title, { x: x + 1.1, y: y + 0.32, w: cw - 1.35, h: 0.66, fontFace: H, fontSize: 17, bold: true, valign: 'middle' })
+    text(s, claim, { x: x + 0.3, y: y + 1.15, w: cw - 0.6, h: 0.8, fontSize: 14 })
+    s.addShape(pres.shapes.LINE, { x: x + 0.3, y: y + 2.02, w: cw - 0.6, h: 0, line: { color: LINE, width: 0.75 } })
+    await badge(s, 'LuBadgeCheck', x + 0.3, y + 2.17, 0.3, TEAL)
+    text(s, 'Proof', { x: x + 0.7, y: y + 2.17, w: 1.5, h: 0.3, fontFace: H, fontSize: 11, bold: true, color: TEAL, valign: 'middle' })
+    text(s, proof, { x: x + 0.3, y: y + 2.52, w: cw - 0.6, h: 0.78, fontSize: 12, color: MUTED })
   }
-  const gu = await crop('overview-gujarati', { x: 64, y: 44, w: 860, h: 940 })
-  const gx = M + 2 * (cw + 0.3) + 0.15
-  const gw = W - M - gx
-  const gh = screenshot(s, gu, gx, 1.95, gw)
-  text(s, 'The same console, in Gujarati', { x: gx, y: 1.95 + gh + 0.18, w: gw, h: 0.3, fontSize: 11, italic: true, color: MUTED })
+  const extras = [
+    ['LuLanguages', 'English, Hindi and Gujarati'],
+    ['LuPlugZap', 'VAHAN, eGujCop and more: ready'],
+    ['LuLockOpen', 'Open standards, no lock-in'],
+    ['LuEyeOff', 'No face recognition'],
+  ]
+  const ew = CW / 4
+  for (const [i, [ic, label]] of extras.entries()) {
+    const x = M + i * ew
+    await badge(s, ic, x, 6.55, 0.4, TEAL)
+    text(s, label, { x: x + 0.52, y: 6.55, w: ew - 0.6, h: 0.4, fontSize: 12, bold: true, valign: 'middle' })
+  }
+}
+
+async function compareSlide() {
+  const s = frame({
+    eyebrow: 'Choosing an approach',
+    title: 'How Sentinel compares',
+    notes: 'There are really two other ways to do this. Leave every department on its own system — nothing changes, and nothing connects. Or pull every camera into one central system — it connects everything, but it re-routes all the video, needs a backbone the State does not have, and stops when a link drops. Sentinel gets the reach of the second without disturbing anything in the first. We compare approaches here, not named products.',
+  })
+  const cols = ['Separate department systems', 'Centralise every camera', 'Sentinel']
+  const rows = [
+    ['Trace a vehicle across all departments', ['no', 'Phone calls and manual review'], ['yes', 'Yes'], ['yes', 'One search, seconds']],
+    ['Watchlist alerts statewide', ['no', 'Each system on its own'], ['yes', 'Yes'], ['yes', 'Every read, automatically']],
+    ['Departments’ systems left untouched', ['part', 'Untouched, but isolated'], ['no', 'All video re-routed centrally'], ['yes', 'Read-only access']],
+    ['Network the State must provide', ['part', 'Little — nothing is shared'], ['no', '≈160 Gbps, sustained'], ['yes', '≈140 Mbps']],
+    ['When a district’s link drops', ['part', 'Works locally, still isolated'], ['no', 'Analysis stops'], ['yes', 'Keeps reading and alerting']],
+  ]
+  const labelW = 3.35
+  const colW = (CW - labelW) / 3
+  const top = 1.85
+  const headH = 0.6
+  const rowH = 0.8
+  // The Sentinel column, lifted.
+  panel(s, M + labelW + 2 * colW + 0.05, top - 0.08, colW - 0.1, headH + rows.length * rowH + 0.16, TINT, 'C9D7F7')
+  for (const [j, c] of cols.entries()) {
+    const sentinel = j === 2
+    text(s, c, {
+      x: M + labelW + j * colW + 0.25, y: top, w: colW - 0.5, h: headH, fontFace: H, fontSize: sentinel ? 18 : 14,
+      bold: true, color: sentinel ? BLUE : MUTED, valign: 'middle',
+    })
+  }
+  const mark = { yes: ['LuCircleCheck', TEAL], part: ['LuCircleMinus', SAFFRON], no: ['LuCircleX', RED] }
+  for (const [i, [label, ...cells]] of rows.entries()) {
+    const y = top + headH + i * rowH
+    s.addShape(pres.shapes.LINE, { x: M, y, w: CW, h: 0, line: { color: LINE, width: 0.75 } })
+    text(s, label, { x: M, y: y + 0.12, w: labelW - 0.2, h: rowH - 0.24, fontFace: H, fontSize: 14, bold: true, valign: 'middle' })
+    for (const [j, [kind, value]] of cells.entries()) {
+      const x = M + labelW + j * colW + 0.25
+      const [ic, color] = mark[kind]
+      s.addImage({ data: await icon(ic, color), x, y: y + 0.24, w: 0.32, h: 0.32 })
+      text(s, value, {
+        x: x + 0.45, y: y + 0.1, w: colW - 0.95, h: rowH - 0.2, fontSize: 13, valign: 'middle',
+        bold: j === 2, color: j === 2 ? INK : MUTED,
+      })
+    }
+  }
+  text(s, 'Approaches compared, not named products. Network figures are for ~80,000 cameras, from our scale plan.', {
+    x: M, y: 6.75, w: CW, h: 0.3, fontSize: 11, italic: true, color: MUTED,
+  })
 }
 
 async function proofSlide() {
@@ -741,6 +807,7 @@ async function main() {
   await architectureSlide()
   await tieringSlide()
   await whySlide()
+  await compareSlide()
   await proofSlide()
   await rolloutSlide()
   await askSlide()

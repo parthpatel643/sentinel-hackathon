@@ -91,7 +91,7 @@ Ordered by how badly each could hurt in front of the jury.
 
 ## 4. The 20 minutes
 
-Slides: [Sentinel-Finale-Pitch.pptx](./Sentinel-Finale-Pitch.pptx) — 18 slides, light theme, pitched as a
+Slides: [Sentinel-Finale-Pitch.pptx](./Sentinel-Finale-Pitch.pptx) — 19 slides, light theme, pitched as a
 business case for a mixed room (leadership and technical jury). Speaker notes carry the talk track. It
 carries **no cost figures** by decision; if asked about cost, answer from §9. Rebuild with `make pitch`
 (screenshots: `npm run screenshots:pitch` in `apps/web`); slide numbers below refer to it.
@@ -111,8 +111,8 @@ Three roles, fixed in rehearsal:
 | 10:00–11:30 | **Alerts, and plates that are hard to read** | Slide 9; live: probable hops, ambiguity search, feasibility flag | Bonus: multi-camera correlation |
 | 11:30–12:30 | **Trust, privacy, beyond plates** | Slides 10–11; live: blurred snapshot + reveal-with-reason; Audit → Verify chain | Analytics, bonus: security |
 | 12:30–16:30 | **Scaling to 80,000** | Slides 12–14: send meaning not video; five layers; tiering | Scalability & PoC readiness |
-| 16:30–18:30 | **Why Sentinel, and the proof** | Slides 15–16 | Presentation, PoC readiness |
-| 18:30–19:30 | **Rollout and the ask** | Slides 17–18 | PoC readiness |
+| 16:30–18:30 | **Why Sentinel: USP, comparison, proof** | Slides 15–17: positioning line and three pillars; vs separate systems and full centralisation; measured results | Presentation, PoC readiness |
+| 18:30–19:30 | **Rollout and the ask** | Slides 18–19 | PoC readiness |
 | 19:30–20:00 | Buffer | — | — |
 
 **If the jury gives the vehicle number at the start, do the drill first** and
@@ -170,7 +170,7 @@ Say it in your own words after the first rehearsal; the shape is what matters.
 
 **12:30 — 80,000 cameras.** §8.
 
-**16:30 — Why Sentinel, and the proof.** Slides 15–16. Cost is not on the slides; if a juror asks, answer from §9.
+**16:30 — Why Sentinel.** Slides 15–17. Lead with the positioning line: *“Sentinel traces a vehicle across every department’s cameras — on the systems Gujarat already owns, with evidence that holds up.”* Then the three pillars, each with its proof: proven on Gujarat’s own cameras; evidence that holds up; fits what Gujarat already owns. The comparison slide contrasts approaches, never named products. Cost is not on the slides; if a juror asks, answer from §9.
 
 **18:30 — Rollout and the ask.**
 > "This is useful at 500 cameras and never needs a big-bang cutover: one

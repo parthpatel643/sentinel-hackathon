@@ -58,7 +58,7 @@ async function shoot(page, name) {
   console.log(`  ${name}.png`)
 }
 
-async function context(browser, token, { language = 'en', viewport = VIEWPORT, phone = false } = {}) {
+async function context(browser, token, { viewport = VIEWPORT, phone = false } = {}) {
   const ctx = await browser.newContext({
     viewport,
     deviceScaleFactor: 2,
@@ -66,12 +66,12 @@ async function context(browser, token, { language = 'en', viewport = VIEWPORT, p
     ...(phone ? { isMobile: true, hasTouch: true } : {}),
   })
   await ctx.addInitScript(
-    ([t, lang]) => {
+    ([t]) => {
       localStorage.setItem('sentinel.auth.token', t)
       localStorage.setItem('sentinel-theme', 'light')
-      localStorage.setItem('sentinel-language', lang)
+      localStorage.setItem('sentinel-language', 'en')
     },
-    [token, language],
+    [token],
   )
   return ctx
 }
@@ -89,8 +89,6 @@ async function main() {
   const ctx = await context(browser, token)
   const page = await ctx.newPage()
   console.log('capturing the light-theme pitch set…')
-  await visit(page, '/', 6000)
-  await shoot(page, 'overview')
   await visit(page, `/find-a-vehicle?plate=${encodeURIComponent(PLATE)}`, 8000)
   await shoot(page, 'find-a-vehicle')
   await visit(page, `/find-a-vehicle?plate=${encodeURIComponent(UNTIMED_PLATE)}`, 7000)
@@ -113,12 +111,6 @@ async function main() {
   await page.waitForTimeout(35000)
   await shoot(page, 'live-wall')
   await ctx.close()
-
-  const gu = await context(browser, token, { language: 'gu' })
-  const guPage = await gu.newPage()
-  await visit(guPage, '/', 6000)
-  await shoot(guPage, 'overview-gujarati')
-  await gu.close()
 
   const phone = await context(browser, token, { viewport: PHONE, phone: true })
   const phonePage = await phone.newPage()
