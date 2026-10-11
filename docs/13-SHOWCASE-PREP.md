@@ -37,27 +37,150 @@ end to end against the repository.
 
 ---
 
-## 1. What the site asks for on the day, and where we stand
+## 1. Their requirements, our answer
 
-Requirements are quoted from the problem page (Step 4 "Technical Evaluation /
-Test Case", Step 6 "Plan for Scale", Step 7 "Evaluation & Recognition").
+Every requirement on the [problem page](https://sentinel.gujarat.gov.in/problems)
+and the [FAQ](https://sentinel.gujarat.gov.in/faqs), mapped to the Sentinel
+feature that answers it, where the jury sees it, and how complete it is.
+Re-checked against the live site on 11 October 2026: unchanged since 8 October.
+The [phases page](https://sentinel.gujarat.gov.in/phases) adds the format: six
+finalists, real CCTV feeds at scale, judged by Gujarat Police leadership and a
+technical jury, plus a Special Jury Award for an outstanding aspect of any
+solution.
 
-| Asked for | What we show | Status | Risk on the day |
+Code and test evidence for each row is in
+[12 — Requirements traceability](./12-REQUIREMENTS-TRACEABILITY.md); this
+section is the on-stage view. **Slide** numbers refer to the 19-slide
+[pitch deck](./Sentinel-Finale-Pitch.pptx); **Demo 1–3** are the live steps in §4.
+
+**Status:** **Built** — working and demonstrable · **Partial** — built, with the
+stated limit · **Design** — documented and sized, not running · **Excluded** —
+left out by decision.
+
+### 1.1 The test case on the day (Step 4) — the part that must not fail
+
+Bonus points never compensate for a failed mandatory test case. This table is
+the one to rehearse.
+
+| They ask | Sentinel feature | Show it | Status | Risk on the day |
+|---|---|---|---|---|
+| Onboard ~50 cameras across departments, technologies, formats and VMS | CSV import with a dry run; ONVIF, Hikvision and Dahua device discovery; catalogue sync; registry with department, location and tier | Slide 7 · Demo 1: Cameras map | **Built** — all 30 sandbox cameras onboarded from the live catalogue; H.264 and H.265, 720p to 1440p | Unseen network, credentials and ports (runbook §4) |
+| Integrate the live feeds; centralised monitoring | Live wall (focus, 2×2, 3×3, 4×4) through the local relay, one upstream pull per camera; Health screen with fps and lag | Slide 7 · Demo 1: Live Wall, Health | **Built** | H.265 does not play in Chrome (use Safari or an H.264 profile); laptop CPU when preview and ANPR compete |
+| AI-powered video analytics | ANPR with multi-frame voting; vehicle class and colour; people counts; zone rules; tamper | Slides 9, 11 | **Built** — 78% exact plates after the vote | Plates too small on wide-angle cameras (§6.2) |
+| Identify and trace the designated vehicle from its registration number | Find a Vehicle: exact, look-alike and one-character-off matching; 24 h / 48 h / 7 d windows | Slide 8 · Demo 2 | **Built** | **The vehicle passes a camera we were not analysing** (§6.1–6.2) |
+| Complete route with timestamped, location-wise movement history | Map and timeline ordered by each camera's own clock; Movement Report (PDF, CSV, evidence frames, SHA-256 manifest) | Slide 8 · Demo 2: Export report | **Built** | A camera with no readable date-time overlay gives *time unknown* stops; one without coordinates is not mapped. Ask the organisers (runbook §1) |
+| Continuous cross-referencing with a watchlist; automated real-time alerts | Every confirmed read matched against the watchlist; alert banner and sound on every console within a second; field app | Slide 9 · Demo 3 | **Built** | "Real-time" wording: a read is confirmed after several frames agree (§2 item 1) |
+| Representative watchlist database | Stolen, wanted, missing and BOLO entries with priority, case reference and validity | Slide 9 · Demo 3 | **Built** | Arm entries from plates actually read that morning (§6.3) |
+| Visualise on GIS | MapLibre map: camera pins, route with earliest-to-latest styling, coverage-gap layer | Slides 7–8 | **Built** | No basemap offline; pins and routes still draw |
+| Searchable events and history | Detections searchable by plate, camera and time; alert queue; zone-event queue | Demo 2–3 | **Built** | — |
+| Evidence of integration, interoperability, scalability and end-to-end performance | Health screen; 600+ automated tests; measured capacity; DR drill | Slides 12–14, 17 | **Built**, measured on a laptop; 80,000 is arithmetic | — |
+
+### 1.2 The solution they asked for (Step 3, Expected Solution Approach)
+
+| They ask | Sentinel feature | Show it | Status |
 |---|---|---|---|
-| Onboard ~50 heterogeneous cameras | CSV import wizard, ONVIF/NVR discovery, catalogue sync; registry map | Met (30 sandbox cameras, 8 synthetic mixed-codec) | ~50 unseen cameras on an unseen network; credentials/ports |
-| Integrate live feeds, centralised monitoring | Live wall through the local relay, one upstream connection per camera | Met | Laptop CPU when previews and ANPR compete |
-| **Track the designated vehicle** from its registration number | Plate search → timestamped, per-camera route on GIS, replay, Movement Report | Met in code; **cross-camera never shown on time-aligned real footage** | **The vehicle passes a camera we were not analysing** (§6.2) |
-| Complete route with timestamped, location-wise history | Timeline + numbered hops + PDF/CSV in IST with UTC and hash manifest | Met | Cameras without lat/lon do not draw |
-| Continuous watchlist cross-referencing, automatic real-time alerts | BOLO + alert banner over SSE, exact and OCR-ambiguity rungs | Met | "Real-time" wording (§2, item 1) |
-| Visualise on GIS | MapLibre map, coverage-gap layer | Met | No basemap tiles offline (pins/routes still draw) |
-| Analytics quality (ANPR, vehicle/person, intrusion, timestamps) | ANPR, class, colour, people count, intrusion/loitering zones, tamper | Met; ANPR **78%** after vote, below our 85% target | Small plates on wide-angle cameras |
-| Scalability & **on-site PoC readiness** | [04 — Scale Plan](./04-SCALE-PLAN.md), measured tier capacity, two-laptop sharding | Met (arithmetic + measured edge) | — |
-| **Bonus:** cross-camera tracking / multi-camera correlation | Route + probable hops + feasibility gate | Partial: plate-ladder + class/colour bridge; **appearance ReID not built** | Asked "what if the plate is unreadable?" (§7) |
-| **Bonus:** analytics beyond ANPR, edge/low-bandwidth, security/privacy/audit, dashboards/APIs | Zones, tamper, people; edge-first + outbox; blur, RLS, audit chain; Health; `/api/docs` | Met | — |
+| Continuously process the provided feeds | Registry-driven edge worker; picks up new cameras every 30 s without a restart | Demo 1 | **Built** |
+| Watchlist database structure, matching logic, alerting mechanism, user interface | Watchlist entries; four-rung matching ladder; dedupe window; alert lifecycle new → acknowledged → resolved / not this vehicle | Slide 9 · Demo 3 | **Built** |
+| Create and use representative datasets | Seeded watchlist; camera-import CSV template; recorded copy of the government grid | Demo 3 | **Built** |
+| Identify specified vehicles *or other entities* (wanted or missing persons) | Vehicles by plate. People are counted and held to zones, never identified | Slides 9, 11 | **Partial** — persons **Excluded** by decision (no face recognition) |
+| Open, modular, standards-based, vendor-neutral; documented APIs; adapter framework | OpenAPI at `/api/docs`; driver SDK with a conformance suite; open-source stack | Slides 13, 15 | **Built** |
 
-Evaluation is qualitative across seven areas, and **bonus points never
-compensate for a failed mandatory test case**. The live vehicle trace is the
-single thing we cannot afford to miss.
+### 1.3 The reference models (Step 2): we are a hybrid
+
+Model 1 as the mandatory foundation, Models 2 and 3 adopted, Model 4 only where
+it pays off. **Say this aloud on slide 13 (§1.8, first row).**
+
+| Model · feature they list | Sentinel | Status |
+|---|---|---|
+| **M1** Bulk import, manual entry, API onboarding | CSV wizard, Add camera, `POST /api/v1/cameras` | **Built** |
+| **M1** GIS with department, camera-type, status and coverage layers | Department and status filters, coverage-gap layer | **Partial** — no camera-type layer |
+| **M1** Camera health and maintenance status | Live / stale / degraded / down, analysed fps and lag; maintenance status and AMC dates | **Built** |
+| **M1** Gap analysis: uncovered zones, ageing infrastructure | Coverage & lifecycle screen with a CSV work list | **Built** |
+| **M1** Role-based search, filter, export, metadata audit trail | RBAC and database row-level security; lifecycle CSV export; hash-chained audit log | **Built** |
+| **M1** Deliverables: portal, onboarding demo, sample dataset, registry API docs, sample gap report | Console; `camera-import-template.csv`; `/api/docs`; lifecycle CSV | **Built** |
+| **M2** Feed aggregation over RTSP, ONVIF or vendor APIs | Drivers for RTSP, ONVIF, Hikvision, Dahua, Genetec and Milestone | **Built**; Hikvision and Dahua tested against vendor-API mocks, not hardware |
+| **M2** ANPR metadata, event tagging, camera-wise indexing | Every read stored with camera, time, class, colour and frame; alerts and zone events triaged with a status | **Built** |
+| **M2** Searchable vehicle-movement records | Find a Vehicle | **Built** |
+| **M2** Configurable video walls | Live wall layouts and camera selection | **Built** |
+| **M2** Alerts for tagged events and vehicles of interest | Watchlist alerts; zone-event alerts | **Built** |
+| **M2** Viewer on at least two different systems; departments unaffected | Government grid and our own feeds in one console; publishing to the relay forbidden and checked by a compliance test | **Built** |
+| **M3** Adapter / plugin architecture for VMS vendors | Driver SDK, one interface, conformance suite | **Built** |
+| **M3** Metadata exchange bus | Events travel over authenticated HTTP with a durable on-disk outbox; Kafka or NATS bus at scale | **Design** (01 §10) |
+| **M3** Cross-system event correlation | One watchlist and one route across every department's cameras; impossible-travel check | **Built** |
+| **M3** Unified workflow and alert dashboard | Alerts queue with triage; Overview | **Built** |
+| **M4** Central ingestion and recording | Only critical cameras and alert clips recorded centrally; departments keep their own retention | **Selective by design** |
+| **M4** Tiered hot, warm and cold storage | Retention engine (preview, then execute) built; tiering sized | **Partial** (04 §4) |
+| **M4** ANPR, crowd / vehicle counting, anomaly detection | ANPR; people and vehicles in view per camera; tamper, zone rules, impossible travel | **Built** |
+| **M4** Face recognition | — | **Excluded** by decision |
+| **M4** Statewide vehicle tracking and route reconstruction | Find a Vehicle across the whole registry | **Built** at grid scale |
+| **M4** VAHAN, SARTHI, eGujCop, AFIS, NAFIS readiness | Five connectors with retry, circuit breaker and audit; Admin → Integrations | **Built** against contract mocks; no live credentials exist |
+| **M4** Redundancy, DR, encryption, network segmentation, RBAC | DR drill, mTLS, RBAC and RLS built; HA and segmentation designed | **Partial** (01 §9, 04 §5) |
+| **M4** Load-test report for ~80,000 cameras | Measured per-laptop capacity plus the scale arithmetic | **Partial** — no 80,000-camera load test |
+
+### 1.4 The design dimensions they listed (Step 3, FAQ 24)
+
+| Dimension | Slide | Depth |
+|---|---|---|
+| Overall architecture | 13 | [01 — Architecture](./01-ARCHITECTURE.md), HLD PDF |
+| Integration strategy | 7, 16 | [07 — Driver SDK](./07-DRIVER-SDK.md) |
+| AI and video analytics | 9, 11 | [02 — ANPR](./02-ANPR-PIPELINE.md), [09 — Secondary analytics](./09-SECONDARY-ANALYTICS.md) |
+| Cybersecurity, privacy, RBAC, audit | 10 | [08 — Security](./08-SECURITY-HARDENING.md) |
+| Deployment architecture (central, regional, edge) | 13 | 01 §10 |
+| Infrastructure sizing | 14 | [04 — Scale plan](./04-SCALE-PLAN.md) §3–4 |
+| **Cost-benefit analysis** | **None, by decision** | Verbal, from §9 and 04 §6 |
+| Department-wise information requirements | 19 | 04 §8 |
+| Scalability strategy | 12–14 | 04 |
+| Future roadmap | 17–18 | 04 §7, [14 — Appearance ReID](./14-APPEARANCE-REID-DESIGN.md) |
+
+### 1.5 Plan for scale (Step 6)
+
+| They ask us to explain | Slide | Answer in one line |
+|---|---|---|
+| Central, regional and edge compute | 13 | Analysis in 34 district nodes plus edge boxes at remote sites; the state core does search, storage and alerts |
+| GPU or accelerator requirements | 14 | ≈560 L4 GPUs with N+1, sized by tier — **say it; it is not on the slide** |
+| Bandwidth and low-bandwidth strategies | 12 | ≈140 Mbps statewide; metadata-only mode at ≈4.5 Mbps; 72 h offline queue |
+| Hot, warm and cold storage by retention | 12 | ≈390 TB usable instead of 12.1 PB a week; departments keep their 7–15 days |
+| Load balancing, horizontal scaling, monitoring, logging, health checks | 13 | Health screen, JSON structured logs and health endpoints built; autoscaling on queue depth designed |
+| HA, backup, DR, cybersecurity controls | 10, 13, 17 | RPO 15 min, RTO 1 h; DR drill restores a million records in 5.7 s and catches tampering |
+| **Estimated implementation and operational costs** | **None, by decision** | Verbal only, from §9 |
+| Phased statewide rollout | 18 | 500 → 5,000 → 30,000 → 80,000 cameras over 36 months |
+
+### 1.6 The background asks
+
+| They ask | Sentinel | Status |
+|---|---|---|
+| 26 departments, each controlling its own cameras | Department-scoped access enforced in the database | **Built** |
+| Analog and IP cameras | IP directly; analog through its NVR or an encoder | **Built** for NVRs; no encoder tested |
+| Leave cloud and local storage, 7–15 day retention, in place | Read-only pull; footage is not re-stored centrally | **Built** |
+| Public-facing private cameras, "wherever feasible and permitted" | Consent reference and expiry enforced: without current consent a camera is never viewed or analysed | **Built** |
+| Automated alerts from VAHAN, SARTHI, eGujCop, AFIS, NAFIS records | Connectors ready; watchlist alerts live on our own representative data | **Partial** — no live credentials |
+
+### 1.7 Where each evaluation area is won
+
+| # | Area | Slides | Live | Hand over |
+|---|---|---|---|---|
+| 01 | Successful test case | 6–9 | Demo 1–3 on today's feeds | Movement Report ZIP |
+| 02 | Presentation: problem, model and justification, key features | 2–5, 13, 15–16 | — | The deck |
+| 03 | Solution architecture | 12–14 | — | HLD PDF |
+| 04 | Working platform, own feed and government feed | 7–9 | The console; the government-grid copy as fallback (§11) | — |
+| 05 | Analytics: ANPR, vehicle and person detection, intrusion, objects, timestamps, reports | 8–11 | Zone events, people counts, camera-clock times | Movement Report; `scripts/evidence_report.py` output |
+| 06 | Scalability and PoC readiness | 12–14, 17–18 | Health screen | Runbook |
+| 07 | Submission completeness | — | — | Already submitted (06 — Submission playbook) |
+| Bonus | Hybrid architecture · cross-camera correlation · analytics beyond ANPR · edge and low bandwidth · security, privacy, audit, RBAC · dashboards, alerts, health, APIs | 9–16 | Probable stops, impossible travel, Audit → Verify chain | — |
+
+### 1.8 Gaps a juror can find, and the answer to give
+
+| A juror notices | Answer |
+|---|---|
+| **The model choice and its justification are not on a slide** (evaluation area 02 asks for both) | Say it on slide 13: *"We built a hybrid: Model 1's registry and GIS as the foundation, Model 2's unified viewing and analytics, Model 3's adapters so no department changes its system, and Model 4's central recording only where it pays off — because centralising everything needs a backbone the State does not have (slide 12)."* Or add a slide before Monday. |
+| The site asks for cost-benefit and cost estimates | The deck carries none by decision. If asked, answer from §9: indicative, for comparing architectures, and the pilot replaces estimates with measurements. |
+| Face recognition (Model 4, FAQ 22) | Excluded by decision. Faces are detected only to be blurred; the platform can host a recognition module behind the same access controls if policy allows. |
+| Wanted and missing *persons* in the watchlist | Matching is by vehicle plate. Person records are reached through the eGujCop and AFIS connectors once access exists; no face matching. |
+| Event bus, tiered storage, HA, network segmentation | Designed and sized (01, 04, 08), not running on a laptop. What is running is the same code that sits at each district. |
+| No camera-type layer on the map | Filters by department and status, plus the coverage-gap layer; camera type is a registry field. |
+| No 80,000-camera load test | Measured capacity per machine plus the arithmetic, re-derivable from five formulas (04 §9); the pilot's first exit criterion is a measured benchmark. |
+| Hikvision and Dahua not tested on hardware | Written to the vendors' published APIs and tested against mocks; ONVIF and RTSP reach the same devices. |
+| The FAQ says the sandbox feeds were *"synchronised on a common timeline"* | Our measurement found the replayed clips came from different dates ([cross-camera finding](../evidence/CROSS-CAMERA-TRACKING-FINDINGS.md)); that is why every stop carries the camera's own clock, and why a mismatched route is visible rather than hidden. Raise it only if timing comes up. |
 
 ---
 
@@ -72,8 +195,8 @@ Ordered by how badly each could hurt in front of the jury.
 | 3 | **Cross-camera has only ever been shown with one camera's sightings.** | It is the headline capability. | Own-car, three-camera drill before Monday (§0 item 2, §6.5). Record it as the fallback video. |
 | 4 | **ANPR accuracy is 78% after the vote**, below the 85% gate. | "Is it good enough for evidence?" | Own it: the holdout, the method, the 8.6% → 78% story, and that every hop carries a snapshot an officer confirms. Never claim a higher number. |
 | 5 | **The L4 300 fps/GPU figure is a vendor-benchmark estimate**, not measured. | The whole GPU count (≈560 L4) rests on it. | Say "estimated, and re-derivable": show the formula in [04 §9](./04-SCALE-PLAN.md) and offer a pilot-phase benchmark as Phase 0's first exit criterion. |
-| 6 | **README screenshots predate the UI redesign** (README says so). | Slides must show the product they are about to see. | Regenerate with `npm run screenshots` and rebuild the deck (`make deck`) after the M4 UAT. |
-| 7 | **Uncommitted mirror work** (`scripts/gov_mirror.py`, `SOURCE=mirror`). | The sandbox grid is being taken down; the mirror is our only copy of real government footage. | Finish, test and commit it before Friday; run `make mirror-capture` while the remote still answers. |
+| 6 | **README screenshots predate the UI redesign** (README says so). | Slides must show the product they are about to see. | **Pitch deck done (11 Oct):** light-theme screenshots of the current console via `npm run screenshots:pitch`. The README set and the submission deck (`make deck`) are still the old screens. |
+| 7 | ~~Uncommitted mirror work~~ (`scripts/gov_mirror.py`, `SOURCE=mirror`). | The sandbox grid is being taken down; the mirror is our only copy of real government footage. | **Done:** committed 10 Oct (`7f01c44`); all 30 cameras recorded to `data/gov-mirror/` (gitignored — copy it to the M4 by hand). |
 
 ---
 
