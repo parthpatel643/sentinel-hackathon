@@ -91,7 +91,10 @@ Ordered by how badly each could hurt in front of the jury.
 
 ## 4. The 20 minutes
 
-Slides: [Sentinel-Finale-Pitch.pptx](./Sentinel-Finale-Pitch.pptx) — 17 slides, speaker notes carry the script below. Rebuild with `make pitch`; slide numbers below refer to it.
+Slides: [Sentinel-Finale-Pitch.pptx](./Sentinel-Finale-Pitch.pptx) — 18 slides, light theme, pitched as a
+business case for a mixed room (leadership and technical jury). Speaker notes carry the talk track. It
+carries **no cost figures** by decision; if asked about cost, answer from §9. Rebuild with `make pitch`
+(screenshots: `npm run screenshots:pitch` in `apps/web`); slide numbers below refer to it.
 
 Three roles, fixed in rehearsal:
 
@@ -101,15 +104,15 @@ Three roles, fixed in rehearsal:
 
 | Time | Segment | On screen | Rubric area |
 |---|---|---|---|
-| 0:00–1:00 | **Hook** | Slides 1–2 | Presentation |
-| 1:00–2:30 | **Model choice and the rejected option** | Slides 3–4: hybrid M1+M2+M3, selective M4; 160 Gbps vs 140 Mbps | Presentation, Architecture |
-| 2:30–5:00 | **Today's cameras, onboarded and live** | Slides 5–6, then live: Cameras map → Health → Live Wall | Test case: onboard, integrate, GIS |
-| 5:00–10:00 | **The designated vehicle** (live) | Slides 7–8, then live: search → route → replay → hop evidence → BOLO → alert → Movement Report | Test case: track, alerts, route |
-| 10:00–11:30 | **When the plate is not readable** | Slide 9; live: probable hops, ambiguity search, feasibility flag | Bonus: multi-camera correlation |
-| 11:30–12:30 | **Beyond ANPR; trust and privacy** | Slides 10–11; live: blurred snapshot + reveal-with-reason; Audit → Verify chain | Analytics, bonus: security |
-| 12:30–16:30 | **Scaling to 80,000** | Slides 12–13 | Scalability & PoC readiness |
-| 16:30–18:30 | **Cost and impact** | Slides 14–15 | Scalability, Presentation |
-| 18:30–19:30 | **Rollout and the ask** | Slides 16–17 | PoC readiness |
+| 0:00–1:30 | **Hook and the challenge** | Slides 1–3: one search box; 26 systems; phone calls → one search | Presentation |
+| 1:30–2:30 | **What it is and who it serves** | Slides 4–5: see, find, alert; operator, investigator, patrol, leadership | Presentation |
+| 2:30–5:00 | **Today's cameras, onboarded and live** | Slides 6–7, then live: Cameras map → Health → Live Wall | Test case: onboard, integrate, GIS |
+| 5:00–10:00 | **The designated vehicle** (live) | Slide 8, then live: search → route → replay → hop evidence → BOLO → alert → Movement Report | Test case: track, alerts, route |
+| 10:00–11:30 | **Alerts, and plates that are hard to read** | Slide 9; live: probable hops, ambiguity search, feasibility flag | Bonus: multi-camera correlation |
+| 11:30–12:30 | **Trust, privacy, beyond plates** | Slides 10–11; live: blurred snapshot + reveal-with-reason; Audit → Verify chain | Analytics, bonus: security |
+| 12:30–16:30 | **Scaling to 80,000** | Slides 12–14: send meaning not video; five layers; tiering | Scalability & PoC readiness |
+| 16:30–18:30 | **Why Sentinel, and the proof** | Slides 15–16 | Presentation, PoC readiness |
+| 18:30–19:30 | **Rollout and the ask** | Slides 17–18 | PoC readiness |
 | 19:30–20:00 | Buffer | — | — |
 
 **If the jury gives the vehicle number at the start, do the drill first** and
@@ -167,7 +170,7 @@ Say it in your own words after the first rehearsal; the shape is what matters.
 
 **12:30 — 80,000 cameras.** §8.
 
-**16:30 — Cost.** §9.
+**16:30 — Why Sentinel, and the proof.** Slides 15–16. Cost is not on the slides; if a juror asks, answer from §9.
 
 **18:30 — Rollout and the ask.**
 > "This is useful at 500 cameras and never needs a big-bang cutover: one

@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "test:ui": "playwright test",
     "screenshots": "node scripts/capture_screenshots.mjs",
+    "screenshots:pitch": "node scripts/capture_pitch_screenshots.mjs",
     "docs:pdf": "node scripts/build_docs_pdf.mjs",
     "preview": "vite preview",
     "demo:record": "node scripts/record_demo.mjs",

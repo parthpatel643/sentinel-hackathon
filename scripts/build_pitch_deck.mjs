@@ -1,15 +1,17 @@
 /**
  * Builds the grand-finale pitch deck: docs/Sentinel-Finale-Pitch.pptx.
  *
- * This is the deck for the 20-minute on-site evaluation (docs/13-SHOWCASE-PREP.md
- * §4–§9), not the written submission deck (scripts/build_deck.mjs). It follows
- * the run of show: problem, approach, the live demo, then scale and cost.
+ * A business pitch for the 20-minute on-site evaluation (docs/13-SHOWCASE-PREP.md
+ * §4), written for a mixed room: police leadership who want outcomes, and a
+ * technical jury who want to see how it holds at 80,000 cameras. Each slide
+ * leads with what changes for the people using it; the technical detail sits
+ * underneath. It deliberately carries no cost figures.
  *
  * Generated, so it cannot drift from what it cites: every number comes from a
- * document or measurement in this repository, and every screenshot is the
- * real console, captured from a live stack into docs/images/pitch/ with
- *   SHOT_PLATE=GJ39C8018 SHOT_OUT_DIR=../../docs/images/pitch npm run screenshots
- * (from apps/web). Speaker notes carry the pitch script.
+ * document or measurement in this repository, and every screenshot is the real
+ * console in its light theme, captured from a live stack with
+ *   npm run screenshots:pitch      (from apps/web)
+ * Speaker notes carry the talk track.
  *
  * Usage:
  *   NODE_PATH=$(npm root -g) node scripts/build_pitch_deck.mjs
@@ -32,18 +34,20 @@ const REPO = resolve(HERE, '..')
 const SHOT = (name) => resolve(REPO, 'docs', 'images', 'pitch', `${name}.png`)
 const OUT = resolve(REPO, 'docs', 'Sentinel-Finale-Pitch.pptx')
 
-// Night-shift control room: deep ink ground, saffron as the one accent that
-// carries attention, teal reserved for things we measured, coral for the
-// numbers we refuse to pay. Dark throughout, matching the console's own theme.
-const INK = '0A1020'
-const PANEL = '131C30'
-const PANEL_2 = '1B2742'
-const LINE = '2C3A5C'
-const TEXT = 'F2F5FA'
-const MUTED = 'A9B6CB'
-const SAFFRON = 'F5A524'
-const TEAL = '34D3B4'
-const CORAL = 'F2706B'
+// Light, and continuous with the console's own light theme: its royal blue
+// leads, deep navy carries the words, and saffron is the one warm accent for
+// the numbers worth remembering. Teal marks what we measured; red marks today.
+const WHITE = 'FFFFFF'
+const SOFT = 'F3F5FA'
+const TINT = 'EAF0FD'
+const LINE = 'DDE3EE'
+const INK = '0F1B33'
+const MUTED = '536079'
+const BLUE = '2456D6'
+const SAFFRON = 'D97706'
+const SAFFRON_TEXT = 'B45309'
+const TEAL = '0F766E'
+const RED = 'C2410C'
 
 const H = 'Arial'
 const B = 'Calibri'
@@ -56,7 +60,7 @@ const CW = W - 2 * M
 const pres = new PptxGenJS()
 pres.layout = 'LAYOUT_WIDE'
 pres.author = 'Sentinel Platform'
-pres.title = 'Sentinel — Gujarat Police Innovation Challenge 2026, Grand Finale'
+pres.title = 'Sentinel — find any vehicle across every government camera in Gujarat'
 
 // --- assets -----------------------------------------------------------------
 
@@ -69,7 +73,7 @@ async function icon(name, color) {
   const Component = Lu[name]
   if (!Component) throw new Error(`no icon ${name}`)
   const svg = renderToStaticMarkup(
-    React.createElement(Component, { size: 256, color: `#${color}`, strokeWidth: 1.75 }),
+    React.createElement(Component, { size: 256, color: `#${color}`, strokeWidth: 1.9 }),
   )
   const png = await sharp(Buffer.from(svg)).resize(160, 160).png({ palette: true }).toBuffer()
   const data = `image/png;base64,${png.toString('base64')}`
@@ -77,79 +81,112 @@ async function icon(name, color) {
   return data
 }
 
-/** A region of a console screenshot, given in the 1600x1000 CSS-pixel
- * viewport it was captured at (scaled to whatever pixel density it has). */
+/** JPEG keeps the deck small enough to commit; at this quality the console's
+ * text stays crisp at slide size. */
+async function encode(image, width) {
+  const jpeg = await image
+    .resize({ width: Math.min(width, 1800), withoutEnlargement: true })
+    .jpeg({ quality: 82, mozjpeg: true })
+    .toBuffer()
+  return `image/jpeg;base64,${jpeg.toString('base64')}`
+}
+
+/** A region of a desktop screenshot, in the 1600x1000 CSS-pixel viewport it
+ * was captured at (scaled to whatever pixel density it has). */
 async function crop(name, { x, y, w, h }) {
   const image = sharp(SHOT(name))
   const k = (await image.metadata()).width / 1600
-  const png = await image
-    .extract({ left: Math.round(x * k), top: Math.round(y * k), width: Math.round(w * k), height: Math.round(h * k) })
-    // JPEG keeps the deck small enough to commit; at this quality the
-    // console's text stays crisp at slide size.
-    .jpeg({ quality: 80, mozjpeg: true })
-    .toBuffer()
-  return { data: `image/jpeg;base64,${png.toString('base64')}`, ratio: w / h }
+  const region = image.extract({
+    left: Math.round(x * k), top: Math.round(y * k), width: Math.round(w * k), height: Math.round(h * k),
+  })
+  return { data: await encode(region, Math.round(w * k)), ratio: w / h }
+}
+
+/** A whole screenshot, for the phone capture. */
+async function whole(name) {
+  const image = sharp(SHOT(name))
+  const { width, height } = await image.metadata()
+  return { data: await encode(image, width), ratio: width / height }
 }
 
 // --- building blocks --------------------------------------------------------
 
 let pageNumber = 0
 
-/** Every content slide: ink ground, a saffron eyebrow, a large title, and a
- * quiet page number. The variation belongs in the body. */
-function frame({ eyebrow, title, notes }) {
-  pageNumber += 1
-  const s = pres.addSlide()
-  s.background = { color: INK }
-  s.addText(eyebrow.toUpperCase(), {
-    x: M, y: 0.42, w: CW, h: 0.3, margin: 0,
-    fontFace: H, fontSize: 11, bold: true, color: SAFFRON, charSpacing: 3,
-  })
-  s.addText(title, {
-    x: M, y: 0.74, w: CW, h: 0.8, margin: 0, valign: 'top',
-    fontFace: H, fontSize: 32, bold: true, color: TEXT,
-  })
+function pageNo(s) {
   s.addText(String(pageNumber).padStart(2, '0'), {
     x: W - M - 0.6, y: SLIDE_H - 0.45, w: 0.6, h: 0.25, margin: 0, align: 'right',
     fontFace: H, fontSize: 9, color: MUTED,
   })
+}
+
+/** Every content slide: white ground, a saffron eyebrow, a large navy title,
+ * a quiet page number. The variation belongs in the body. */
+function frame({ eyebrow, title, notes, background = WHITE }) {
+  pageNumber += 1
+  const s = pres.addSlide()
+  s.background = { color: background }
+  s.addText(eyebrow.toUpperCase(), {
+    x: M, y: 0.42, w: CW, h: 0.3, margin: 0,
+    fontFace: H, fontSize: 11, bold: true, color: SAFFRON_TEXT, charSpacing: 3,
+  })
+  s.addText(title, {
+    x: M, y: 0.74, w: CW, h: 0.8, margin: 0, valign: 'top',
+    fontFace: H, fontSize: 32, bold: true, color: INK,
+  })
+  pageNo(s)
   if (notes) s.addNotes(notes)
   return s
 }
 
-function panel(s, x, y, w, h, fill = PANEL) {
+function panel(s, x, y, w, h, fill = SOFT, line = LINE) {
   s.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-    x, y, w, h, rectRadius: 0.12, fill: { color: fill }, line: { color: LINE, width: 0.75 },
+    x, y, w, h, rectRadius: 0.12, fill: { color: fill }, line: { color: line, width: 0.75 },
   })
 }
 
-async function badge(s, name, x, y, d = 0.62, bg = SAFFRON, fg = INK) {
+/** A white card lifted off the page by a soft shadow. */
+function card(s, x, y, w, h) {
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+    x, y, w, h, rectRadius: 0.12, fill: { color: WHITE }, line: { color: LINE, width: 0.75 },
+    shadow: { type: 'outer', color: '1F2A44', blur: 14, offset: 3, angle: 90, opacity: 0.12 },
+  })
+}
+
+async function badge(s, name, x, y, d = 0.6, bg = BLUE, fg = WHITE) {
   s.addShape(pres.shapes.OVAL, { x, y, w: d, h: d, fill: { color: bg }, line: { color: bg } })
-  const pad = d * 0.22
+  const pad = d * 0.23
   s.addImage({ data: await icon(name, fg), x: x + pad, y: y + pad, w: d - 2 * pad, h: d - 2 * pad })
 }
 
-/** A screenshot set in a framed panel with a soft shadow, sized to width. */
+/** A screenshot in a light frame with a soft shadow, sized to width. */
 function screenshot(s, img, x, y, w) {
   const h = w / img.ratio
   s.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-    x: x - 0.06, y: y - 0.06, w: w + 0.12, h: h + 0.12, rectRadius: 0.1,
-    fill: { color: PANEL_2 }, line: { color: LINE, width: 0.75 },
-    shadow: { type: 'outer', color: '000000', blur: 18, offset: 6, angle: 90, opacity: 0.45 },
+    x: x - 0.07, y: y - 0.07, w: w + 0.14, h: h + 0.14, rectRadius: 0.1,
+    fill: { color: WHITE }, line: { color: LINE, width: 0.75 },
+    shadow: { type: 'outer', color: '1F2A44', blur: 20, offset: 6, angle: 90, opacity: 0.16 },
   })
   s.addImage({ data: img.data, x, y, w, h })
   return h
 }
 
 function text(s, value, opts) {
-  s.addText(value, { margin: 0, fontFace: B, color: TEXT, valign: 'top', ...opts })
+  s.addText(value, { margin: 0, fontFace: B, color: INK, valign: 'top', ...opts })
 }
 
 /** Icon-in-circle, bold header, muted body: the deck's repeated row. */
-async function iconRow(s, { icon: name, title, body, x, y, w, color = SAFFRON }) {
+async function iconRow(s, { icon: name, title, body, x, y, w, color = BLUE }) {
   await badge(s, name, x, y, 0.56, color)
   text(s, title, { x: x + 0.78, y: y - 0.02, w: w - 0.78, h: 0.34, fontFace: H, fontSize: 15, bold: true })
   text(s, body, { x: x + 0.78, y: y + 0.33, w: w - 0.78, h: 0.62, fontSize: 13, color: MUTED })
+}
+
+/** A small floating callout over a screenshot. */
+async function chip(s, { icon: name, label, x, y, w, color = BLUE }) {
+  card(s, x, y, w, 0.62)
+  await badge(s, name, x + 0.14, y + 0.12, 0.38, color)
+  text(s, label, { x: x + 0.62, y: y + 0.12, w: w - 0.72, h: 0.38, fontFace: H, fontSize: 12, bold: true, valign: 'middle' })
 }
 
 // --- slides -------------------------------------------------------------------
@@ -157,143 +194,173 @@ async function iconRow(s, { icon: name, title, body, x, y, w, color = SAFFRON })
 async function titleSlide() {
   pageNumber += 1
   const s = pres.addSlide()
-  s.background = { color: INK }
-  const shot = await crop('05-find-a-vehicle', { x: 100, y: 255, w: 1500, h: 745 })
-  const w = 6.25
-  const h = w / shot.ratio
-  const y = (SLIDE_H - h) / 2
-  s.addImage({ data: shot.data, x: W - w, y, w, h })
-  // Dim the screenshot so the title leads, without an edge stripe.
-  s.addShape(pres.shapes.RECTANGLE, {
-    x: W - w, y, w, h, fill: { color: INK, transparency: 72 }, line: { color: INK, transparency: 100 },
-  })
+  s.background = { color: WHITE }
+  // Right half: the product, on the console's own tint.
+  s.addShape(pres.shapes.RECTANGLE, { x: 6.75, y: 0, w: W - 6.75, h: SLIDE_H, fill: { color: TINT }, line: { color: TINT } })
+  const shot = await crop('find-a-vehicle', { x: 80, y: 180, w: 1520, h: 820 })
+  const sw = 5.75
+  const sh = sw / shot.ratio
+  const sy = (SLIDE_H - sh) / 2
+  screenshot(s, shot, 7.15, sy, sw)
+  await chip(s, { icon: 'LuRoute', label: 'Route traced across cameras', x: 6.45, y: sy - 0.4, w: 3.1 })
+  await chip(s, { icon: 'LuBellRing', label: 'Watchlist alert raised', x: W - 3.35, y: sy + sh - 0.25, w: 2.8, color: SAFFRON })
+
   text(s, 'GUJARAT POLICE INNOVATION CHALLENGE 2026', {
-    x: M, y: 1.2, w: 6.2, h: 0.3, fontFace: H, fontSize: 10.5, bold: true, color: SAFFRON, charSpacing: 2,
+    x: M, y: 1.25, w: 5.8, h: 0.3, fontFace: H, fontSize: 11, bold: true, color: SAFFRON_TEXT, charSpacing: 2,
   })
-  text(s, 'Sentinel', { x: M, y: 1.75, w: 6.2, h: 1.3, fontFace: H, fontSize: 72, bold: true })
-  text(s, 'One search box for every government camera in Gujarat.', {
-    x: M, y: 3.15, w: 5.9, h: 1.1, fontFace: H, fontSize: 26, color: TEXT,
+  text(s, 'Sentinel', { x: M, y: 1.7, w: 5.8, h: 1.2, fontFace: H, fontSize: 66, bold: true, color: INK })
+  text(s, 'Find any vehicle, across every government camera in Gujarat — in seconds.', {
+    x: M, y: 3.0, w: 5.7, h: 1.3, fontFace: H, fontSize: 25, color: INK,
   })
-  text(s, 'Unified CCTV integration and AI video analytics: type a registration number, see where the vehicle went — camera by camera, on a map, with the evidence.', {
-    x: M, y: 4.4, w: 5.7, h: 1.0, fontSize: 15, color: MUTED,
+  text(s, 'One platform that connects the cameras departments already run, reads number plates where they are filmed, and alerts officers the moment a vehicle of interest is seen.', {
+    x: M, y: 4.45, w: 5.6, h: 1.1, fontSize: 15, color: MUTED,
   })
-  await badge(s, 'LuMapPin', M, 6.25, 0.42)
+  await badge(s, 'LuMapPin', M, 6.3, 0.42, SAFFRON)
   text(s, 'Grand Finale  ·  i-Hub Gujarat, Ahmedabad  ·  12–13 October 2026', {
-    x: M + 0.6, y: 6.33, w: 6, h: 0.3, fontSize: 13, color: MUTED,
+    x: M + 0.6, y: 6.38, w: 5.6, h: 0.3, fontSize: 13, color: MUTED,
   })
   s.addNotes(
-    'Open with the problem, not the product. "Today, if a stolen car leaves Ahmedabad for Rajkot, tracing it means phone calls to several departments, each with its own CCTV system, its own viewer, its own retention. Sentinel turns that into one search box." If the jury gives the vehicle number now, go straight to the demo (slide 5) and come back.',
+    'Open with the outcome, not the technology. "Sentinel lets an officer type a registration number and see where that vehicle went, across every government camera, in seconds — and be told the moment it is seen again." If the jury gives the vehicle number now, go straight to the demonstration (slide 6) and come back.',
   )
 }
 
-async function problemSlide() {
+async function challengeSlide() {
   const s = frame({
-    eyebrow: 'The problem',
-    title: 'Twenty-six camera systems. No shared map.',
-    notes: 'Twenty-six departments, about eighty thousand cameras, no shared map. Each department runs its own VMS with its own retention. Tracing one vehicle across them is phone calls and hours, not a search.',
+    eyebrow: 'The challenge',
+    title: 'When a vehicle disappears, every minute counts',
+    notes: 'Paint the picture for the non-technical members of the jury. Gujarat already has the cameras — around eighty thousand of them across twenty-six departments. What it does not have is a way to use them together. When a stolen car leaves Ahmedabad for Rajkot, tracing it is phone calls, separate logins and manual review, while the footage quietly ages out after a week or two.',
   })
   const stats = [
-    ['~80,000', 'cameras across the State', 'LuCamera'],
-    ['26', 'departments, each with its own VMS', 'LuBuilding2'],
-    ['7–15', 'days of retention, local or cloud, per department', 'LuHardDrive'],
+    ['~80,000', 'cameras already installed across the State', 'LuCamera'],
+    ['26', 'departments, each with its own system', 'LuBuilding2'],
+    ['7–15', 'days before footage is overwritten', 'LuHourglass'],
     ['~1,000', 'km between the farthest camera sites', 'LuMap'],
   ]
   const cw = (CW - 3 * 0.3) / 4
   for (const [i, [value, label, ic]] of stats.entries()) {
     const x = M + i * (cw + 0.3)
-    panel(s, x, 1.9, cw, 2.55)
-    await badge(s, ic, x + 0.3, 2.15, 0.5)
+    card(s, x, 1.9, cw, 2.55)
+    await badge(s, ic, x + 0.3, 2.15, 0.52)
     text(s, value, { x: x + 0.3, y: 2.85, w: cw - 0.6, h: 0.8, fontFace: H, fontSize: 38, bold: true, color: SAFFRON })
     text(s, label, { x: x + 0.3, y: 3.7, w: cw - 0.6, h: 0.6, fontSize: 14, color: MUTED })
   }
-  panel(s, M, 4.85, CW, 1.65, PANEL_2)
-  await badge(s, 'LuPhoneCall', M + 0.35, 5.33, 0.7, CORAL, INK)
-  text(s, 'A stolen car leaves Ahmedabad for Rajkot.', {
+  panel(s, M, 4.85, CW, 1.65, 'FFF4EC', 'F6D9C4')
+  await badge(s, 'LuPhoneCall', M + 0.35, 5.33, 0.7, RED)
+  text(s, 'Today: a stolen car leaves Ahmedabad for Rajkot.', {
     x: M + 1.3, y: 5.15, w: CW - 1.6, h: 0.45, fontFace: H, fontSize: 20, bold: true,
   })
-  text(s, 'Tracing it today means phone calls to several departments — each with its own viewer, its own login and its own retention — while the footage ages out.', {
+  text(s, 'Tracing it means phone calls to several departments — each with its own viewer, its own login and its own retention — while the footage ages out and the vehicle moves on.', {
     x: M + 1.3, y: 5.62, w: CW - 1.6, h: 0.7, fontSize: 15, color: MUTED,
   })
 }
 
-async function approachSlide() {
+async function beforeAfterSlide() {
   const s = frame({
-    eyebrow: 'Our approach',
-    title: 'A hybrid that leaves every department’s system running',
-    notes: 'We chose a hybrid: Model 1’s registry and GIS as the foundation, Model 2’s unified viewing and analytics, Model 3’s adapter federation so no department changes its system — and Model 4’s central storage only for the few cameras that need it.',
+    eyebrow: 'What changes',
+    title: 'From phone calls to one search',
+    notes: 'This is the whole pitch on one slide. Read the right-hand column. Nothing on the left is replaced — every department keeps its cameras and its system — Sentinel sits across them.',
   })
-  const models = [
-    ['Model 1', 'Registry & GIS', 'Every camera on one map, with coverage gaps and an ageing-asset work list.', 'LuMap', 'Foundation'],
-    ['Model 2', 'Unified viewing & analytics', 'Live wall and ANPR on every accessible stream, in one console.', 'LuMonitor', 'Adopted'],
-    ['Model 3', 'Federation adapters', 'RTSP, ONVIF, Hikvision and Dahua drivers — a driver, not a release.', 'LuNetwork', 'Adopted'],
-    ['Model 4', 'Central recording', 'Only for critical cameras and alert clips; the rest stays where it is.', 'LuServer', 'Selective'],
+  const rows = [
+    ['26 systems, 26 logins, no shared map', 'Every camera on one map, behind one login'],
+    ['A vehicle traced by phoning departments', 'Type a plate; see its route and evidence in seconds'],
+    ['Watchlists checked by hand, if at all', 'Every plate read is checked automatically, around the clock'],
+    ['Footage ages out before anyone asks', 'Sightings stay searchable, with the frame as evidence'],
+    ['Integration means replacing systems', 'Works with the cameras and VMS already installed'],
   ]
-  const cw = (CW - 3 * 0.3) / 4
-  for (const [i, [tag, name, body, ic, pill]] of models.entries()) {
-    const x = M + i * (cw + 0.3)
-    const selective = pill === 'Selective'
-    panel(s, x, 1.9, cw, 3.65, selective ? PANEL : PANEL_2)
-    await badge(s, ic, x + 0.3, 2.2, 0.62, selective ? MUTED : SAFFRON)
-    s.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-      x: x + cw - 1.45, y: 2.32, w: 1.15, h: 0.36, rectRadius: 0.18,
-      fill: { color: selective ? PANEL_2 : SAFFRON }, line: { color: selective ? MUTED : SAFFRON, width: 0.75 },
-    })
-    text(s, pill, {
-      x: x + cw - 1.45, y: 2.32, w: 1.15, h: 0.36, align: 'center', valign: 'middle',
-      fontFace: H, fontSize: 11, bold: true, color: selective ? MUTED : INK,
-    })
-    text(s, tag.toUpperCase(), { x: x + 0.3, y: 3.1, w: cw - 0.6, h: 0.3, fontFace: H, fontSize: 11, bold: true, color: MUTED, charSpacing: 2 })
-    text(s, name, { x: x + 0.3, y: 3.42, w: cw - 0.6, h: 0.75, fontFace: H, fontSize: 19, bold: true })
-    text(s, body, { x: x + 0.3, y: 4.22, w: cw - 0.6, h: 1.2, fontSize: 14, color: MUTED })
+  const colW = 5.55
+  const leftX = M
+  const rightX = W - M - colW
+  panel(s, leftX, 1.85, colW, 4.95, SOFT)
+  panel(s, rightX, 1.85, colW, 4.95, TINT, 'C9D7F7')
+  text(s, 'Today', { x: leftX + 0.35, y: 2.05, w: 3, h: 0.4, fontFace: H, fontSize: 18, bold: true, color: MUTED })
+  text(s, 'With Sentinel', { x: rightX + 0.35, y: 2.05, w: 3, h: 0.4, fontFace: H, fontSize: 18, bold: true, color: BLUE })
+  for (const [i, [before, after]] of rows.entries()) {
+    const y = 2.65 + i * 0.8
+    await badge(s, 'LuX', leftX + 0.35, y, 0.38, 'B8C0CE')
+    text(s, before, { x: leftX + 0.9, y: y - 0.02, w: colW - 1.2, h: 0.45, fontSize: 15, color: MUTED, valign: 'middle' })
+    await badge(s, 'LuCheck', rightX + 0.35, y, 0.38, BLUE)
+    text(s, after, { x: rightX + 0.9, y: y - 0.02, w: colW - 1.2, h: 0.45, fontSize: 15, bold: true, valign: 'middle' })
   }
-  await badge(s, 'LuShieldCheck', M, 5.95, 0.5, TEAL)
-  text(s, 'Read-only and pull-based. Nothing is installed on a department’s cameras or VMS, and their own recording keeps running untouched.', {
-    x: M + 0.7, y: 5.98, w: CW - 0.7, h: 0.6, fontSize: 16,
+  await badge(s, 'LuArrowRight', W / 2 - 0.3, 4.03, 0.6, SAFFRON)
+}
+
+async function platformSlide() {
+  const s = frame({
+    eyebrow: 'The platform',
+    title: 'One platform, three jobs',
+    notes: 'Three jobs, one console. See: every camera from every department on one map and one live wall, with its health. Find: any vehicle by its plate — route, evidence and a report you can hand over. Alert: stolen, wanted and missing vehicles are checked against every read, and officers are told immediately.',
+  })
+  const jobs = [
+    ['LuMonitor', 'See', 'Every camera, from every department, on one map and one live wall — with its health at a glance.', 'Control rooms'],
+    ['LuSearch', 'Find', 'Any vehicle by its registration number: its route, the evidence at every stop, and a signed report.', 'Investigators'],
+    ['LuBellRing', 'Alert', 'Stolen, wanted and missing vehicles flagged the moment any camera reads them — on every console and phone.', 'Patrol and command'],
+  ]
+  const cw = (CW - 2 * 0.35) / 3
+  for (const [i, [ic, title, body, who]] of jobs.entries()) {
+    const x = M + i * (cw + 0.35)
+    card(s, x, 1.85, cw, 3.95)
+    await badge(s, ic, x + 0.4, 2.2, 0.85, i === 2 ? SAFFRON : BLUE)
+    text(s, title, { x: x + 0.4, y: 3.25, w: cw - 0.8, h: 0.7, fontFace: H, fontSize: 30, bold: true })
+    text(s, body, { x: x + 0.4, y: 3.98, w: cw - 0.8, h: 1.2, fontSize: 15, color: MUTED })
+    text(s, `For ${who.toLowerCase()}`, { x: x + 0.4, y: 5.25, w: cw - 0.8, h: 0.35, fontFace: H, fontSize: 12, bold: true, color: BLUE })
+  }
+  await badge(s, 'LuLanguages', M, 6.2, 0.46, TEAL)
+  text(s, 'Plus people counting, zone intrusion and camera-tamper alerts — in English, Hindi and Gujarati.', {
+    x: M + 0.65, y: 6.27, w: CW - 0.65, h: 0.4, fontSize: 15,
   })
 }
 
-async function refuseSlide() {
+async function audienceSlide() {
   const s = frame({
-    eyebrow: 'The number we refuse to pay',
-    title: 'Centralising 80,000 cameras is a physics problem',
-    notes: 'Eighty thousand cameras at 2 Mbps is 160 gigabits per second sustained, from sites up to a thousand kilometres apart, and 12 petabytes of storage for one week. We analyse at the edge and send meaning, not video: about 140 megabits per second statewide — over a thousand times less.',
+    eyebrow: 'Who it serves',
+    title: 'Built for everyone who keeps Gujarat safe',
+    notes: 'Make it personal. The operator gets one screen instead of many. The investigator gets the route and a report they can put in a case file. The officer on patrol gets alerts and a plate lookup on their phone — it even works on a poor connection. Leadership gets a statewide picture: which cameras are working, where coverage is missing.',
   })
-  const rows = [
-    ['Sustained backbone', '160 Gbps', '≈140 Mbps', '≈1,140× less'],
-    ['Hot storage, one week', '12.1 PB', '≈390 TB', '≈31× less'],
-    ['Capex, order of magnitude', '₹400 cr+', '≈₹80 cr', '≈5× less'],
+  const people = [
+    ['LuMonitor', 'Control-room operator', 'One live wall for every department’s cameras; alerts arrive with a sound, on screen.'],
+    ['LuFileSearch', 'Investigating officer', 'Route, timestamps and evidence frames for any plate, exported as a case-ready report.'],
+    ['LuSmartphone', 'Officer on patrol', 'Alerts and plate lookup on a phone, with an offline mode for weak signal.'],
+    ['LuLandmark', 'Leadership', 'A statewide view of the camera network: what works, what is down, where gaps are.'],
   ]
-  const colX = [M, M + 3.6, M + 6.85, M + 10.0]
-  text(s, 'Central VMS (Model 4)', { x: colX[1], y: 1.85, w: 3, h: 0.35, fontFace: H, fontSize: 13, bold: true, color: CORAL })
-  text(s, 'Sentinel, edge-first', { x: colX[2], y: 1.85, w: 3, h: 0.35, fontFace: H, fontSize: 13, bold: true, color: TEAL })
-  for (const [i, [label, central, ours, ratio]] of rows.entries()) {
-    const y = 2.35 + i * 1.32
-    panel(s, M, y, CW, 1.12, i % 2 ? PANEL : PANEL_2)
-    text(s, label, { x: colX[0] + 0.3, y: y + 0.36, w: 3.1, h: 0.45, fontFace: H, fontSize: 16, bold: true })
-    text(s, central, { x: colX[1], y: y + 0.2, w: 3, h: 0.75, fontFace: H, fontSize: 34, bold: true, color: CORAL })
-    text(s, ours, { x: colX[2], y: y + 0.2, w: 3, h: 0.75, fontFace: H, fontSize: 34, bold: true, color: TEAL })
-    text(s, ratio, { x: colX[3], y: y + 0.36, w: 2.0, h: 0.45, fontFace: H, fontSize: 16, bold: true, color: SAFFRON, align: 'right' })
+  const cw = 3.7
+  for (const [i, [ic, title, body]] of people.entries()) {
+    const x = M + (i % 2) * (cw + 0.3)
+    const y = 1.9 + Math.floor(i / 2) * 2.45
+    card(s, x, y, cw, 2.15)
+    await badge(s, ic, x + 0.3, y + 0.3, 0.6, i === 2 ? SAFFRON : BLUE)
+    text(s, title, { x: x + 0.3, y: y + 1.02, w: cw - 0.6, h: 0.4, fontFace: H, fontSize: 16, bold: true })
+    text(s, body, { x: x + 0.3, y: y + 1.42, w: cw - 0.6, h: 0.7, fontSize: 13, color: MUTED })
   }
-  text(s, 'Video stays in the district where it was filmed. What travels is a 1 KB event and a 30 KB snapshot. Every figure re-derives from five formulas in our scale plan.', {
-    x: M, y: 6.4, w: CW, h: 0.6, fontSize: 14, color: MUTED,
+  const phone = await whole('field-pwa')
+  const ph = 5.0
+  const pw = ph * phone.ratio
+  const px = W - M - pw - 1.2
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+    x: px - 0.14, y: 1.85 - 0.14, w: pw + 0.28, h: ph + 0.28, rectRadius: 0.3,
+    fill: { color: INK }, line: { color: INK },
+    shadow: { type: 'outer', color: '1F2A44', blur: 22, offset: 8, angle: 90, opacity: 0.22 },
+  })
+  s.addImage({ data: phone.data, x: px, y: 1.85, w: pw, h: ph })
+  text(s, 'The field app, on an officer’s phone', {
+    x: px - 0.6, y: 7.0, w: pw + 1.2, h: 0.3, fontSize: 11, italic: true, color: MUTED, align: 'center',
   })
 }
 
 async function demoSlide() {
   pageNumber += 1
   const s = pres.addSlide()
-  s.background = { color: INK }
-  text(s, 'LIVE DEMONSTRATION', { x: M, y: 0.9, w: CW, h: 0.35, fontFace: H, fontSize: 13, bold: true, color: SAFFRON, charSpacing: 4 })
+  s.background = { color: TINT }
+  text(s, 'LIVE DEMONSTRATION', { x: M, y: 0.9, w: CW, h: 0.35, fontFace: H, fontSize: 13, bold: true, color: SAFFRON_TEXT, charSpacing: 4 })
   text(s, 'On today’s cameras, in front of you', { x: M, y: 1.3, w: CW, h: 0.9, fontFace: H, fontSize: 40, bold: true })
   const steps = [
-    ['1', 'Onboard and see', 'Today’s cameras in the registry, on the map, on the live wall — and their health.', 'LuCamera'],
-    ['2', 'Trace the vehicle', 'One registration number in; the timestamped route, the evidence and a signed report out.', 'LuRoute'],
-    ['3', 'Alerts that find you', 'A watchlist hit lands on every open console the moment a confirmed read matches.', 'LuBellRing'],
+    ['1', 'Connect and see', 'Today’s cameras on the map and the live wall, with their health.', 'LuCamera'],
+    ['2', 'Trace the vehicle', 'The registration number you give us, traced camera by camera, with a report to hand over.', 'LuRoute'],
+    ['3', 'Get alerted', 'A watchlist vehicle flagged on every open screen the moment it is read.', 'LuBellRing'],
   ]
   const cw = (CW - 2 * 0.4) / 3
   for (const [i, [n, title, body, ic]] of steps.entries()) {
     const x = M + i * (cw + 0.4)
-    panel(s, x, 2.75, cw, 3.4)
+    card(s, x, 2.75, cw, 3.4)
     text(s, n, { x: x + 0.35, y: 2.95, w: 1.2, h: 1.2, fontFace: H, fontSize: 64, bold: true, color: SAFFRON })
     await badge(s, ic, x + cw - 1.05, 3.15, 0.7)
     text(s, title, { x: x + 0.35, y: 4.25, w: cw - 0.7, h: 0.5, fontFace: H, fontSize: 20, bold: true })
@@ -302,25 +369,25 @@ async function demoSlide() {
   text(s, 'If the venue network fails, we say which fallback we are on: our own cameras, then a recorded copy of the government grid.', {
     x: M, y: 6.5, w: CW, h: 0.4, fontSize: 13, color: MUTED, italic: true,
   })
-  text(s, String(pageNumber).padStart(2, '0'), { x: W - M - 0.6, y: SLIDE_H - 0.45, w: 0.6, h: 0.25, fontFace: H, fontSize: 9, color: MUTED, align: 'right' })
-  s.addNotes('Say what you will do before you do it. Narrator faces the jury; the driver only clicks. If the number was already given, run step 2 first.')
+  pageNo(s)
+  s.addNotes('Say what you will do before you do it. The narrator faces the jury; the driver only clicks. If the vehicle number was already given, run step 2 first.')
 }
 
-async function onboardSlide() {
+async function connectSlide() {
   const s = frame({
-    eyebrow: '1 · Onboard and see',
-    title: 'Any camera, onboarded in minutes — without touching it',
-    notes: 'These are the cameras we were given, onboarded from a CSV, ONVIF discovery or a catalogue. Each is in the registry with its department and location; Health shows each one live with its measured analysis rate; the live wall plays any of them — credentials never reach the browser.',
+    eyebrow: '1 · Connect and see',
+    title: 'Works with the cameras you already have',
+    notes: 'Nothing is replaced and nothing is installed on a department’s system. A camera list, a device on the network or a department’s catalogue — each is onboarded in minutes and appears on the map and the live wall. For the technical jury: RTSP, ONVIF, Hikvision and Dahua drivers; one connection per camera however many people watch; credentials never reach a browser.',
   })
-  const shot = await crop('02-live-wall', { x: 400, y: 290, w: 1190, h: 710 })
-  screenshot(s, shot, M + 0.06, 1.9, 6.9)
+  const shot = await crop('live-wall', { x: 400, y: 290, w: 1190, h: 710 })
+  screenshot(s, shot, M + 0.07, 1.9, 6.9)
   const x = M + 7.45
   const w = CW - 7.45
   const rows = [
-    ['LuFileSpreadsheet', 'Bulk CSV import', 'A dry run validates every row first; one bad row never blocks the rest.'],
-    ['LuScanSearch', 'ONVIF and NVR discovery', 'Find a device’s streams and add them. Hikvision and Dahua drivers included.'],
-    ['LuRefreshCw', 'Catalogue sync', 'A department endpoint keeps the registry current, with no restart.'],
-    ['LuLock', 'One pull per camera', 'However many viewers. Stream credentials never reach a browser.'],
+    ['LuFileSpreadsheet', 'Upload a camera list', 'Every row checked before anything is added; one bad row never blocks the rest.'],
+    ['LuScanSearch', 'Or discover devices', 'Find a camera’s or recorder’s streams on the network and add them (ONVIF, Hikvision, Dahua).'],
+    ['LuShieldCheck', 'Nothing installed', 'Read-only access. Each department’s own system and recording keep running untouched.'],
+    ['LuLock', 'Secure viewing', 'One connection per camera, however many watch. Passwords never reach a browser.'],
   ]
   for (const [i, [ic, title, body]] of rows.entries()) {
     await iconRow(s, { icon: ic, title, body, x, y: 1.95 + i * 1.18, w })
@@ -329,112 +396,76 @@ async function onboardSlide() {
 
 async function traceSlide() {
   const s = frame({
-    eyebrow: '2 · Trace the designated vehicle',
-    title: 'One plate in. The route out.',
-    notes: 'Type the number — spacing and case do not matter. Every read is searched, ordered by the cameras’ own clocks, and drawn as a route. Each stop: camera, department, the time printed on the frame, confidence, the plate as read, the snapshot with faces blurred. Then arm a watch, and export the Movement Report and hand it over.',
+    eyebrow: '2 · Trace the vehicle',
+    title: 'Type a plate. See where it went.',
+    notes: 'Type the number — spacing and case do not matter. Every sighting appears on the map and the timeline, in the order the cameras’ own clocks give. Open a stop: the camera, the time printed on the frame, the plate as read, the snapshot with faces blurred. Arm a watch for future sightings. Then export the Movement Report and hand it over.',
   })
-  const shot = await crop('05-find-a-vehicle', { x: 100, y: 255, w: 1500, h: 745 })
-  const h = screenshot(s, shot, M + 0.06, 1.75, 7.6)
-  const x = M + 8.15
-  const w = CW - 8.15
+  const shot = await crop('find-a-vehicle', { x: 80, y: 180, w: 1520, h: 820 })
+  const h = screenshot(s, shot, M + 0.07, 1.8, 7.5)
+  const x = M + 8.1
+  const w = CW - 8.1
   const rows = [
-    ['LuClock', 'The camera’s own clock', 'Every stop is timed by the clock burned into its evidence frame.'],
-    ['LuTriangleAlert', 'Impossible travel flagged', 'A hop needing over 150 km/h is marked — a cloned plate, never a silent line.'],
-    ['LuFileCheck', 'Movement Report', 'PDF and CSV in IST with a SHA-256 manifest, handed over on the spot.'],
+    ['LuClock', 'The camera’s own clock', 'Each stop is timed by the clock printed on its evidence frame.'],
+    ['LuTriangleAlert', 'Impossible journeys flagged', 'A hop no vehicle could make is marked — a cloned plate stands out.'],
+    ['LuFileCheck', 'A report to hand over', 'Route, times and evidence frames as PDF and CSV, sealed with a tamper-evident fingerprint.'],
   ]
   for (const [i, [ic, title, body]] of rows.entries()) {
-    await iconRow(s, { icon: ic, title, body, x, y: 1.85 + i * 1.3, w })
+    await iconRow(s, { icon: ic, title, body, x, y: 1.9 + i * 1.3, w })
   }
-  text(s, 'Real console, recorded government footage: GJ39C8018 at Gandhidham, 8 Aug 2026, 21:10 — the time printed on the frame.', {
-    x: M, y: 1.75 + h + 0.25, w: 7.7, h: 0.45, fontSize: 11, color: MUTED, italic: true,
+  text(s, 'The real console on recorded government footage: GJ39C8018 at Gandhidham, 8 Aug 2026, 21:10 — the time printed on the frame.', {
+    x: M, y: 1.8 + h + 0.22, w: 7.6, h: 0.45, fontSize: 11, color: MUTED, italic: true,
   })
 }
 
-async function alertsSlide() {
+async function alertSlide() {
   const s = frame({
-    eyebrow: '3 · Alerts that find you',
-    title: 'Every read, checked against the watchlist as it happens',
-    notes: 'Watchlist correlation is continuous. A confirmed read is matched down a ladder — exact first, then OCR-ambiguity classes — and raises a prioritised, deduplicated alert on every open console, with a sound. Acknowledging or resolving it is audited. Registry adapters for VAHAN, SARTHI, eGujCop, AFIS and NAFIS are built against contract mocks: on the day access is granted, a configuration change.',
+    eyebrow: '3 · Get alerted',
+    title: 'Flagged the moment it is seen',
+    notes: 'Every plate any camera reads is checked against the watchlist — stolen, wanted, missing — automatically. A match raises a prioritised alert on every open console and on officers’ phones, with a sound, and repeat sightings at a red light do not flood anyone. It also catches the misreads cameras make: a zero read as an O, a one as an I. Anything less than an exact match is shown as probable, for an officer to confirm on the frame.',
   })
-  const shot = await crop('03-alerts', { x: 712, y: 262, w: 878, h: 600 })
-  screenshot(s, shot, M + 0.06, 1.85, 5.6)
+  const shot = await crop('alerts', { x: 712, y: 262, w: 878, h: 600 })
+  screenshot(s, shot, M + 0.07, 1.85, 5.6)
   const x = M + 6.2
   const w = CW - 6.2
-  text(s, 'The matching ladder', { x, y: 1.85, w, h: 0.4, fontFace: H, fontSize: 18, bold: true })
+  text(s, 'It catches the misreads cameras make', { x, y: 1.85, w, h: 0.4, fontFace: H, fontSize: 18, bold: true })
   const rungs = [
-    ['Exact', 'GJ01AB1234 = GJ01AB1234', TEAL],
-    ['OCR-ambiguity class', '0↔O · 1↔I · 8↔B · 5↔S · 2↔Z', TEAL],
-    ['One character away', 'Shown as probable, with the plate actually read', SAFFRON],
-    ['Same tail, class and colour', 'Reachable at road speed — probable, officer confirms', SAFFRON],
+    ['Exact match', 'The plate, read as it is', TEAL, 'Alert'],
+    ['Look-alike characters', '0 for O, 1 for I, 8 for B, 5 for S', TEAL, 'Alert'],
+    ['One character off', 'Shown with the plate as actually read', SAFFRON, 'Confirm'],
   ]
-  for (const [i, [name, body, color]] of rungs.entries()) {
-    const y = 2.4 + i * 0.86
-    panel(s, x, y, w, 0.72, PANEL)
-    s.addShape(pres.shapes.OVAL, { x: x + 0.22, y: y + 0.22, w: 0.28, h: 0.28, fill: { color }, line: { color } })
-    text(s, name, { x: x + 0.7, y: y + 0.1, w: 3.2, h: 0.5, fontFace: H, fontSize: 14, bold: true, valign: 'middle' })
-    text(s, body, { x: x + 3.85, y: y + 0.1, w: w - 4.05, h: 0.5, fontSize: 12, color: MUTED, valign: 'middle' })
+  for (const [i, [name, body, color, action]] of rungs.entries()) {
+    const y = 2.42 + i * 0.95
+    card(s, x, y, w, 0.78)
+    s.addShape(pres.shapes.OVAL, { x: x + 0.25, y: y + 0.25, w: 0.28, h: 0.28, fill: { color }, line: { color } })
+    text(s, name, { x: x + 0.7, y: y + 0.12, w: 2.6, h: 0.54, fontFace: H, fontSize: 15, bold: true, valign: 'middle' })
+    text(s, body, { x: x + 3.2, y: y + 0.12, w: w - 4.5, h: 0.54, fontSize: 13, color: MUTED, valign: 'middle' })
+    text(s, action, { x: x + w - 1.25, y: y + 0.12, w: 1.0, h: 0.54, fontFace: H, fontSize: 12, bold: true, color, align: 'right', valign: 'middle' })
   }
   await iconRow(s, {
-    icon: 'LuPlugZap', x, y: 6.0, w,
-    title: 'VAHAN · SARTHI · eGujCop · AFIS · NAFIS',
-    body: 'Adapters ready. A rejected credential raises — it never reads as “no record”.',
+    icon: 'LuPlugZap', x, y: 5.5, w, color: SAFFRON,
+    title: 'Ready for the State’s databases',
+    body: 'VAHAN, SARTHI, eGujCop, AFIS and NAFIS connectors are built. Access, once granted, is a setting.',
   })
 }
 
-async function unreadableSlide() {
+async function trustSlide() {
   const s = frame({
-    eyebrow: 'When the plate is hard to read',
-    title: 'We never draw a hop we cannot defend',
-    notes: 'When the plate is partly readable, the ladder recovers it and marks the hop as probable, never confirmed — an officer checks it against the snapshot. We already use vehicle class and colour plus road-speed feasibility to bridge gaps. Full appearance re-identification is designed and costed; it is not running today, and we say so.',
+    eyebrow: 'Evidence and privacy',
+    title: 'Evidence that holds up. Privacy by default.',
+    notes: 'For the legal and leadership side of the room. The time we report is the time the camera printed on its own frame — and if it cannot be read, we say “time unknown” rather than guess. Faces are blurred by default; revealing one needs a reason and is logged. Every search, export and reveal is in a tamper-evident log. We do no face recognition at all.',
   })
-  const cols = [
-    ['LuScanLine', 'Recovered today', TEAL, [
-      'OCR-ambiguity classes catch a misread like GJ1B67OS for GJ186705',
-      'A one-character miss returns as a probable stop, plate shown',
-      'Same tail, vehicle class and colour bridge a gap at road speed',
-    ]],
-    ['LuShieldCheck', 'Always checked', SAFFRON, [
-      'Two sightings implying more than 150 km/h are flagged, not drawn',
-      'Probable stops are dashed and amber; an officer confirms each on its frame',
-      'Reads shorter than six characters are discarded — they match everything',
-    ]],
-    ['LuSparkles', 'Next: appearance ReID', MUTED, [
-      'One embedding per vehicle track; matching within a reachable time window',
-      'Designed and costed at about two days; off until calibrated on real footage',
-      'Stated plainly: not running in today’s demonstration',
-    ]],
-  ]
-  const cw = (CW - 2 * 0.3) / 3
-  for (const [i, [ic, title, color, items]] of cols.entries()) {
-    const x = M + i * (cw + 0.3)
-    panel(s, x, 1.85, cw, 4.75, i === 2 ? PANEL : PANEL_2)
-    await badge(s, ic, x + 0.35, 2.15, 0.62, color)
-    text(s, title, { x: x + 1.15, y: 2.27, w: cw - 1.4, h: 0.45, fontFace: H, fontSize: 19, bold: true })
-    s.addText(
-      items.map((t, j) => ({ text: t, options: { bullet: { indent: 16 }, breakLine: j < items.length - 1 } })),
-      { x: x + 0.35, y: 3.1, w: cw - 0.7, h: 3.3, margin: 0, fontFace: B, fontSize: 15, color: TEXT, valign: 'top', paraSpaceAfter: 12 },
-    )
-  }
-}
-
-async function evidenceSlide() {
-  const s = frame({
-    eyebrow: 'Evidence that holds up',
-    title: 'The time on the frame is the time in the report',
-    notes: 'A sighting is reported only with the clock the camera burned into its own frame, confirmed by a second reading. If that clock cannot be read, the sighting says “time unknown” — it stays searchable, but it is never given a time it does not have. Every search, export and reveal is in a hash-chained audit log; edit one row and verification fails. We do no face recognition: faces are detected only to be blurred.',
-  })
-  const shot = await crop('11-time-unknown', { x: 818, y: 422, w: 765, h: 520 })
+  const shot = await crop('time-unknown', { x: 818, y: 422, w: 765, h: 520 })
   screenshot(s, shot, M + 6.95, 1.9, CW - 7.0)
   const items = [
-    ['LuClock', 'The camera’s clock is the time', 'Confirmed by a second reading; unreadable means “time unknown”, never another clock.'],
-    ['LuEyeOff', 'Faces blurred by default', 'Revealing an original needs a stated reason, and is logged.'],
-    ['LuFingerprint', 'Hash-chained audit log', 'Every search, export and reveal. One edited row breaks verification.'],
-    ['LuKeyRound', 'Scoped in the database', 'Department row-level security; private cameras only with live consent.'],
+    ['LuClock', 'The time on the frame is the time in the report', 'Read from the camera’s own clock. If it cannot be read, we say “time unknown” — never a guess.'],
+    ['LuEyeOff', 'Faces blurred by default', 'Seeing an original needs a stated reason, and is recorded.'],
+    ['LuFingerprint', 'A log no one can quietly edit', 'Every search, export and reveal. Change one entry and verification fails.'],
+    ['LuKeyRound', 'Each department sees its own', 'Access scoped in the database itself; private cameras only with current consent.'],
   ]
   for (const [i, [ic, title, body]] of items.entries()) {
-    await iconRow(s, { icon: ic, title, body, x: M, y: 1.95 + i * 1.18, w: 6.4 })
+    await iconRow(s, { icon: ic, title, body, x: M, y: 1.95 + i * 1.18, w: 6.4, color: i === 0 ? SAFFRON : BLUE })
   }
-  text(s, 'A sighting whose clock cannot be read stays a sighting — off the timeline, clearly labelled.', {
+  text(s, 'A sighting whose clock cannot be read stays a sighting — listed, clearly labelled, and kept off the timeline.', {
     x: M + 6.95, y: 6.35, w: CW - 7.0, h: 0.5, fontSize: 11, color: MUTED, italic: true,
   })
 }
@@ -443,21 +474,21 @@ async function beyondSlide() {
   const s = frame({
     eyebrow: 'Beyond number plates',
     title: 'More than plates — never identities',
-    notes: 'Analytics beyond ANPR run on the same frames at no extra inference cost: class and colour, people counted, zone rules for intrusion, loitering, wrong-way and stopped vehicles, and camera tamper detection. Excluded by decision: face recognition.',
+    notes: 'The same cameras answer more questions at no extra effort: what kind of vehicle, what colour, how many people, did anyone enter a restricted zone or loiter, is a vehicle going the wrong way, has a camera been covered or moved. And one thing we will not do: identify faces.',
   })
   const tiles = [
-    ['LuCar', 'Vehicle class', 'Car, motorcycle, bus, truck — on every read.'],
+    ['LuCar', 'Vehicle type', 'Car, motorcycle, bus or truck — on every read.'],
     ['LuPalette', 'Vehicle colour', 'Body colour attached to each sighting.'],
     ['LuUsers', 'People counted', 'Counted per camera and held to zones. Never identified.'],
-    ['LuCrosshair', 'Zone intrusion', 'Intrusion and loitering zones on any camera, with dwell time.'],
-    ['LuMoveHorizontal', 'Traffic rules', 'Wrong-way and stopped-vehicle rules per zone.'],
+    ['LuCrosshair', 'Restricted zones', 'Intrusion and loitering, drawn on any camera.'],
+    ['LuMoveHorizontal', 'Traffic rules', 'Wrong-way and stopped vehicles, per zone.'],
     ['LuCircleAlert', 'Camera tamper', 'Covered, blurred or moved — flagged on the camera.'],
   ]
   const cw = (CW - 2 * 0.3) / 3
   for (const [i, [ic, title, body]] of tiles.entries()) {
     const x = M + (i % 3) * (cw + 0.3)
     const y = 1.9 + Math.floor(i / 3) * 2.05
-    panel(s, x, y, cw, 1.8, i % 2 ? PANEL : PANEL_2)
+    card(s, x, y, cw, 1.8)
     await badge(s, ic, x + 0.3, y + 0.3, 0.6)
     text(s, title, { x: x + 1.1, y: y + 0.32, w: cw - 1.35, h: 0.45, fontFace: H, fontSize: 17, bold: true })
     text(s, body, { x: x + 1.1, y: y + 0.82, w: cw - 1.35, h: 0.8, fontSize: 14, color: MUTED })
@@ -468,36 +499,69 @@ async function beyondSlide() {
   })
 }
 
+async function efficiencySlide() {
+  const s = frame({
+    eyebrow: 'Why it scales',
+    title: 'Send meaning, not video',
+    notes: 'This is why the design scales where others cannot. Pulling every camera’s video to one centre would need a 160-gigabit backbone from sites a thousand kilometres apart, and petabytes of storage for a single week. Sentinel reads plates in the district where the video is filmed and sends only what it found — a few kilobytes per sighting. And if a district’s link drops, it keeps reading and alerting locally.',
+  })
+  const rows = [
+    ['LuNetwork', 'Network backbone, statewide', '160 Gbps', '≈140 Mbps', '~1,000× less'],
+    ['LuHardDrive', 'Storage for one week', '12.1 PB', '≈390 TB', '~30× less'],
+    ['LuWifiOff', 'When a district’s link drops', 'Analysis stops', 'Keeps reading & alerting', 'up to 72 h'],
+  ]
+  const colX = [M + 0.3, M + 4.6, M + 7.6, M + 10.4]
+  text(s, 'Send all video to the centre', { x: colX[1], y: 1.85, w: 2.9, h: 0.35, fontFace: H, fontSize: 13, bold: true, color: MUTED })
+  text(s, 'Sentinel: analyse where filmed', { x: colX[2], y: 1.85, w: 2.9, h: 0.35, fontFace: H, fontSize: 13, bold: true, color: BLUE })
+  for (const [i, [ic, label, central, ours, ratio]] of rows.entries()) {
+    const y = 2.35 + i * 1.32
+    card(s, M, y, CW, 1.12)
+    await badge(s, ic, colX[0], y + 0.28, 0.56)
+    text(s, label, { x: colX[0] + 0.78, y: y + 0.33, w: 3.0, h: 0.5, fontFace: H, fontSize: 15, bold: true, valign: 'middle' })
+    const small = central.length > 9
+    text(s, central, { x: colX[1], y: y + 0.2, w: 2.9, h: 0.75, fontFace: H, fontSize: small ? 19 : 32, bold: true, color: MUTED, valign: 'middle' })
+    text(s, ours, { x: colX[2], y: y + 0.2, w: 2.8, h: 0.75, fontFace: H, fontSize: small ? 19 : 32, bold: true, color: BLUE, valign: 'middle' })
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: colX[3], y: y + 0.32, w: CW - (colX[3] - M) - 0.3, h: 0.48, rectRadius: 0.24,
+      fill: { color: 'FDF1DF' }, line: { color: 'F5D6A6', width: 0.75 },
+    })
+    text(s, ratio, { x: colX[3], y: y + 0.32, w: CW - (colX[3] - M) - 0.3, h: 0.48, fontFace: H, fontSize: 14, bold: true, color: SAFFRON_TEXT, align: 'center', valign: 'middle' })
+  }
+  text(s, 'What travels is a small event and a snapshot per sighting. Video stays in the district — and in each department’s own system — until someone needs it.', {
+    x: M, y: 6.4, w: CW, h: 0.6, fontSize: 14, color: MUTED,
+  })
+}
+
 async function architectureSlide() {
   const s = frame({
-    eyebrow: 'Architecture at 80,000 cameras',
-    title: 'Analyse where it is filmed. Send meaning, not video.',
-    notes: 'Five layers, one number each. Cameras, tiered. Department systems stay — we pull read-only. Each district decodes and analyses its own video; if its link drops it keeps reading plates and alerting locally for up to 72 hours. The state core is about search and storage, not throughput. What you saw today is the district layer on a laptop: the same code.',
+    eyebrow: 'How it works at 80,000 cameras',
+    title: 'Five layers, each doing one job',
+    notes: 'For the technical jury, bottom to top. Cameras, tiered by how much analysis they need. Department systems stay — we pull read-only. Each district decodes and analyses its own video and queues what it finds if its link drops. The state core is about search and storage, not throughput, with a warm disaster-recovery site. And the consumers: control rooms, the field app and the national and state databases. What you saw today is the district layer, on a laptop: the same code.',
   })
   const layers = [
-    ['Consumers', 'Command centres · Field app · VAHAN · SARTHI · eGujCop · AFIS · NAFIS', 'REST · live events · scoped access', 'LuUsers', MUTED],
-    ['State core  ·  HA + warm DR', 'Event bus → correlator → alerts · Postgres / PostGIS / Timescale', '≈563 events/s · ≈390 TB · RPO 15 min', 'LuDatabase', SAFFRON],
-    ['District edge  ×34  (+ remote edge boxes)', 'Relay (one pull per camera) → decode → ANPR + analytics → 72 h queue', '≈560 GPUs · ≈140 Mbps uplink, statewide', 'LuCpu', SAFFRON],
-    ['Department systems  ·  unchanged', 'Cameras, NVRs and VMS keep their own 7–15 day retention', 'Read-only RTSP / ONVIF / vendor SDK', 'LuBuilding2', MUTED],
-    ['80,000 cameras, tiered', 'Continuous · sampled · motion-gated · view-only', 'A 12% · B 28% · C 35% · D 25%', 'LuCamera', MUTED],
+    ['Consumers', 'Command centres · Field app · VAHAN · SARTHI · eGujCop · AFIS · NAFIS', 'Live alerts · open APIs', 'LuUsers', false],
+    ['State core  ·  high availability + disaster recovery', 'Event bus → watchlist matching → alerts · searchable sighting history', '≈563 events/s · RPO 15 min', 'LuDatabase', true],
+    ['District edge  ×34  (+ edge boxes at remote sites)', 'One connection per camera → plate reading and analytics → 72 h offline queue', 'AI runs here', 'LuCpu', true],
+    ['Department systems  ·  unchanged', 'Cameras, recorders and VMS keep their own 7–15 day retention', 'Read-only: RTSP · ONVIF · SDK', 'LuBuilding2', false],
+    ['80,000 cameras, tiered', 'Continuous · sampled · motion-triggered · view-only', 'Tier set per camera', 'LuCamera', false],
   ]
   const top = 1.8
   const rowH = 0.82
   const gap = 0.2
-  for (const [i, [name, body, metric, ic, color]] of layers.entries()) {
+  for (const [i, [name, body, metric, ic, accent]] of layers.entries()) {
     const y = top + i * (rowH + gap)
-    const accent = color === SAFFRON
-    panel(s, M, y, CW, rowH, accent ? PANEL_2 : PANEL)
-    await badge(s, ic, M + 0.2, y + 0.16, 0.5, color)
-    text(s, name, { x: M + 0.9, y: y + 0.1, w: 4.6, h: 0.32, fontFace: H, fontSize: 15, bold: true })
-    text(s, body, { x: M + 0.9, y: y + 0.44, w: 6.6, h: 0.32, fontSize: 12, color: MUTED })
+    if (accent) panel(s, M, y, CW, rowH, TINT, 'C9D7F7')
+    else card(s, M, y, CW, rowH)
+    await badge(s, ic, M + 0.2, y + 0.16, 0.5, accent ? BLUE : '7A869E')
+    text(s, name, { x: M + 0.9, y: y + 0.1, w: 6.6, h: 0.32, fontFace: H, fontSize: 15, bold: true })
+    text(s, body, { x: M + 0.9, y: y + 0.44, w: 7.2, h: 0.32, fontSize: 12, color: MUTED })
     text(s, metric, {
-      x: M + 7.6, y: y + 0.18, w: CW - 7.85, h: 0.46, fontFace: H, fontSize: 14, bold: true,
-      color: accent ? SAFFRON : TEXT, align: 'right', valign: 'middle',
+      x: M + 8.2, y: y + 0.18, w: CW - 8.45, h: 0.46, fontFace: H, fontSize: 14, bold: true,
+      color: accent ? BLUE : INK, align: 'right', valign: 'middle',
     })
     if (i < layers.length - 1) {
       s.addShape(pres.shapes.UP_ARROW, {
-        x: M + 0.36, y: y + rowH + 0.01, w: 0.18, h: gap - 0.02, fill: { color: LINE }, line: { color: LINE },
+        x: M + 0.36, y: y + rowH + 0.01, w: 0.18, h: gap - 0.02, fill: { color: 'B8C0CE' }, line: { color: 'B8C0CE' },
       })
     }
   }
@@ -505,19 +569,19 @@ async function architectureSlide() {
 
 async function tieringSlide() {
   const s = frame({
-    eyebrow: 'Compute sizing',
-    title: 'Not every camera needs AI: tier them',
-    notes: 'A highway check-post and a PDS godown are different jobs. Twelve percent run continuous ANPR; a quarter are view-only. Tier is a registry field a department changes live — a camera goes to tier A for a bandobast. That is about 560 L4 GPUs with redundancy, in about 140 four-GPU district servers. The per-GPU throughput is a benchmark estimate; Phase 0 measures it.',
+    eyebrow: 'AI where it matters',
+    title: 'Not every camera needs the same attention',
+    notes: 'A highway check-post and a ration-shop godown are different jobs. About one camera in eight reads plates continuously; a quarter are view-only. The tier is a setting each department controls and can change live — a camera goes to continuous for a bandobast and back afterwards. That is what makes eighty thousand cameras tractable.',
   })
   s.addChart(pres.charts.DOUGHNUT, [{
     name: 'Cameras by tier',
-    labels: ['A — continuous', 'B — sampled', 'C — motion-gated', 'D — view only'],
+    labels: ['Continuous', 'Sampled', 'Motion-triggered', 'View only'],
     values: [9600, 22400, 28000, 20000],
   }], {
     x: M, y: 1.75, w: 4.9, h: 4.9, holeSize: 58,
-    chartColors: [SAFFRON, 'C98A2B', '7A6A4C', '3B4560'],
+    chartColors: [SAFFRON, BLUE, '8FA9EA', 'D3DAE6'],
     showLegend: false, showValue: false, showPercent: true, showLabel: false,
-    dataLabelColor: TEXT, dataLabelFontSize: 13, dataLabelFontFace: H, dataLabelFontBold: true,
+    dataLabelColor: INK, dataLabelFontSize: 13, dataLabelFontFace: H, dataLabelFontBold: true,
     showTitle: false,
   })
   text(s, '80,000', { x: M + 1.45, y: 3.75, w: 2.0, h: 0.55, align: 'center', fontFace: H, fontSize: 28, bold: true })
@@ -525,128 +589,112 @@ async function tieringSlide() {
 
   const x = M + 5.4
   const w = CW - 5.4
-  const head = ['Tier', 'Cameras', 'Analysed', 'L4 GPUs']
-  const colW = [2.4, 1.6, 1.6, w - 5.6]
-  const rows = [
-    ['A — continuous', '9,600', '10 fps', '320'],
-    ['B — sampled', '22,400', '2 fps', '149'],
-    ['C — motion-gated', '28,000', '~0.3 fps', '28'],
-    ['D — view only', '20,000', '—', '0'],
+  const tiers = [
+    [SAFFRON, 'Continuous', '9,600 cameras', 'Check-posts, highways, city entry points'],
+    [BLUE, 'Sampled', '22,400 cameras', 'Junctions, markets and public spaces'],
+    ['8FA9EA', 'Motion-triggered', '28,000 cameras', 'Godowns, offices and quiet premises'],
+    ['D3DAE6', 'View only', '20,000 cameras', 'Indoor, admin and consented private feeds'],
   ]
-  let cx = x
-  for (const [j, h] of head.entries()) {
-    text(s, h, { x: cx + 0.2, y: 1.85, w: colW[j] - 0.2, h: 0.3, fontFace: H, fontSize: 12, bold: true, color: MUTED, align: j ? 'right' : 'left' })
-    cx += colW[j]
+  for (const [i, [color, name, count, use]] of tiers.entries()) {
+    const y = 1.9 + i * 0.92
+    card(s, x, y, w, 0.78)
+    s.addShape(pres.shapes.OVAL, { x: x + 0.25, y: y + 0.25, w: 0.28, h: 0.28, fill: { color }, line: { color: LINE, width: 0.5 } })
+    text(s, name, { x: x + 0.7, y: y + 0.12, w: 2.2, h: 0.54, fontFace: H, fontSize: 15, bold: true, valign: 'middle' })
+    text(s, use, { x: x + 2.85, y: y + 0.12, w: w - 5.05, h: 0.54, fontSize: 12, color: MUTED, valign: 'middle' })
+    text(s, count, { x: x + w - 2.15, y: y + 0.12, w: 1.9, h: 0.54, fontFace: H, fontSize: 13, bold: true, align: 'right', valign: 'middle' })
   }
-  for (const [i, row] of rows.entries()) {
-    const y = 2.25 + i * 0.62
-    panel(s, x, y, w, 0.52, i % 2 ? PANEL : PANEL_2)
-    cx = x
-    for (const [j, v] of row.entries()) {
-      text(s, v, { x: cx + 0.2, y: y + 0.1, w: colW[j] - 0.4, h: 0.34, fontSize: 14, bold: j === 0, align: j ? 'right' : 'left', valign: 'middle' })
-      cx += colW[j]
-    }
-  }
-  panel(s, x, 4.95, w, 1.55, PANEL_2)
-  text(s, '≈560 L4 GPUs', { x: x + 0.3, y: 5.12, w: 3.6, h: 0.65, fontFace: H, fontSize: 32, bold: true, color: SAFFRON })
-  text(s, 'with N+1 redundancy, in ≈140 four-GPU district servers; ≈1,500 Jetson boxes where backhaul is thin.', {
-    x: x + 0.3, y: 5.8, w: w - 0.6, h: 0.6, fontSize: 13, color: MUTED,
+  panel(s, x, 5.65, w, 0.85, TINT, 'C9D7F7')
+  await badge(s, 'LuSlidersHorizontal', x + 0.2, 5.79, 0.56)
+  text(s, 'Each department sets the tier, and can change it live — a camera moves to continuous for a bandobast and back afterwards.', {
+    x: x + 0.95, y: 5.73, w: w - 1.15, h: 0.7, fontSize: 13, valign: 'middle',
   })
 }
 
-async function costSlide() {
+async function whySlide() {
   const s = frame({
-    eyebrow: 'Impact on infrastructure cost',
-    title: 'About one-fifth of the capex — by reusing what exists',
-    notes: 'No camera, NVR or VMS is replaced; department retention is reused rather than re-stored; GSWAN carries the backhaul. Indicative figures for comparing architectures, not for tendering. Propose minutes-to-trace as the pilot KPI.',
+    eyebrow: 'Why Sentinel',
+    title: 'Designed for how Gujarat actually works',
+    notes: 'Six reasons this fits. Nothing is ripped out. Nothing locks the State to one vendor — open standards and documented APIs throughout. It keeps working when the network does not. It speaks the languages officers use. It is ready for the national and state databases. And it is secure by design: encrypted links, department-scoped access and a tamper-evident log.',
   })
-  s.addChart(pres.charts.BAR, [{
-    name: 'Capex (₹ crore)',
-    labels: ['Central VMS (Model 4)', 'Sentinel hybrid'],
-    values: [400, 80],
-  }], {
-    x: M, y: 1.75, w: 6.3, h: 4.6, barDir: 'bar',
-    chartColors: [CORAL, TEAL], varyColors: true,
-    showValue: true, dataLabelPosition: 'outEnd', dataLabelColor: TEXT, dataLabelFontSize: 16, dataLabelFontBold: true, dataLabelFontFace: H,
-    dataLabelFormatCode: '"₹"#,##0" cr"',
-    catAxisLabelColor: TEXT, catAxisLabelFontSize: 14, catAxisLabelFontFace: H,
-    valAxisHidden: true, valAxisMaxVal: 560, valGridLine: { style: 'none' }, catGridLine: { style: 'none' },
-    catAxisLineShow: false, showLegend: false,
-    showTitle: true, title: 'Capex, ₹ crore (order of magnitude)', titleColor: MUTED, titleFontSize: 13, titleFontFace: H,
-  })
-  const x = M + 6.75
-  const w = CW - 6.75
-  const stats = [
-    ['≈₹10,000', 'capex per camera'],
-    ['≈₹3,000', 'opex per camera, per year'],
-    ['≈₹200 cr', 'five-year cost of ownership'],
-    ['₹0', 'software licences — open-source stack'],
+  const reasons = [
+    ['LuRecycle', 'No rip and replace', 'Uses the cameras, recorders and VMS already installed.'],
+    ['LuLockOpen', 'No vendor lock-in', 'Open standards, open-source components, documented APIs.'],
+    ['LuWifiOff', 'Works when links drop', 'Districts keep reading and alerting; nothing is lost.'],
+    ['LuLanguages', 'Speaks Gujarati', 'The whole console in English, Hindi and Gujarati.'],
+    ['LuPlugZap', 'Ready to integrate', 'VAHAN, SARTHI, eGujCop, AFIS and NAFIS connectors built.'],
+    ['LuShieldCheck', 'Secure by design', 'Encrypted links, scoped access, tamper-evident logging.'],
   ]
-  for (const [i, [value, label]] of stats.entries()) {
-    const y = 1.85 + i * 1.08
-    panel(s, x, y, w, 0.92, i % 2 ? PANEL : PANEL_2)
-    text(s, value, { x: x + 0.3, y: y + 0.14, w: 2.6, h: 0.64, fontFace: H, fontSize: 28, bold: true, color: TEAL, valign: 'middle' })
-    text(s, label, { x: x + 2.95, y: y + 0.14, w: w - 3.2, h: 0.64, fontSize: 15, valign: 'middle' })
+  const cw = 3.55
+  for (const [i, [ic, title, body]] of reasons.entries()) {
+    const x = M + (i % 2) * (cw + 0.3)
+    const y = 1.9 + Math.floor(i / 2) * 1.6
+    card(s, x, y, cw, 1.38)
+    await badge(s, ic, x + 0.25, y + 0.27, 0.54, i === 3 ? SAFFRON : BLUE)
+    text(s, title, { x: x + 0.95, y: y + 0.24, w: cw - 1.15, h: 0.36, fontFace: H, fontSize: 14, bold: true })
+    text(s, body, { x: x + 0.95, y: y + 0.6, w: cw - 1.15, h: 0.7, fontSize: 12, color: MUTED })
   }
-  text(s, 'Reuse is the saving: no camera, NVR or VMS replaced; department retention reused, not re-stored; GSWAN for backhaul. Indicative, for comparing architectures.', {
-    x: M, y: 6.45, w: CW, h: 0.55, fontSize: 12, color: MUTED,
-  })
+  const gu = await crop('overview-gujarati', { x: 64, y: 44, w: 860, h: 940 })
+  const gx = M + 2 * (cw + 0.3) + 0.15
+  const gw = W - M - gx
+  const gh = screenshot(s, gu, gx, 1.95, gw)
+  text(s, 'The same console, in Gujarati', { x: gx, y: 1.95 + gh + 0.18, w: gw, h: 0.3, fontSize: 11, italic: true, color: MUTED })
 }
 
-async function measuredSlide() {
+async function proofSlide() {
   const s = frame({
-    eyebrow: 'Measured, not claimed',
-    title: 'What we measured — and what we did not',
-    notes: 'Say “I measured that” and point at the artefact. The accuracy number is below our own target and we say so: it was 8.6% before the measurement drove the fixes. The GPU throughput behind the cost is a vendor estimate; Phase 0 replaces it with a measured one.',
+    eyebrow: 'Proven, not promised',
+    title: 'Measured on real government footage',
+    notes: 'Say “we measured that”. The plate accuracy is measured on hand-checked plates from the government grid — and it is below our own target, which we say plainly; it started at under ten percent and the measurement is what drove it up. The rest is the discipline behind it: a laptop handling live analysis, more than six hundred automated tests, and a disaster-recovery drill that restores a million records in seconds and proves nothing was altered.',
   })
   const stats = [
-    ['78%', 'exact plate after the multi-frame vote', '81 hand-labelled real government plates; 88% per character'],
-    ['16 fps', 'analysed on one laptop CPU', 'End to end through the real worker, before falling behind'],
-    ['616', 'automated tests passing', 'Plus 64 interface tests in three languages and two themes'],
-    ['5.7 s', 'to restore 1 M detections', 'DR drill: backup, restore, audit chain re-verified, tamper caught'],
+    ['78%', 'plates read exactly', 'On 81 hand-checked real government plates; 88% of characters correct'],
+    ['16', 'frames a second, on one laptop', 'End-to-end live analysis on a CPU — the on-site set-up'],
+    ['600+', 'automated tests', 'Plus interface tests in three languages and two themes'],
+    ['5.7 s', 'to restore a million records', 'Disaster-recovery drill, with tampering detected'],
   ]
   const cw = (CW - 3 * 0.3) / 4
   for (const [i, [value, label, sub]] of stats.entries()) {
     const x = M + i * (cw + 0.3)
-    panel(s, x, 1.85, cw, 2.75, PANEL_2)
+    card(s, x, 1.85, cw, 2.75)
     text(s, value, { x: x + 0.3, y: 2.05, w: cw - 0.6, h: 0.9, fontFace: H, fontSize: 44, bold: true, color: TEAL })
     text(s, label, { x: x + 0.3, y: 3.0, w: cw - 0.6, h: 0.6, fontFace: H, fontSize: 14, bold: true })
     text(s, sub, { x: x + 0.3, y: 3.62, w: cw - 0.6, h: 0.85, fontSize: 12, color: MUTED })
   }
   panel(s, M, 4.95, CW, 1.6)
-  await badge(s, 'LuCircleAlert', M + 0.35, 5.2, 0.56, SAFFRON)
+  await badge(s, 'LuMessageSquareText', M + 0.35, 5.2, 0.56, SAFFRON)
   text(s, 'Stated plainly', { x: M + 1.1, y: 5.2, w: 4, h: 0.4, fontFace: H, fontSize: 17, bold: true })
   s.addText([
-    { text: 'ANPR is below our own 85% target', options: { bullet: { indent: 14 }, breakLine: true } },
-    { text: 'GPU throughput (300 fps per L4) is a vendor estimate', options: { bullet: { indent: 14 } } },
-  ], { x: M + 1.1, y: 5.65, w: 5.4, h: 0.8, margin: 0, fontFace: B, fontSize: 14, color: TEXT, paraSpaceAfter: 6 })
+    { text: 'Plate accuracy is below our own 85% target', options: { bullet: { indent: 14 }, breakLine: true } },
+    { text: 'Statewide compute is sized from vendor benchmarks', options: { bullet: { indent: 14 } } },
+  ], { x: M + 1.1, y: 5.65, w: 5.4, h: 0.8, margin: 0, fontFace: B, fontSize: 14, color: INK, paraSpaceAfter: 6 })
   s.addText([
-    { text: 'Appearance ReID is designed, not built', options: { bullet: { indent: 14 }, breakLine: true } },
-    { text: 'Face recognition is excluded by decision', options: { bullet: { indent: 14 } } },
-  ], { x: M + 6.6, y: 5.65, w: 5.3, h: 0.8, margin: 0, fontFace: B, fontSize: 14, color: TEXT, paraSpaceAfter: 6 })
+    { text: 'Matching vehicles with no readable plate is designed, not built', options: { bullet: { indent: 14 }, breakLine: true } },
+    { text: 'The pilot replaces every estimate with a measurement', options: { bullet: { indent: 14 } } },
+  ], { x: M + 6.6, y: 5.65, w: 5.6, h: 0.8, margin: 0, fontFace: B, fontSize: 14, color: INK, paraSpaceAfter: 6 })
 }
 
 async function rolloutSlide() {
   const s = frame({
-    eyebrow: 'Statewide rollout',
-    title: 'Useful at 500 cameras. No big-bang cutover.',
-    notes: 'This is useful at five hundred cameras and never needs a big-bang cutover: one district pilot in three months, then four districts, then statewide, then consented private cameras. Each phase is independently useful.',
+    eyebrow: 'Path to statewide',
+    title: 'Useful from the first district. No big-bang switch-over.',
+    notes: 'Each phase is useful on its own and none needs a big-bang cutover: one district pilot in three months, four districts and the main VMS vendors by nine, every district by twenty-one months, and consented private cameras in the last phase.',
   })
   const phases = [
-    ['Phase 0', '0–3 months', '~500', 'cameras', '1 district, 2 departments', 'ANPR validated on live feeds; operator acceptance'],
-    ['Phase 1', '3–9 months', '~5,000', 'cameras', '4 districts, 6 departments', 'Top three VMS vendors federated; VAHAN and eGujCop live; DR drill passed'],
-    ['Phase 2', '9–21 months', '~30,000', 'cameras', 'All 34 districts, 15 departments', 'Statewide vehicle tracking; SOC/NOC in place'],
-    ['Phase 3', '21–36 months', '80,000', 'cameras', 'Plus consented private cameras', 'Full coverage; policy and audit regime institutionalised'],
+    ['Pilot', '0–3 months', '~500', '1 district, 2 departments', 'Plate reading validated on live feeds; operators sign off'],
+    ['Expand', '3–9 months', '~5,000', '4 districts, 6 departments', 'Main VMS vendors connected; VAHAN and eGujCop live'],
+    ['Statewide', '9–21 months', '~30,000', 'All 34 districts', 'Statewide vehicle tracking; operations centre in place'],
+    ['Complete', '21–36 months', '80,000', 'Plus consented private cameras', 'Full coverage, with policy and audit established'],
   ]
   const cw = (CW - 3 * 0.3) / 4
   s.addShape(pres.shapes.LINE, { x: M + 0.31, y: 2.12, w: CW - 0.62, h: 0, line: { color: LINE, width: 2 } })
-  for (const [i, [name, when, count, unit, scope, exit]] of phases.entries()) {
+  for (const [i, [name, when, count, scope, exit]] of phases.entries()) {
     const x = M + i * (cw + 0.3)
-    s.addShape(pres.shapes.OVAL, { x: x + 0.15, y: 1.96, w: 0.32, h: 0.32, fill: { color: SAFFRON }, line: { color: INK, width: 3 } })
-    text(s, `${name}  ·  ${when}`, { x, y: 2.45, w: cw, h: 0.3, fontFace: H, fontSize: 12, bold: true, color: SAFFRON })
-    panel(s, x, 2.9, cw, 3.55, i === 3 ? PANEL_2 : PANEL)
+    s.addShape(pres.shapes.OVAL, { x: x + 0.15, y: 1.96, w: 0.32, h: 0.32, fill: { color: i === 0 ? SAFFRON : BLUE }, line: { color: WHITE, width: 3 } })
+    text(s, `${name}  ·  ${when}`, { x, y: 2.45, w: cw, h: 0.3, fontFace: H, fontSize: 12, bold: true, color: i === 0 ? SAFFRON_TEXT : BLUE })
+    if (i === 0) panel(s, x, 2.9, cw, 3.55, TINT, 'C9D7F7')
+    else card(s, x, 2.9, cw, 3.55)
     text(s, count, { x: x + 0.3, y: 3.1, w: cw - 0.6, h: 0.75, fontFace: H, fontSize: 36, bold: true })
-    text(s, unit, { x: x + 0.3, y: 3.82, w: cw - 0.6, h: 0.3, fontSize: 13, color: MUTED })
+    text(s, 'cameras', { x: x + 0.3, y: 3.82, w: cw - 0.6, h: 0.3, fontSize: 13, color: MUTED })
     text(s, scope, { x: x + 0.3, y: 4.3, w: cw - 0.6, h: 0.6, fontFace: H, fontSize: 14, bold: true })
     text(s, exit, { x: x + 0.3, y: 4.95, w: cw - 0.6, h: 1.3, fontSize: 13, color: MUTED })
   }
@@ -655,44 +703,45 @@ async function rolloutSlide() {
 async function askSlide() {
   pageNumber += 1
   const s = pres.addSlide()
-  s.background = { color: INK }
-  text(s, 'WHAT WE NEED TO BEGIN', { x: M, y: 0.8, w: CW, h: 0.35, fontFace: H, fontSize: 13, bold: true, color: SAFFRON, charSpacing: 4 })
-  text(s, 'Three things, and the pilot can start', { x: M, y: 1.2, w: CW, h: 0.85, fontFace: H, fontSize: 36, bold: true })
+  s.background = { color: TINT }
+  text(s, 'THE NEXT STEP', { x: M, y: 0.8, w: CW, h: 0.35, fontFace: H, fontSize: 13, bold: true, color: SAFFRON_TEXT, charSpacing: 4 })
+  text(s, 'Start with a 90-day pilot in one district', { x: M, y: 1.2, w: CW, h: 0.85, fontFace: H, fontSize: 36, bold: true })
   const asks = [
-    ['LuClipboardList', 'Department inventories', 'One template per department: camera, VMS and version, network, coordinates — and whether the feed carries a date-time overlay.'],
-    ['LuLink', 'Read-only stream access', 'RTSP, ONVIF or the VMS’s own API. Nothing installed on department infrastructure.'],
-    ['LuKeyRound', 'Registry API access', 'VAHAN, SARTHI, eGujCop, AFIS, NAFIS: on the day keys arrive, a configuration change, not a project.'],
+    ['LuClipboardList', 'A camera inventory', 'One template per department: cameras, recorders, network, locations — and whether each feed shows the date and time.'],
+    ['LuLink', 'Read-only access', 'To the streams or each VMS. Nothing installed on department infrastructure.'],
+    ['LuKeyRound', 'Database access', 'When ready: VAHAN, SARTHI, eGujCop, AFIS, NAFIS — switched on as a setting the day it is granted.'],
   ]
   const cw = (CW - 2 * 0.35) / 3
   for (const [i, [ic, title, body]] of asks.entries()) {
     const x = M + i * (cw + 0.35)
-    panel(s, x, 2.45, cw, 2.9)
+    card(s, x, 2.45, cw, 2.9)
     await badge(s, ic, x + 0.35, 2.75, 0.66)
     text(s, title, { x: x + 0.35, y: 3.6, w: cw - 0.7, h: 0.55, fontFace: H, fontSize: 18, bold: true })
     text(s, body, { x: x + 0.35, y: 4.18, w: cw - 0.7, h: 1.0, fontSize: 14, color: MUTED })
   }
-  text(s, 'Type a plate. See where it went.', { x: M, y: 5.7, w: CW, h: 0.8, fontFace: H, fontSize: 34, bold: true, color: SAFFRON })
+  text(s, 'Type a plate. See where it went.', { x: M, y: 5.7, w: CW, h: 0.8, fontFace: H, fontSize: 34, bold: true, color: BLUE })
   text(s, 'Thank you — questions welcome.', { x: M, y: 6.5, w: CW, h: 0.45, fontSize: 18, color: MUTED })
-  text(s, String(pageNumber).padStart(2, '0'), { x: W - M - 0.6, y: SLIDE_H - 0.45, w: 0.6, h: 0.25, fontFace: H, fontSize: 9, color: MUTED, align: 'right' })
-  s.addNotes('Close on the ask, then the line. Hand over the Movement Report from the demo if it has not been handed over already. Questions: see docs/13-SHOWCASE-PREP.md §10.')
+  pageNo(s)
+  s.addNotes('Close on the ask, then the line. Hand over the Movement Report from the demonstration if it has not been handed over already. Questions: see docs/13-SHOWCASE-PREP.md §10.')
 }
 
 async function main() {
   await titleSlide()
-  await problemSlide()
-  await approachSlide()
-  await refuseSlide()
+  await challengeSlide()
+  await beforeAfterSlide()
+  await platformSlide()
+  await audienceSlide()
   await demoSlide()
-  await onboardSlide()
+  await connectSlide()
   await traceSlide()
-  await alertsSlide()
-  await unreadableSlide()
-  await evidenceSlide()
+  await alertSlide()
+  await trustSlide()
   await beyondSlide()
+  await efficiencySlide()
   await architectureSlide()
   await tieringSlide()
-  await costSlide()
-  await measuredSlide()
+  await whySlide()
+  await proofSlide()
   await rolloutSlide()
   await askSlide()
   await pres.writeFile({ fileName: OUT })
