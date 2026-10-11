@@ -252,6 +252,7 @@
     "readClearly": "Read clearly at this camera",
     "matchedByAmbiguity": "Matched via OCR-ambiguity class — one or more characters were uncertain",
     "watchArmed": "Watch armed for {{plate}}",
+    "watchAlreadyArmed": "{{plate}} is already being watched — no duplicate alerts were created",
     "foundPastSightings_one": "Found {{count}} past sighting already on file — check Alerts.",
     "foundPastSightings_other": "Found {{count}} past sightings already on file — check Alerts.",
     "noPastSightings": "No past sightings — you will be alerted the moment this plate is seen.",

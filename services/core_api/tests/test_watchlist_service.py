@@ -5,8 +5,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core_api.db.models import WatchlistEntry
 from core_api.detections.schemas import DetectionIn
 from core_api.detections.service import ingest_detection
 from core_api.registry.schemas import GeoPointOut
@@ -348,3 +351,52 @@ async def test_an_alert_reports_its_sightings_by_the_cameras_clock(
     assert merged.id == alert.id
     assert merged.first_seen_camera_time == scene
     assert merged.last_seen_camera_time is None
+
+
+async def test_two_concurrent_arms_of_one_plate_create_one_entry() -> None:
+    """A double click: two transactions arming the same plate at once. The
+    advisory lock makes the second wait and find the first's entry. Uses two
+    real connections, committed, because the race only exists between them."""
+    import asyncio
+
+    from sqlalchemy import delete
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from core_api.watchlist.service import arm_watchlist_entry
+    from sentinel_core.config import get_settings
+
+    url = get_settings().database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    engine = create_async_engine(url)
+    try:
+        async with engine.connect() as probe:
+            await probe.execute(select(1))
+    except Exception:
+        await engine.dispose()
+        pytest.skip("Postgres is not reachable")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    plate = "GJ99RC0001"
+
+    async def arm() -> bool:
+        async with sessions() as session:
+            _, created = await arm_watchlist_entry(
+                session, WatchlistEntryCreate(plate=plate, entry_type="bolo")
+            )
+            await asyncio.sleep(0.2)  # hold the lock while the other waits
+            await session.commit()
+            return created
+
+    try:
+        results = await asyncio.gather(arm(), arm())
+        async with sessions() as session:
+            count = await session.scalar(
+                select(func.count()).where(WatchlistEntry.plate_normalised == plate)
+            )
+        assert sorted(results) == [False, True]
+        assert count == 1
+    finally:
+        async with sessions() as session:
+            await session.execute(
+                delete(WatchlistEntry).where(WatchlistEntry.plate_normalised == plate)
+            )
+            await session.commit()
+        await engine.dispose()

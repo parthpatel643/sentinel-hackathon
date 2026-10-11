@@ -103,3 +103,8 @@ class BoloResult(BaseModel):
     watchlist_entry: WatchlistEntryOut
     retro_alerts_created: int
     retro_sightings_found: int
+    already_armed: bool = Field(
+        default=False,
+        description="True when an active entry already watched this plate for this reason: "
+        "it is returned as-is and nothing is re-scanned, so no alert is duplicated.",
+    )

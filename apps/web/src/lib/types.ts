@@ -339,6 +339,8 @@ export interface BoloResult {
   watchlist_entry: WatchlistEntry
   retro_alerts_created: number
   retro_sightings_found: number
+  /** An active entry already watched this plate; it was returned, not duplicated. */
+  already_armed?: boolean
 }
 
 export interface CoverageCell {

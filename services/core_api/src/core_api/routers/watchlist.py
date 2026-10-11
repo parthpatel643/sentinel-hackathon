@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core_api.audit.service import record_audit_event
@@ -27,10 +27,11 @@ from core_api.watchlist.schemas import (
     WatchlistEntryUpdate,
 )
 from core_api.watchlist.service import (
-    create_watchlist_entry,
+    arm_watchlist_entry,
     list_alerts,
     list_watchlist_entries,
     retro_scan,
+    sightings_on_file,
     update_alert,
     update_watchlist_entry,
 )
@@ -42,10 +43,17 @@ router = APIRouter(prefix="/api/v1", tags=["watchlist"])
 @router.post("/watchlist", response_model=WatchlistEntryOut, status_code=201)
 async def create_watchlist_entry_endpoint(
     payload: WatchlistEntryCreate,
+    response: Response,
     session: AsyncSession = Depends(get_session),
     user: TokenPayload = Depends(current_user),
 ) -> WatchlistEntryOut:
-    entry = await create_watchlist_entry(session, payload)
+    """201 with a new entry, or 200 with the active entry already watching
+    this plate for this reason — never a duplicate."""
+    entry, created = await arm_watchlist_entry(session, payload)
+    if not created:
+        await session.commit()
+        response.status_code = 200
+        return WatchlistEntryOut.model_validate(entry)
     await record_audit_event(
         session,
         actor_email=user.email,
@@ -93,13 +101,18 @@ async def update_watchlist_entry_endpoint(
 @router.post("/bolo", response_model=BoloResult, status_code=201)
 async def bolo_endpoint(
     payload: BoloRequest,
+    response: Response,
     session: AsyncSession = Depends(get_session),
     user: TokenPayload = Depends(current_user),
 ) -> BoloResult:
     """One input, two directions in time: arm a forward-looking watchlist
     entry AND retro-scan every detection already on file for a match — the
-    product's signature "BOLO moment" (00-SOLUTION-PLAN.md section 1.1)."""
-    entry = await create_watchlist_entry(
+    product's signature "BOLO moment" (00-SOLUTION-PLAN.md section 1.1).
+
+    Arming a plate that is already watched for the same reason returns that
+    entry with 200 and re-scans nothing: a second scan would count the same
+    past sightings into its alerts again."""
+    entry, created = await arm_watchlist_entry(
         session,
         WatchlistEntryCreate(
             plate=payload.plate,
@@ -110,6 +123,23 @@ async def bolo_endpoint(
             notes=payload.notes,
         ),
     )
+    if not created:
+        await record_audit_event(
+            session,
+            actor_email=user.email,
+            action="bolo_already_armed",
+            resource_type="watchlist_entry",
+            resource_id=str(entry.id),
+            detail={"plate_normalised": entry.plate_normalised, "entry_type": entry.entry_type},
+        )
+        await session.commit()
+        response.status_code = 200
+        return BoloResult(
+            watchlist_entry=WatchlistEntryOut.model_validate(entry),
+            retro_alerts_created=0,
+            retro_sightings_found=await sightings_on_file(session, entry),
+            already_armed=True,
+        )
     alerts = await retro_scan(session, entry)
     await record_audit_event(
         session,

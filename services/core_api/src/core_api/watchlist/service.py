@@ -12,7 +12,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core_api.db.models import Alert, Detection, WatchlistEntry
@@ -22,11 +22,13 @@ from sentinel_core.plates import ambiguity_key, normalise_plate
 __all__ = [
     "ALERT_DEDUP_WINDOW",
     "PRIORITY_WEIGHT",
+    "arm_watchlist_entry",
     "correlate_detection",
     "create_watchlist_entry",
     "list_alerts",
     "list_watchlist_entries",
     "retro_scan",
+    "sightings_on_file",
     "update_alert",
 ]
 
@@ -60,6 +62,50 @@ async def create_watchlist_entry(
     session.add(entry)
     await session.flush()
     return entry
+
+
+async def arm_watchlist_entry(
+    session: AsyncSession, payload: WatchlistEntryCreate
+) -> tuple[WatchlistEntry, bool]:
+    """The active entry already watching this plate for this reason, or a new
+    one — `(entry, created)`.
+
+    Found in a manual test: one vehicle armed seven times in under a minute
+    (the button came back while the search refreshed). Every active entry
+    raises its own alert per sighting, so seven entries meant seven copies of
+    every alert. A transaction-scoped advisory lock on the plate and reason
+    makes concurrent requests — a double click — queue behind each other, so
+    the second sees the first's entry instead of racing it."""
+    plate_normalised = normalise_plate(payload.plate)
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"watchlist:{plate_normalised}:{payload.entry_type}"},
+    )
+    existing = (
+        await session.execute(
+            select(WatchlistEntry)
+            .where(
+                WatchlistEntry.active.is_(True),
+                WatchlistEntry.plate_normalised == plate_normalised,
+                WatchlistEntry.entry_type == payload.entry_type,
+            )
+            .order_by(WatchlistEntry.created_at.asc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        return existing, False
+    return await create_watchlist_entry(session, payload), True
+
+
+async def sightings_on_file(session: AsyncSession, entry: WatchlistEntry) -> int:
+    """Sightings already counted on this entry's alerts."""
+    total = await session.scalar(
+        select(func.coalesce(func.sum(Alert.sighting_count), 0)).where(
+            Alert.watchlist_entry_id == entry.id
+        )
+    )
+    return int(total or 0)
 
 
 async def list_watchlist_entries(

@@ -147,6 +147,14 @@ test('an empty investigation still supports arming a BOLO', async ({ page }) => 
   await expect.poll(() => requestedPlate).toBe('GJ01AB1234')
 })
 
+test('arming a plate that is already watched says so instead of claiming a new watch', async ({ page }) => {
+  await page.route('**/api/v1/vehicles/*/route', (route) => route.fulfill({ json: { ...vehicleRoute, total_sightings: 0, points: [] } }))
+  await page.route('**/api/v1/bolo', (route) => route.fulfill({ json: { retro_alerts_created: 0, retro_sightings_found: 3, already_armed: true, watchlist_entry: {} } }))
+  await page.goto('/find-a-vehicle?plate=GJ01AB1234')
+  await page.getByRole('button', { name: 'Watch for this vehicle', exact: true }).click()
+  await expect(page.getByText('GJ01AB1234 is already being watched — no duplicate alerts were created')).toBeVisible()
+})
+
 test('loaded alert counts and selection respond to severity filters', async ({ page }) => {
   await page.route('**/api/v1/alerts**', (route) => route.fulfill(route.request().url().endsWith('/clip')
     ? { status: 404, json: {} }

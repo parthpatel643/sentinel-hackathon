@@ -121,3 +121,47 @@ async def test_route_window_reaches_back_across_a_two_day_event(
     assert default.json()["total_sightings"] == 0
     assert wider.json()["total_sightings"] == 1
     assert too_wide.status_code == 422
+
+
+async def test_arming_a_watched_plate_again_never_duplicates_its_alerts(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """Found in a manual test: one vehicle armed seven times in a minute gave
+    seven copies of every alert. A second arm returns the entry already
+    watching it — 200, already_armed — and re-scans nothing."""
+    await _seed_sighting(db_session)
+    request = {"plate": "GJ 18 AB 4321", "entry_type": "bolo", "priority": "high"}
+
+    first = await client.post("/api/v1/bolo", json=request)
+    second = await client.post("/api/v1/bolo", json={**request, "plate": "gj18ab4321"})
+    added = await client.post(
+        "/api/v1/watchlist", json={"plate": "GJ18AB4321", "entry_type": "bolo"}
+    )
+
+    assert first.status_code == 201, first.text
+    assert second.status_code == 200, second.text
+    assert added.status_code == 200, added.text
+    entry_id = first.json()["watchlist_entry"]["id"]
+    assert second.json()["watchlist_entry"]["id"] == entry_id
+    assert added.json()["id"] == entry_id
+    assert second.json()["already_armed"] is True
+    assert second.json()["retro_alerts_created"] == 0
+    assert second.json()["retro_sightings_found"] == 1, "the sighting already on file"
+    alerts = (await client.get("/api/v1/alerts")).json()
+    assert len(alerts) == 1
+    assert alerts[0]["sighting_count"] == 1
+    entries = (await client.get("/api/v1/watchlist")).json()
+    assert len(entries) == 1
+
+
+async def test_a_different_reason_for_the_same_plate_is_its_own_entry(
+    client: httpx.AsyncClient,
+) -> None:
+    stolen = await client.post(
+        "/api/v1/watchlist", json={"plate": "GJ18AB4321", "entry_type": "stolen"}
+    )
+    wanted = await client.post(
+        "/api/v1/watchlist", json={"plate": "GJ18AB4321", "entry_type": "wanted"}
+    )
+    assert stolen.status_code == wanted.status_code == 201
+    assert stolen.json()["id"] != wanted.json()["id"]

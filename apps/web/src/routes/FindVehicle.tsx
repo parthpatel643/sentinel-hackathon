@@ -151,12 +151,13 @@ function parseWindow(value: string | null): SearchWindow {
 function ArmBoloPanel({ plate, windowHours, onArmed }: { plate: string; windowHours: SearchWindow; onArmed: () => void }) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
-  const [armed, setArmed] = useState<{ retro_alerts_created: number; retro_sightings_found: number } | null>(
+  const [armed, setArmed] = useState<{ retro_alerts_created: number; retro_sightings_found: number; already_armed?: boolean } | null>(
     null,
   )
   const [error, setError] = useState<string | null>(null)
 
   async function arm() {
+    if (busy) return
     setBusy(true)
     setError(null)
     try {
@@ -173,7 +174,7 @@ function ArmBoloPanel({ plate, windowHours, onArmed }: { plate: string; windowHo
   if (armed) {
     return (
       <Card className="p-6 text-center">
-        <p className="text-sm font-medium text-ok">{t('findVehicle.watchArmed', { plate })}</p>
+        <p className="text-sm font-medium text-ok">{t(armed.already_armed ? 'findVehicle.watchAlreadyArmed' : 'findVehicle.watchArmed', { plate })}</p>
         <p className="mt-1 text-sm text-text-secondary">
           {armed.retro_sightings_found > 0
             ? t('findVehicle.foundPastSightings', { count: armed.retro_sightings_found })
@@ -258,17 +259,26 @@ export function FindVehicle() {
   const [vehiclePosition, setVehiclePosition] = useState<[number, number] | null>(null)
   const replayTokenRef = useRef(0)
 
+  // A new search clears the result; a refresh of the same search (after
+  // arming a watch) keeps it on screen. Clearing it on refresh unmounted the
+  // "watch armed" confirmation and brought the button straight back — which
+  // in a manual test was clicked six more times, arming the plate seven times.
+  const searchKey = `${plateParam}|${windowHours}`
+  const lastSearchKeyRef = useRef(searchKey)
+
   useEffect(() => {
     let cancelled = false
     setInput(plateParam)
-    setRoute(null)
+    if (lastSearchKeyRef.current !== searchKey) {
+      lastSearchKeyRef.current = searchKey
+      setRoute(null)
+    }
     setError(null)
     if (!plateParam) {
       setLoading(false)
       return
     }
-    setLoading(true)
-    setError(null)
+    if (refreshKey === 0 || route === null) setLoading(true)
     detectionsApi
       .vehicleRoute(plateParam, windowHours)
       .then((result) => { if (!cancelled) setRoute(result) })
