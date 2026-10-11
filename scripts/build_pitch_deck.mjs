@@ -5,7 +5,8 @@
  * §4), written for a mixed room: police leadership who want outcomes, and a
  * technical jury who want to see how it holds at 80,000 cameras. Each slide
  * leads with what changes for the people using it; the technical detail sits
- * underneath. It deliberately carries no cost figures.
+ * underneath. Cost is on one slide only, because the brief asks for estimated
+ * implementation and operational costs; its figures are docs/04-SCALE-PLAN.md §6.
  *
  * Generated, so it cannot drift from what it cites: every number comes from a
  * document or measurement in this repository, and every screenshot is the real
@@ -499,6 +500,44 @@ async function beyondSlide() {
   })
 }
 
+async function approachSlide() {
+  const s = frame({
+    eyebrow: 'Our approach',
+    title: 'A hybrid of the four reference models',
+    notes: 'This answers “which model, and why”. We built a hybrid. Model 1’s registry and GIS is the foundation every other part stands on. Model 2 gives one console that views and analyses every accessible stream. Model 3’s adapters mean no department changes its system — a new vendor is a driver, not a release. And Model 4’s central recording is used only where it pays off: critical cameras and alert clips. We do not centralise everything, and the next slide shows why.',
+  })
+  const models = [
+    ['Model 1', 'Registry & GIS', 'Every camera on one map, with health, coverage gaps and an ageing-asset work list.', 'The foundation every other part stands on.', 'LuMap', 'Foundation'],
+    ['Model 2', 'Unified viewing & analytics', 'One live wall and plate reading on every accessible stream.', 'One console, instead of one per department.', 'LuMonitor', 'Adopted'],
+    ['Model 3', 'Federation adapters', 'RTSP, ONVIF, Hikvision, Dahua, Genetec and Milestone drivers.', 'No department changes its system; a new vendor is a driver.', 'LuNetwork', 'Adopted'],
+    ['Model 4', 'Central recording', 'Only critical cameras and alert clips are recorded centrally.', 'Full centralisation needs a backbone the State does not have.', 'LuServer', 'Selective'],
+  ]
+  const cw = (CW - 3 * 0.3) / 4
+  for (const [i, [tag, name, body, why, ic, pill]] of models.entries()) {
+    const x = M + i * (cw + 0.3)
+    const selective = pill === 'Selective'
+    card(s, x, 1.85, cw, 4.25)
+    await badge(s, ic, x + 0.3, 2.15, 0.62, selective ? '7A869E' : BLUE)
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: x + cw - 1.45, y: 2.28, w: 1.15, h: 0.36, rectRadius: 0.18,
+      fill: { color: selective ? WHITE : TINT }, line: { color: selective ? 'B8C0CE' : 'C9D7F7', width: 0.75 },
+    })
+    text(s, pill, {
+      x: x + cw - 1.45, y: 2.28, w: 1.15, h: 0.36, align: 'center', valign: 'middle',
+      fontFace: H, fontSize: 11, bold: true, color: selective ? MUTED : BLUE,
+    })
+    text(s, tag.toUpperCase(), { x: x + 0.3, y: 3.02, w: cw - 0.6, h: 0.3, fontFace: H, fontSize: 11, bold: true, color: SAFFRON_TEXT, charSpacing: 2 })
+    text(s, name, { x: x + 0.3, y: 3.34, w: cw - 0.6, h: 0.75, fontFace: H, fontSize: 18, bold: true })
+    text(s, body, { x: x + 0.3, y: 4.1, w: cw - 0.6, h: 0.9, fontSize: 13, color: MUTED })
+    s.addShape(pres.shapes.LINE, { x: x + 0.3, y: 5.05, w: cw - 0.6, h: 0, line: { color: LINE, width: 0.75 } })
+    text(s, why, { x: x + 0.3, y: 5.15, w: cw - 0.6, h: 0.8, fontSize: 13, bold: true })
+  }
+  await badge(s, 'LuShieldCheck', M, 6.4, 0.46, TEAL)
+  text(s, 'Read-only and pull-based throughout: nothing is installed on a department’s cameras or VMS.', {
+    x: M + 0.65, y: 6.47, w: CW - 0.65, h: 0.4, fontSize: 15,
+  })
+}
+
 async function efficiencySlide() {
   const s = frame({
     eyebrow: 'Why it scales',
@@ -607,6 +646,60 @@ async function tieringSlide() {
   await badge(s, 'LuSlidersHorizontal', x + 0.2, 5.79, 0.56)
   text(s, 'Each department sets the tier, and can change it live — a camera moves to continuous for a bandobast and back afterwards.', {
     x: x + 0.95, y: 5.73, w: w - 1.15, h: 0.7, fontSize: 13, valign: 'middle',
+  })
+}
+
+async function costSlide() {
+  const s = frame({
+    eyebrow: 'Estimated cost',
+    title: 'What it takes to run statewide',
+    notes: 'The brief asks for estimated implementation and operational costs, so here they are — order of magnitude, for comparing approaches, not a tender. About eighty crore to build and about twenty-four crore a year to run, for eighty thousand cameras: roughly ten thousand rupees a camera to build and three thousand a year to run. The biggest line is the district analysis servers, and it moves with tiering — the department controls its own cost. No software licences: the stack is open source. Centralising every camera is conservatively four hundred crore to build before its higher running cost, because it buys a backbone and storage the State would otherwise not need. And the saving comes from reuse: no camera, recorder or VMS is replaced. The pilot replaces every estimate here with a measured number.',
+  })
+  s.addChart(pres.charts.BAR, [{
+    name: 'Capex',
+    labels: ['District analysis servers', 'State data centre', 'Integration & rollout', 'Remote edge boxes', 'Network uplinks', 'Disaster-recovery site'],
+    values: [28, 14, 12, 10.5, 9, 7],
+  }], {
+    x: M, y: 1.75, w: 6.7, h: 4.05, barDir: 'bar', barGapWidthPct: 45,
+    chartColors: [BLUE],
+    catAxisOrientation: 'maxMin',
+    showValue: true, dataLabelPosition: 'outEnd', dataLabelColor: INK, dataLabelFontSize: 13,
+    dataLabelFontBold: true, dataLabelFontFace: H, dataLabelFormatCode: '"₹"General" cr"',
+    catAxisLabelColor: INK, catAxisLabelFontSize: 13, catAxisLabelFontFace: B,
+    valAxisHidden: true, valAxisMaxVal: 34, valGridLine: { style: 'none' }, catGridLine: { style: 'none' },
+    catAxisLineShow: false, showLegend: false,
+    showTitle: true, title: 'Build cost (capex), ₹ crore', titleColor: MUTED, titleFontSize: 13, titleFontFace: H,
+  })
+  const x = M + 7.1
+  const w = CW - 7.1
+  const cw = (w - 0.3) / 2
+  const stats = [
+    ['≈₹80 cr', 'to build', SAFFRON],
+    ['≈₹24 cr', 'a year to run', SAFFRON],
+    ['≈₹10,000', 'per camera to build', BLUE],
+    ['≈₹3,000', 'per camera, per year', BLUE],
+  ]
+  for (const [i, [value, label, color]] of stats.entries()) {
+    const cx = x + (i % 2) * (cw + 0.3)
+    const cy = 1.85 + Math.floor(i / 2) * 1.5
+    card(s, cx, cy, cw, 1.28)
+    text(s, value, { x: cx + 0.25, y: cy + 0.18, w: cw - 0.5, h: 0.6, fontFace: H, fontSize: 26, bold: true, color })
+    text(s, label, { x: cx + 0.25, y: cy + 0.8, w: cw - 0.5, h: 0.35, fontSize: 13, color: MUTED })
+  }
+  panel(s, x, 4.9, w, 1.0, TINT, 'C9D7F7')
+  await badge(s, 'LuLockOpen', x + 0.22, 5.12, 0.56, TEAL)
+  text(s, '₹0 in software licences', { x: x + 0.95, y: 5.02, w: w - 1.15, h: 0.36, fontFace: H, fontSize: 15, bold: true })
+  text(s, 'Open-source stack: no per-camera VMS fees, which at this scale often outweigh the hardware.', {
+    x: x + 0.95, y: 5.38, w: w - 1.15, h: 0.45, fontSize: 12, color: MUTED,
+  })
+  panel(s, M, 6.02, CW, 0.82, 'FFF4EC', 'F6D9C4')
+  await badge(s, 'LuScale', M + 0.22, 6.15, 0.56, RED)
+  text(s, [
+    { text: 'Centralising every camera: ₹400 cr+ to build', options: { bold: true, color: INK } },
+    { text: ' — about five times more, before its higher running cost. The difference is reuse: no camera, recorder or VMS is replaced.', options: { color: MUTED } },
+  ], { x: M + 0.95, y: 6.07, w: CW - 1.2, h: 0.72, fontSize: 14, valign: 'middle' })
+  text(s, 'Order of magnitude, for comparing approaches — not a tender. ~80,000 cameras; five-year cost of ownership ≈₹200 cr. The pilot replaces every estimate with a measurement.', {
+    x: M, y: 7.02, w: CW - 0.8, h: 0.3, fontSize: 10, italic: true, color: MUTED,
   })
 }
 
@@ -803,9 +896,11 @@ async function main() {
   await alertSlide()
   await trustSlide()
   await beyondSlide()
+  await approachSlide()
   await efficiencySlide()
   await architectureSlide()
   await tieringSlide()
+  await costSlide()
   await whySlide()
   await compareSlide()
   await proofSlide()

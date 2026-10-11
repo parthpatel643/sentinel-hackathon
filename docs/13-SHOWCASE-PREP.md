@@ -50,7 +50,7 @@ solution.
 
 Code and test evidence for each row is in
 [12 — Requirements traceability](./12-REQUIREMENTS-TRACEABILITY.md); this
-section is the on-stage view. **Slide** numbers refer to the 19-slide
+section is the on-stage view. **Slide** numbers refer to the 21-slide
 [pitch deck](./Sentinel-Finale-Pitch.pptx); **Demo 1–3** are the live steps in §4.
 
 **Status:** **Built** — working and demonstrable · **Partial** — built, with the
@@ -73,7 +73,7 @@ the one to rehearse.
 | Representative watchlist database | Stolen, wanted, missing and BOLO entries with priority, case reference and validity | Slide 9 · Demo 3 | **Built** | Arm entries from plates actually read that morning (§6.3) |
 | Visualise on GIS | MapLibre map: camera pins, route with earliest-to-latest styling, coverage-gap layer | Slides 7–8 | **Built** | No basemap offline; pins and routes still draw |
 | Searchable events and history | Detections searchable by plate, camera and time; alert queue; zone-event queue | Demo 2–3 | **Built** | — |
-| Evidence of integration, interoperability, scalability and end-to-end performance | Health screen; 600+ automated tests; measured capacity; DR drill | Slides 12–14, 17 | **Built**, measured on a laptop; 80,000 is arithmetic | — |
+| Evidence of integration, interoperability, scalability and end-to-end performance | Health screen; 600+ automated tests; measured capacity; DR drill | Slides 13–15, 19 | **Built**, measured on a laptop; 80,000 is arithmetic | — |
 
 ### 1.2 The solution they asked for (Step 3, Expected Solution Approach)
 
@@ -88,7 +88,7 @@ the one to rehearse.
 ### 1.3 The reference models (Step 2): we are a hybrid
 
 Model 1 as the mandatory foundation, Models 2 and 3 adopted, Model 4 only where
-it pays off. **Say this aloud on slide 13 (§1.8, first row).**
+it pays off. **This is slide 12**; its speaker notes carry the justification.
 
 | Model · feature they list | Sentinel | Status |
 |---|---|---|
@@ -121,29 +121,29 @@ it pays off. **Say this aloud on slide 13 (§1.8, first row).**
 
 | Dimension | Slide | Depth |
 |---|---|---|
-| Overall architecture | 13 | [01 — Architecture](./01-ARCHITECTURE.md), HLD PDF |
-| Integration strategy | 7, 16 | [07 — Driver SDK](./07-DRIVER-SDK.md) |
+| Overall architecture | 12, 14 | [01 — Architecture](./01-ARCHITECTURE.md), HLD PDF |
+| Integration strategy | 7, 12, 18 | [07 — Driver SDK](./07-DRIVER-SDK.md) |
 | AI and video analytics | 9, 11 | [02 — ANPR](./02-ANPR-PIPELINE.md), [09 — Secondary analytics](./09-SECONDARY-ANALYTICS.md) |
 | Cybersecurity, privacy, RBAC, audit | 10 | [08 — Security](./08-SECURITY-HARDENING.md) |
-| Deployment architecture (central, regional, edge) | 13 | 01 §10 |
-| Infrastructure sizing | 14 | [04 — Scale plan](./04-SCALE-PLAN.md) §3–4 |
-| **Cost-benefit analysis** | **None, by decision** | Verbal, from §9 and 04 §6 |
-| Department-wise information requirements | 19 | 04 §8 |
-| Scalability strategy | 12–14 | 04 |
-| Future roadmap | 17–18 | 04 §7, [14 — Appearance ReID](./14-APPEARANCE-REID-DESIGN.md) |
+| Deployment architecture (central, regional, edge) | 14 | 01 §10 |
+| Infrastructure sizing | 15 | [04 — Scale plan](./04-SCALE-PLAN.md) §3–4 |
+| Cost-benefit analysis | 16 (cost), 13 and 18 (what it buys) | §9, 04 §6 |
+| Department-wise information requirements | 21 | 04 §8 |
+| Scalability strategy | 13–15 | 04 |
+| Future roadmap | 19–20 | 04 §7, [14 — Appearance ReID](./14-APPEARANCE-REID-DESIGN.md) |
 
 ### 1.5 Plan for scale (Step 6)
 
 | They ask us to explain | Slide | Answer in one line |
 |---|---|---|
-| Central, regional and edge compute | 13 | Analysis in 34 district nodes plus edge boxes at remote sites; the state core does search, storage and alerts |
-| GPU or accelerator requirements | 14 | ≈560 L4 GPUs with N+1, sized by tier — **say it; it is not on the slide** |
-| Bandwidth and low-bandwidth strategies | 12 | ≈140 Mbps statewide; metadata-only mode at ≈4.5 Mbps; 72 h offline queue |
-| Hot, warm and cold storage by retention | 12 | ≈390 TB usable instead of 12.1 PB a week; departments keep their 7–15 days |
-| Load balancing, horizontal scaling, monitoring, logging, health checks | 13 | Health screen, JSON structured logs and health endpoints built; autoscaling on queue depth designed |
-| HA, backup, DR, cybersecurity controls | 10, 13, 17 | RPO 15 min, RTO 1 h; DR drill restores a million records in 5.7 s and catches tampering |
-| **Estimated implementation and operational costs** | **None, by decision** | Verbal only, from §9 |
-| Phased statewide rollout | 18 | 500 → 5,000 → 30,000 → 80,000 cameras over 36 months |
+| Central, regional and edge compute | 14 | Analysis in 34 district nodes plus edge boxes at remote sites; the state core does search, storage and alerts |
+| GPU or accelerator requirements | 15 | ≈560 L4 GPUs with N+1, sized by tier — **say it; it is not on the slide** |
+| Bandwidth and low-bandwidth strategies | 13 | ≈140 Mbps statewide; metadata-only mode at ≈4.5 Mbps; 72 h offline queue |
+| Hot, warm and cold storage by retention | 13 | ≈390 TB usable instead of 12.1 PB a week; departments keep their 7–15 days |
+| Load balancing, horizontal scaling, monitoring, logging, health checks | 14 | Health screen, JSON structured logs and health endpoints built; autoscaling on queue depth designed |
+| HA, backup, DR, cybersecurity controls | 10, 14, 19 | RPO 15 min, RTO 1 h; DR drill restores a million records in 5.7 s and catches tampering |
+| Estimated implementation and operational costs | 16 | ≈₹80 cr to build, ≈₹24 cr a year to run; ≈₹10,000 and ≈₹3,000 a year per camera; ₹0 licences; centralising is ₹400 cr+ (§9) |
+| Phased statewide rollout | 20 | 500 → 5,000 → 30,000 → 80,000 cameras over 36 months |
 
 ### 1.6 The background asks
 
@@ -160,20 +160,20 @@ it pays off. **Say this aloud on slide 13 (§1.8, first row).**
 | # | Area | Slides | Live | Hand over |
 |---|---|---|---|---|
 | 01 | Successful test case | 6–9 | Demo 1–3 on today's feeds | Movement Report ZIP |
-| 02 | Presentation: problem, model and justification, key features | 2–5, 13, 15–16 | — | The deck |
-| 03 | Solution architecture | 12–14 | — | HLD PDF |
+| 02 | Presentation: problem, model and justification, key features | 2–5, 12, 17–18 | — | The deck |
+| 03 | Solution architecture | 12–15 | — | HLD PDF |
 | 04 | Working platform, own feed and government feed | 7–9 | The console; the government-grid copy as fallback (§11) | — |
 | 05 | Analytics: ANPR, vehicle and person detection, intrusion, objects, timestamps, reports | 8–11 | Zone events, people counts, camera-clock times | Movement Report; `scripts/evidence_report.py` output |
-| 06 | Scalability and PoC readiness | 12–14, 17–18 | Health screen | Runbook |
+| 06 | Scalability and PoC readiness | 13–16, 19–20 | Health screen | Runbook |
 | 07 | Submission completeness | — | — | Already submitted (06 — Submission playbook) |
-| Bonus | Hybrid architecture · cross-camera correlation · analytics beyond ANPR · edge and low bandwidth · security, privacy, audit, RBAC · dashboards, alerts, health, APIs | 9–16 | Probable stops, impossible travel, Audit → Verify chain | — |
+| Bonus | Hybrid architecture · cross-camera correlation · analytics beyond ANPR · edge and low bandwidth · security, privacy, audit, RBAC · dashboards, alerts, health, APIs | 9–18 | Probable stops, impossible travel, Audit → Verify chain | — |
 
 ### 1.8 Gaps a juror can find, and the answer to give
 
 | A juror notices | Answer |
 |---|---|
-| **The model choice and its justification are not on a slide** (evaluation area 02 asks for both) | Say it on slide 13: *"We built a hybrid: Model 1's registry and GIS as the foundation, Model 2's unified viewing and analytics, Model 3's adapters so no department changes its system, and Model 4's central recording only where it pays off — because centralising everything needs a backbone the State does not have (slide 12)."* Or add a slide before Monday. |
-| The site asks for cost-benefit and cost estimates | The deck carries none by decision. If asked, answer from §9: indicative, for comparing architectures, and the pilot replaces estimates with measurements. |
+| ~~The model choice and its justification are not on a slide~~ — **added 11 Oct as slide 12** | If pressed on *why hybrid*: *"Model 1 is the foundation everything stands on; Models 2 and 3 connect every department without changing its system; Model 4's central recording only where it pays off, because centralising everything needs a backbone the State does not have (slide 13)."* |
+| *"How firm are these costs?"* (slide 16) | Order of magnitude, for comparing approaches, not a tender. The biggest line, district analysis servers, rests on a vendor GPU benchmark; Phase 0's first exit criterion is measuring it. Every figure re-derives from the scale plan's formulas (04 §9). |
 | Face recognition (Model 4, FAQ 22) | Excluded by decision. Faces are detected only to be blurred; the platform can host a recognition module behind the same access controls if policy allows. |
 | Wanted and missing *persons* in the watchlist | Matching is by vehicle plate. Person records are reached through the eGujCop and AFIS connectors once access exists; no face matching. |
 | Event bus, tiered storage, HA, network segmentation | Designed and sized (01, 04, 08), not running on a laptop. What is running is the same code that sits at each district. |
@@ -214,9 +214,9 @@ Ordered by how badly each could hurt in front of the jury.
 
 ## 4. The 20 minutes
 
-Slides: [Sentinel-Finale-Pitch.pptx](./Sentinel-Finale-Pitch.pptx) — 19 slides, light theme, pitched as a
-business case for a mixed room (leadership and technical jury). Speaker notes carry the talk track. It
-carries **no cost figures** by decision; if asked about cost, answer from §9. Rebuild with `make pitch`
+Slides: [Sentinel-Finale-Pitch.pptx](./Sentinel-Finale-Pitch.pptx) — 21 slides, light theme, pitched as a
+business case for a mixed room (leadership and technical jury). Speaker notes carry the talk track. Cost
+is on one slide (16), because the brief asks for estimated costs; §9 is the backup. Rebuild with `make pitch`
 (screenshots: `npm run screenshots:pitch` in `apps/web`); slide numbers below refer to it.
 
 Three roles, fixed in rehearsal:
@@ -233,9 +233,10 @@ Three roles, fixed in rehearsal:
 | 5:00–10:00 | **The designated vehicle** (live) | Slide 8, then live: search → route → replay → hop evidence → BOLO → alert → Movement Report | Test case: track, alerts, route |
 | 10:00–11:30 | **Alerts, and plates that are hard to read** | Slide 9; live: probable hops, ambiguity search, feasibility flag | Bonus: multi-camera correlation |
 | 11:30–12:30 | **Trust, privacy, beyond plates** | Slides 10–11; live: blurred snapshot + reveal-with-reason; Audit → Verify chain | Analytics, bonus: security |
-| 12:30–16:30 | **Scaling to 80,000** | Slides 12–14: send meaning not video; five layers; tiering | Scalability & PoC readiness |
-| 16:30–18:30 | **Why Sentinel: USP, comparison, proof** | Slides 15–17: positioning line and three pillars; vs separate systems and full centralisation; measured results | Presentation, PoC readiness |
-| 18:30–19:30 | **Rollout and the ask** | Slides 18–19 | PoC readiness |
+| 12:30–15:30 | **Our model, and scaling to 80,000** | Slides 12–15: the hybrid and why; send meaning not video; five layers; tiering | Architecture; Scalability & PoC readiness |
+| 15:30–16:30 | **Estimated cost** | Slide 16: ≈₹80 cr to build, ≈₹24 cr a year; per camera; ₹0 licences; vs ₹400 cr+ to centralise | Scalability (costs); Presentation |
+| 16:30–18:30 | **Why Sentinel: USP, comparison, proof** | Slides 17–19: positioning line and three pillars; vs separate systems and full centralisation; measured results | Presentation, PoC readiness |
+| 18:30–19:30 | **Rollout and the ask** | Slides 20–21 | PoC readiness |
 | 19:30–20:00 | Buffer | — | — |
 
 **If the jury gives the vehicle number at the start, do the drill first** and
@@ -293,7 +294,9 @@ Say it in your own words after the first rehearsal; the shape is what matters.
 
 **12:30 — 80,000 cameras.** §8.
 
-**16:30 — Why Sentinel.** Slides 15–17. Lead with the positioning line: *“Sentinel traces a vehicle across every department’s cameras — on the systems Gujarat already owns, with evidence that holds up.”* Then the three pillars, each with its proof: proven on Gujarat’s own cameras; evidence that holds up; fits what Gujarat already owns. The comparison slide contrasts approaches, never named products. Cost is not on the slides; if a juror asks, answer from §9.
+**15:30 — Cost.** Slide 16; script and backup figures in §9. Say *order of magnitude* before the first number, then: about ₹80 crore to build and ₹24 crore a year to run for 80,000 cameras — roughly ₹10,000 a camera to build — with no licence fees, against ₹400 crore-plus to centralise. Close on reuse: nothing installed is replaced.
+
+**16:30 — Why Sentinel.** Slides 17–19. Lead with the positioning line: *“Sentinel traces a vehicle across every department’s cameras — on the systems Gujarat already owns, with evidence that holds up.”* Then the three pillars, each with its proof: proven on Gujarat’s own cameras; evidence that holds up; fits what Gujarat already owns. The comparison slide contrasts approaches, never named products. Cost is not on the slides; if a juror asks, answer from §9.
 
 **18:30 — Rollout and the ask.**
 > "This is useful at 500 cameras and never needs a big-bang cutover: one
@@ -483,8 +486,9 @@ Close with the formula slide:
 
 ## 9. Impact on infrastructure cost
 
-Indicative, for comparing architectures, not for tendering. Source:
-[04 — Scale Plan §6](./04-SCALE-PLAN.md). Per-camera figures are derived here.
+On screen: **slide 16**. Indicative, for comparing architectures, not for
+tendering. Source: [04 — Scale Plan §6](./04-SCALE-PLAN.md). Per-camera figures
+are derived here.
 
 | | Sentinel (edge-first hybrid) | Full central VMS (Model 4) |
 |---|---|---|
@@ -494,6 +498,19 @@ Indicative, for comparing architectures, not for tendering. Source:
 | Opex | **≈ ₹24 cr/yr** → ≈ ₹3,000 per camera per year | Materially higher (not costed) |
 | 5-year TCO | **≈ ₹200 cr** → ≈ ₹25,000 per camera, ≈ ₹420/camera/month | — |
 | Software licences | ₹0 (open-source stack) | Per-camera VMS licensing |
+
+Backup, if a juror asks how the totals are made up:
+
+| Build (capex) | ₹ cr | Run (opex, a year) | ₹ cr |
+|---|---|---|---|
+| District analysis servers (140 × 4 L4 GPUs) | 28 | Power, cooling, data-centre space | 5 |
+| State data centre (compute, 600 TB, network, HA) | 14 | Network and bandwidth | 7 |
+| Integration, migration, training, rollout | 12 | AMC and support (≈12% of hardware) | 8 |
+| Remote edge boxes (1,500) | 10.5 | Operations team (NOC, L1–L3) | 4 |
+| District uplink upgrades (GSWAN reused) | 9 | | |
+| Disaster-recovery site (warm standby) | 7 | | |
+| Software licences | 0 | | |
+| **Total** | **≈ 80** | **Total** | **≈ 24** |
 
 Talking points:
 
