@@ -16,6 +16,10 @@ burned-in clock jumps backwards. The camera's clock is the only time shown,
 so the demo plays a stretch where it runs straight (knock ≈ 21:06:3x,
 restore ≈ 21:08:3x on cam01).
 
+Keep the default camera. The demo worker runs the full pipeline, and cam01
+yields no readable plates, so the replay cannot add a duplicate sighting at
+the demo camera's location to anyone's vehicle trace; cam06 would.
+
 Run the worker at the same sampled rate as the main one (`SAMPLED_FPS=2` on
 a laptop): at 8 fps a second worker falls behind live and alerts arrive late.
 
