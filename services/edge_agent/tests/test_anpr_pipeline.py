@@ -109,7 +109,7 @@ def test_a_changed_resolved_plate_emits_a_second_event() -> None:
     detector = FakeVehicleDetector([[_car()]] * 4)
     reader = FakePlateReader(
         [
-            [_plate("GJ01AB123X", conf=0.3)],  # low-confidence first read
+            [_plate("GJ01AB1284", conf=0.3)],  # low-confidence first read
             [_plate("GJ01AB1234", conf=0.95)],
             [_plate("GJ01AB1234", conf=0.95)],
             [_plate("GJ01AB1234", conf=0.95)],
@@ -122,7 +122,7 @@ def test_a_changed_resolved_plate_emits_a_second_event() -> None:
         events.extend(pipeline.process_frame(_frame(pts)))
 
     plates = [e.payload.plate_text for e in events]  # type: ignore[union-attr]
-    assert plates[0] == "GJ01AB123X"
+    assert plates[0] == "GJ01AB1284"
     assert plates[-1] == "GJ01AB1234"
 
 
@@ -591,3 +591,17 @@ def test_reads_with_no_camera_time_are_all_reported() -> None:
 
     assert len(first) == len(replay) == 1
     assert len(writer.images) == 2
+
+
+def test_a_read_that_is_not_an_indian_registration_is_not_reported() -> None:
+    """A sign, a partial plate, a damaged frame: noise, never sent."""
+    pipeline = AnprPipeline(
+        FakeVehicleDetector([[_car()], [_car(), _car(400.0)]]),
+        FakePlateReader([[_plate("CIRCLE")], [_plate("110DDHH")], [_plate("GJ05CD123")]]),
+        node_id="n",
+        model_versions={},
+    )
+
+    events = pipeline.process_frame(_frame(40.0)) + pipeline.process_frame(_frame(80.0))
+
+    assert [e.payload.plate_text for e in events] == ["GJ05CD123"]  # type: ignore[union-attr]

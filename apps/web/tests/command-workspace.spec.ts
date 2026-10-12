@@ -60,19 +60,27 @@ test('cameras roll up by district with problems first and unlocated cameras kept
   await expect(districts).toContainText('1 unknown')
 })
 
-test('latest reads lead directly into vehicle investigation', async ({ page }) => {
+test('ANPR activity counts vehicles and plate reads, and lists no reads', async ({ page }) => {
+  await page.route('**/api/v1/detections/activity**', route => route.fulfill({ json: [
+    { camera_id: 'cam-1', reads: 13, vehicles: 10, last_read_at: '2026-09-23T10:00:00Z' },
+    { camera_id: 'cam-2', reads: 1, vehicles: 1, last_read_at: '2026-09-23T09:58:00Z' },
+  ] }))
   await page.goto('/')
-  const detections = page.getByRole('region', { name: 'Detections', exact: true })
-  await detections.getByRole('link', { name: /GJ01AB1234/ }).click()
-  await expect(page).toHaveURL(/find-a-vehicle\?plate=GJ01AB1234/)
+  const activity = page.getByRole('region', { name: 'ANPR activity', exact: true })
+  await expect(activity).toContainText('11vehicle sightings in the last hour')
+  await expect(activity).toContainText('Plate reads14')
+  await expect(activity).toContainText('2of 1 live')
+  await expect(activity).not.toContainText('GJ01AB1234')
+  await activity.getByRole('link', { name: 'Search a plate', exact: true }).click()
+  await expect(page).toHaveURL(/find-a-vehicle$/)
 })
 
-test('failed detection refresh is not shown as an empty healthy stream', async ({ page }) => {
-  await page.route('**/api/v1/detections**', route => route.fulfill({ status: 503, json: { detail: 'Unavailable' } }))
+test('failed activity refresh is not shown as an idle healthy stream', async ({ page }) => {
+  await page.route('**/api/v1/detections/activity**', route => route.fulfill({ status: 503, json: { detail: 'Unavailable' } }))
   await page.goto('/')
-  const detections = page.getByRole('region', { name: 'Detections', exact: true })
-  await expect(detections.getByRole('alert')).toBeVisible()
-  await expect(detections).not.toContainText('No camera has reported a read yet.')
+  const activity = page.getByRole('region', { name: 'ANPR activity', exact: true })
+  await expect(activity.getByRole('alert')).toBeVisible()
+  await expect(activity).not.toContainText('No camera has reported a read yet.')
 })
 
 test('login allows inspecting the password without changing its value', async ({ page }) => {

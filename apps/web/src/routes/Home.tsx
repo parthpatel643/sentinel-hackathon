@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight, RefreshCw, Search } from 'lucide-react'
@@ -8,8 +8,7 @@ import { usePolling } from '../lib/usePolling'
 import { useLiveEvents } from '../lib/liveEvents'
 import { groupAlertsByVehicle } from '../lib/vehicles'
 import { DISTRICT_COUNT, rollupByDistrict } from '../lib/districts'
-import { formatIst, formatIstTime } from '../lib/time'
-import { cameraLabel } from '../lib/cameraStatusColor'
+import { formatIst } from '../lib/time'
 import { TopBar } from '../components/layout/TopBar'
 import { RequestError } from '../components/ui/RequestError'
 import { SealedClipModal } from '../components/SealedClipModal'
@@ -19,18 +18,6 @@ import { DistrictBoard } from '../components/gate/DistrictBoard'
 import type { EvidenceClip } from '../lib/types'
 import './command-overview.css'
 
-const HOUR_MS = 60 * 60 * 1000
-const READ_SAMPLE = 200
-
-/** Wall-clock time, refreshed each minute, so render stays pure. */
-function useNow(): [number] {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 60000)
-    return () => clearInterval(id)
-  }, [])
-  return [now]
-}
 const DISTRICT_PREVIEW = 6
 const DISTRICT_COLUMNS = 'minmax(0, 1fr) 46px minmax(64px, 96px) minmax(104px, auto)'
 
@@ -39,7 +26,7 @@ export function Home() {
   const navigate = useNavigate()
   const { cameras, camerasError, refreshCameras, inScope } = useJurisdiction()
   const { data: alerts, error: alertsError, refetch: refreshAlerts } = usePolling(() => alertsApi.list('new'), 20000)
-  const { data: detections, error: detectionsError, refetch: refreshDetections } = usePolling(() => detectionsApi.search({ limit: READ_SAMPLE }), 15000)
+  const { data: activity, error: activityError, refetch: refreshActivity } = usePolling(() => detectionsApi.activity(60), 15000)
   useLiveEvents((kind) => { if (kind === 'alert') refreshAlerts() })
   const [selectedPlate, setSelectedPlate] = useState<string | null>(null)
   const [viewingClip, setViewingClip] = useState<EvidenceClip | null>(null)
@@ -48,12 +35,18 @@ export function Home() {
   const scopedCameras = useMemo(() => (cameras ?? []).filter((c) => inScope(c.camera_id)), [cameras, inScope])
   const scopedAlerts = useMemo(() => (alerts ?? []).filter((a) => inScope(a.camera_id)), [alerts, inScope])
   const groups = useMemo(() => groupAlertsByVehicle(scopedAlerts), [scopedAlerts])
-  const scopedReads = useMemo(() => (detections ?? []).filter((d) => inScope(d.camera_id)), [detections, inScope])
-  // Recency is judged by when Sentinel recorded the read: camera clocks on
-  // replayed government feeds can be months behind.
-  const [now] = useNow()
-  const readsLastHour = scopedReads.filter((d) => now - Date.parse(d.ingested_at) < HOUR_MS).length
-  const latestRead = scopedReads[0]
+  // Counted by the API per camera over the last hour, summed here for the
+  // jurisdiction. Vehicles are distinct registrations per camera, so a
+  // vehicle seen at two cameras is two sightings. Reads are not listed.
+  const anpr = useMemo(() => {
+    const rows = (activity ?? []).filter((a) => inScope(a.camera_id))
+    return {
+      reads: rows.reduce((n, a) => n + a.reads, 0),
+      vehicles: rows.reduce((n, a) => n + a.vehicles, 0),
+      cameras: rows.length,
+      latest: rows.reduce<string | null>((latest, a) => (!latest || a.last_read_at > latest ? a.last_read_at : latest), null),
+    }
+  }, [activity, inScope])
   const districts = useMemo(() => rollupByDistrict(scopedCameras), [scopedCameras])
   const counts = {
     live: scopedCameras.filter((c) => c.status === 'live').length,
@@ -64,17 +57,12 @@ export function Home() {
     connecting: scopedCameras.filter((c) => c.status === 'connecting').length,
   }
   const selected = groups.find((g) => g.plate === selectedPlate) ?? groups[0]
-  const watchlisted = new Set(groups.map((g) => g.plate))
-  const cameraName = (id: string) => {
-    const camera = cameras?.find((c) => c.camera_id === id)
-    return camera ? cameraLabel(camera) : id
-  }
 
   function investigate(event: FormEvent) {
     event.preventDefault()
     if (plate.trim()) navigate(`/find-a-vehicle?plate=${encodeURIComponent(plate.trim())}`)
   }
-  const refreshAll = () => { refreshCameras(); refreshAlerts(); refreshDetections() }
+  const refreshAll = () => { refreshCameras(); refreshAlerts(); refreshActivity() }
   const summaryValue = (value: number) => (camerasError ? t('common.notAvailable') : cameras ? value : t('common.loading'))
 
   return (
@@ -123,31 +111,26 @@ export function Home() {
             </section>
 
             <div className="gb-row-2 gb-order-lower">
-              <section className="gb-board" aria-labelledby="detections-heading">
+              <section className="gb-board gb-activity-board" aria-labelledby="anpr-heading">
                 <div className="gb-board-top">
-                  <h2 id="detections-heading" className="gb-board-title gb-s">{t('gate:detections')}</h2>
-                  <span className="gb-tally"><b>{detections ? (readsLastHour >= READ_SAMPLE ? `${READ_SAMPLE}+` : readsLastHour) : '—'}</b>{t('gate:readsLastHour')}</span>
+                  <h2 id="anpr-heading" className="gb-board-title gb-s">{t('gate:anprActivity')}</h2>
+                  <span className="gb-tally"><b>{activity ? anpr.vehicles : '—'}</b>{t('gate:vehicleSightings', { count: anpr.vehicles })}</span>
                 </div>
-                {Boolean(detectionsError) && <div className="px-4 pb-3"><RequestError onRetry={refreshDetections} /></div>}
-                {detections && !detectionsError && (
-                  <p className="gb-detect-note">{latestRead?.ingested_at ? t('gate:lastRead', { when: formatIst(latestRead.ingested_at, i18n.language) }) : latestRead ? null : t('gate:noReadsYet')}</p>
-                )}
-                {scopedReads.length > 0 && <>
-                  <div className="gb-board-grid gb-board-head" style={{ ['--cols' as string]: '128px minmax(0, 1fr) 56px' }} aria-hidden="true">
-                    <div>{t('gate:colTime')}</div><div>{t('gate:colPlate')}</div><div className="gb-num">{t('gate:colConfidence')}</div>
-                  </div>
-                  <ul aria-label={t('gate:latestReads')}>
-                    {scopedReads.slice(0, 5).map((read) => (
-                      <li key={read.event_id}>
-                        <Link className="gb-board-grid gb-board-row gb-read-row" style={{ ['--cols' as string]: '128px minmax(0, 1fr) 56px' }} to={`/find-a-vehicle?plate=${encodeURIComponent(read.plate_text)}`} aria-label={`${read.plate_text} · ${cameraName(read.camera_id)}`}>
-                          <div className={read.camera_time ? 'gb-data gb-nowrap' : 'gb-nowrap gb-muted'}>{read.camera_time ? formatIstTime(read.camera_time, i18n.language, { second: '2-digit' }) : t('gate:timeUnknown')}</div>
-                          <div className="gap-2"><span className="gb-plate">{read.plate_text}</span>{watchlisted.has(read.plate_text) && <span className="gb-tag">{t('gate:onWatchlist')}</span>}</div>
-                          <div className="gb-num gb-data">{Math.round(read.plate_confidence * 100)}%</div>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </>}
+                {Boolean(activityError) && <div className="px-4 pb-3"><RequestError onRetry={refreshActivity} /></div>}
+                {activity && !activityError && (anpr.reads === 0
+                  ? <p className="gb-detect-note">{t('gate:noReadsYet')}</p>
+                  : <>
+                      <dl className="gb-activity">
+                        <div><dt>{t('gate:plateReads')}</dt><dd><b>{anpr.reads}</b></dd></div>
+                        <div><dt>{t('gate:camerasReading')}</dt><dd><b>{anpr.cameras}</b>{t('gate:ofLive', { count: counts.live })}</dd></div>
+                        <div><dt>{t('gate:latestReadLabel')}</dt><dd>{anpr.latest ? formatIst(anpr.latest, i18n.language) : '—'}</dd></div>
+                      </dl>
+                      <p className="gb-detect-note">{t('gate:onlyRegistrations')}</p>
+                    </>)}
+                <div className="gb-board-foot">
+                  <span />
+                  <Link to="/find-a-vehicle"><span>{t('gate:searchPlate')}</span><ArrowRight className="gb-ico gb-s" aria-hidden="true" /></Link>
+                </div>
               </section>
 
               <section className="gb-board" aria-labelledby="district-heading">

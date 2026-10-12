@@ -115,9 +115,11 @@ image_color_mode: rgb      # keep RGB — plate colour encodes vehicle class in 
 ### 4.2 Plate grammar and post-processing
 
 ```python
-STANDARD = r'^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$'   # GJ01AB1234
-BH_SERIES = r'^[0-9]{2}BH[0-9]{4}[A-Z]{1,2}$'          # 22BH6517A
+STANDARD = r'^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{1,4}$'  # GJ01AB1234, and GJ5CD12 (no leading zeros)
+BH_SERIES = r'^[0-9]{2}BH[0-9]{4}[A-Z]{1,2}$'            # 22BH6517A
 ```
+**A read that fails this is not stored.** The edge drops it before writing a snapshot, and ingest refuses it from any other producer. On the recorded government footage that was 93% of all reads: signs, partial plates and damaged frames, none of which can be searched for or put a vehicle on a route. When the voter weighs reads of different lengths it prefers a full four-digit number, because a truncated read (`GJ26U037` for `GJ26U0372`) is valid grammar too. Grammar correction (a `0` read as `O` in the district, and so on) only targets the four-digit layout, so it never invents one of several possible plates.
+
 Plus: strip the `IND` HSRP prefix and the hologram/chip region before OCR · validate the two-letter prefix against the 36 state/UT RTO codes (a prefix that is not a real RTO code is a misread, and knowing that fixes it) · handle two-line plates (common on motorcycles and commercial vehicles) by detecting the line break and concatenating · use **plate colour as a class signal**: white/black = private, yellow/black = commercial, black/yellow = rentable, green/white = EV. That colour signal is free, uniquely Indian, and it is a genuinely differentiating detail to show a jury.
 
 ### 4.3 Confidence and ambiguity

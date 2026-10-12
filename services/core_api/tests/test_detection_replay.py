@@ -149,3 +149,15 @@ async def test_reads_without_a_camera_time_are_never_taken_for_duplicates(
 
     assert [r.status_code for r in responses] == [201, 201]
     assert await _stored(db_session) == 2
+
+
+async def test_a_read_that_is_not_an_indian_registration_is_refused(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """A sign or a damaged frame, from any producer: not stored, not matched."""
+    [refused] = await _post_reads(
+        client, _read("01JDUP0000000000000000001", camera_time=SCENE, plate="CIRCLE")
+    )
+
+    assert refused.status_code == 422
+    assert await _stored(db_session) == 0

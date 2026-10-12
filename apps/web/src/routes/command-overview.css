@@ -1,4 +1,4 @@
-/* Overview: watchlist board, trace + pass on the right, detections and
+/* Overview: watchlist board, trace + pass on the right, ANPR activity and
    district preview below. On phones the stacks dissolve into one column:
    trace, board, pass, then the lower boards. */
 .gb-overview { min-width: 0; }
@@ -6,8 +6,18 @@
 .gb-trace { padding: 14px 16px 16px; }
 .gb-trace .gb-sub { margin: 4px 0 12px; }
 .gb-detect-note { margin: 0; padding: 0 16px 10px; color: var(--muted); font-size: 12.5px; }
-.gb-read-row { min-height: 40px; color: inherit; text-decoration: none; }
-.gb-read-row > div { gap: 8px; }
+.gb-activity-board { display: flex; flex-direction: column; }
+.gb-activity-board > .gb-board-foot { margin-top: auto; }
+.gb-activity { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding: 4px 16px 12px; gap: 12px; }
+.gb-activity > div { min-width: 0; border-left: 1px solid var(--rule); padding-left: 12px; }
+.gb-activity > div:first-child { border-left: 0; padding-left: 0; }
+.gb-activity dt { font-size: 12px; color: var(--muted); }
+.gb-activity dd { margin: 4px 0 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px; font-size: 13px; color: var(--ink-2); }
+.gb-activity dd b { font: 700 20px/1 var(--display); color: var(--ink); }
+@media (max-width: 767px) {
+  .gb-activity { grid-template-columns: 1fr; }
+  .gb-activity > div { border-left: 0; padding-left: 0; }
+}
 @media (max-width: 1100px) {
   .gb-overview .gb-split { display: flex; flex-direction: column; }
   .gb-overview .gb-split > .gb-stack { display: contents; }
@@ -28,6 +38,4 @@
   .gb-overview-net > :last-child:nth-child(even) { grid-column: 1 / -1; border-right: 0; }
   .gb-overview-net b { font-size: 17px !important; }
   .gb-overview .gb-netline > a:last-child { margin-left: 0; }
-  .gb-read-row.gb-board-row { grid-template-columns: 96px minmax(0, 1fr) auto; padding: 0; }
-  .gb-read-row.gb-board-row > div { padding: 0 10px; }
 }

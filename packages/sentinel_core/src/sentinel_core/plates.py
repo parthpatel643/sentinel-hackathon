@@ -14,13 +14,18 @@ __all__ = [
     "RTO_STATE_CODES",
     "ambiguity_key",
     "correct_plate_grammar",
+    "is_full_registration",
     "is_valid_plate",
     "normalise_plate",
 ]
 
 # Standard format: GJ 01 AB 1234 -> two-letter RTO state code, 1-2 digit district,
-# 1-3 letter series, 4-digit number.
-_STANDARD = re.compile(r"^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$")
+# 1-3 letter series, and a number of up to four digits (older plates print
+# GJ 5 CD 12, without leading zeros).
+_STANDARD = re.compile(r"^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{1,4}$")
+# The same with the full four-digit number: what nearly every plate on the road
+# carries, so the reading to prefer when a shorter one could be a truncation.
+_FULL_STANDARD = re.compile(r"^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$")
 # Bharat series: 22 BH 6517 A
 _BH_SERIES = re.compile(r"^[0-9]{2}BH[0-9]{4}[A-Z]{1,2}$")
 
@@ -76,6 +81,17 @@ def is_valid_plate(plate: str, *, check_state_code: bool = True) -> bool:
     return not (check_state_code and normalised[:2] not in RTO_STATE_CODES)
 
 
+def is_full_registration(plate: str) -> bool:
+    """A valid plate with its full four-digit number (or a Bharat-series
+    plate). A distant plate loses its last character more often than any
+    other, and `GJ26U037` is valid grammar too; preferring the full form
+    keeps a crowd of truncated reads from outvoting the real plate."""
+    normalised = normalise_plate(plate)
+    return is_valid_plate(normalised) and (
+        bool(_FULL_STANDARD.match(normalised)) or bool(_BH_SERIES.match(normalised))
+    )
+
+
 def ambiguity_key(plate: str) -> str:
     """Fold OCR-confusable characters to a canonical class.
 
@@ -112,6 +128,9 @@ def correct_plate_grammar(plate: str) -> str:
     if is_valid_plate(normalised):
         return normalised
     fits: dict[int, set[str]] = {}
+    # Only the four-digit layout is corrected towards: allowing shorter
+    # numbers too, a damaged read fits several layouts, and picking one would
+    # invent a plate.
     for district in (1, 2):
         for series in (1, 2, 3):
             if 2 + district + series + 4 != len(normalised):

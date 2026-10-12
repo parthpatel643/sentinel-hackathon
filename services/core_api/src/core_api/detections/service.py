@@ -17,18 +17,31 @@ from sqlalchemy import Row, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core_api.db.models import Camera, Detection
-from core_api.detections.schemas import DetectionIn, DetectionOut, RoutePoint, VehicleRoute
+from core_api.detections.schemas import (
+    CameraActivity,
+    DetectionIn,
+    DetectionOut,
+    RoutePoint,
+    VehicleRoute,
+)
 from core_api.registry.service import location_out
-from sentinel_core.plates import ambiguity_key, normalise_plate
+from sentinel_core.plates import ambiguity_key, is_valid_plate, normalise_plate
 
 __all__ = [
+    "EDGE_AUTONOMY",
     "detection_exists",
     "duplicate_of",
     "get_vehicle_route",
     "ingest_detection",
+    "recent_activity",
     "search_detections",
     "within_one_edit",
 ]
+
+# How long an edge node holds reads it could not deliver (edge_agent/outbox.py,
+# docs/04-SCALE-PLAN.md): the furthest a read's observed_at can trail the
+# moment it reaches us.
+EDGE_AUTONOMY = timedelta(hours=72)
 
 # Rung 3 only engages for plate-length queries: a short fragment is one edit
 # away from far too many real plates for the result to mean anything.
@@ -82,6 +95,33 @@ async def duplicate_of(session: AsyncSession, payload: DetectionIn) -> str | Non
     return existing
 
 
+async def recent_activity(session: AsyncSession, *, since: datetime) -> list[CameraActivity]:
+    """Per camera, the reads that reached us since `since`. Counted in the
+    database, not from a sample of rows, so it holds at any fleet size. Rows
+    stored before ingest refused invalid plates are left out. The observed_at
+    bound adds nothing to the answer (no read is observed later than it
+    arrives, or held at the edge longer than EDGE_AUTONOMY); it lets the
+    hypertable skip every older chunk."""
+    rows = await session.execute(
+        select(
+            Detection.camera_id,
+            func.count(),
+            func.count(func.distinct(Detection.plate_normalised)),
+            func.max(Detection.created_at),
+        )
+        .where(
+            Detection.format_valid,
+            Detection.created_at >= since,
+            Detection.observed_at >= since - EDGE_AUTONOMY,
+        )
+        .group_by(Detection.camera_id)
+    )
+    return [
+        CameraActivity(camera_id=camera_id, reads=reads, vehicles=vehicles, last_read_at=last)
+        for camera_id, reads, vehicles, last in rows.all()
+    ]
+
+
 async def ingest_detection(session: AsyncSession, payload: DetectionIn) -> Detection:
     # Search and watchlist matching key on these two columns, so they are
     # derived here from the plate text rather than trusted from the producer:
@@ -94,7 +134,7 @@ async def ingest_detection(session: AsyncSession, payload: DetectionIn) -> Detec
         plate_normalised=normalise_plate(payload.plate_text),
         plate_ambiguity_key=ambiguity_key(payload.plate_text),
         plate_confidence=payload.plate_confidence,
-        format_valid=payload.format_valid,
+        format_valid=is_valid_plate(payload.plate_text),
         frames_voted=payload.frames_voted,
         vehicle_class=payload.vehicle_class,
         vehicle_colour=payload.vehicle_colour,

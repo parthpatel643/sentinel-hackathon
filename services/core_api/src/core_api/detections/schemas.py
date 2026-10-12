@@ -81,6 +81,17 @@ class DetectionOut(BaseModel):
     node_id: str
 
 
+class CameraActivity(BaseModel):
+    """What one camera's ANPR produced in a window: proof the analysis runs,
+    without listing reads. Only Indian registrations are stored; anything
+    else a camera reads (a sign, a partial plate) is dropped at the edge."""
+
+    camera_id: str
+    reads: int = Field(description="Plate reads stored")
+    vehicles: int = Field(description="Distinct registrations: vehicle sightings")
+    last_read_at: datetime = Field(description="When this camera's latest read reached us")
+
+
 class RoutePoint(BaseModel):
     """One hop in a vehicle's reconstructed route — 03-UX-DESIGN.md section
     4.4's timeline + map. `confirmed` distinguishes an exact/ambiguity-class

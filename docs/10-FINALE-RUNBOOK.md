@@ -258,8 +258,11 @@ Rehearse this until it takes under two minutes.
    is in **Admin → Audit log**; **Verify integrity** proves nothing was altered.
 
 If there are no sightings: check **Health** that the cameras on the vehicle's
-likely path are live and analysed, widen the window, and search the raw read
-list (**Overview → Detections**, the latest reads) for a near-miss plate.
+likely path are live and analysed, widen the window, and look at the
+*probable* matches Find a Vehicle offers (one character off, or an
+OCR-ambiguity twin). **Overview → ANPR activity** shows which cameras are
+reading plates at all. Only Indian registration numbers are stored; reads of
+anything else are discarded at the edge.
 
 ---
 

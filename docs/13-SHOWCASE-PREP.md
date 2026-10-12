@@ -428,7 +428,7 @@ turns triage into certainty.
 
 - Repeat it aloud and type it. If there are **no sightings**: say so plainly,
   open Health to show which cameras were analysed, then try the ambiguity
-  rung and the Overview's Detections list (latest reads) for a near-miss. A calm, explained "not
+  rung and Find a Vehicle's probable matches for a near-miss. A calm, explained "not
   seen on analysed cameras" beats a fabricated route — and the system refuses
   to fabricate one by design.
 - If there are sightings on **one** camera only: show it fully, then say which

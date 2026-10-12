@@ -4,6 +4,7 @@
 
 import { get, getBlob, patch, post, postForm } from './http'
 import type {
+  CameraActivity,
   CameraEvent,
   Alert,
   AlertStatus,
@@ -131,6 +132,7 @@ export const detectionsApi = {
     const qs = query.toString()
     return get<Detection[]>(`/api/v1/detections${qs ? `?${qs}` : ''}`)
   },
+  activity: (minutes = 60) => get<CameraActivity[]>(`/api/v1/detections/activity?minutes=${minutes}`),
   vehicleRoute: (plate: string, windowHours = 24) =>
     get<VehicleRoute>(`/api/v1/vehicles/${encodeURIComponent(plate)}/route${windowQuery(windowHours)}`),
   movementReport: (plate: string, windowHours = 24) =>

@@ -7,7 +7,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
@@ -23,12 +23,13 @@ from core_api.auth.dependencies import (
 )
 from core_api.auth.service import TokenPayload
 from core_api.db.base import get_session
-from core_api.detections.schemas import DetectionIn, DetectionOut, VehicleRoute
+from core_api.detections.schemas import CameraActivity, DetectionIn, DetectionOut, VehicleRoute
 from core_api.detections.service import (
     detection_exists,
     duplicate_of,
     get_vehicle_route,
     ingest_detection,
+    recent_activity,
     search_detections,
 )
 from core_api.events.broker import publish_models
@@ -44,6 +45,7 @@ from core_api.security.signed_urls import sign_media_path
 from core_api.watchlist.schemas import AlertOut
 from core_api.watchlist.service import correlate_detection
 from sentinel_core.config import get_settings
+from sentinel_core.plates import is_valid_plate
 from sentinel_core.schemas import DUPLICATE_OF_HEADER
 
 logger = logging.getLogger(__name__)
@@ -78,6 +80,12 @@ async def ingest_detection_endpoint(
     stored event, so the worker can drop the snapshot it took."""
     if await detection_exists(session, payload.event_id, payload.observed_at):
         return []
+    if not is_valid_plate(payload.plate_text):
+        # A sign, a partial plate, a damaged frame. The edge pipeline drops
+        # these already; this holds for any other producer.
+        raise HTTPException(
+            status_code=422, detail="not an Indian registration number; such reads are not stored"
+        )
     if (existing := await duplicate_of(session, payload)) is not None:
         response.status_code = 200
         response.headers[DUPLICATE_OF_HEADER] = existing
@@ -108,6 +116,18 @@ async def search_detections_endpoint(
     return await search_detections(
         session, plate=plate, camera_id=camera_id, since=since, until=until, limit=limit
     )
+
+
+@router.get("/detections/activity", response_model=list[CameraActivity])
+async def detection_activity_endpoint(
+    minutes: int = Query(default=60, ge=1, le=1440, description="How far back to count"),
+    session: AsyncSession = Depends(get_session),
+    _user: TokenPayload = Depends(current_user),
+) -> list[CameraActivity]:
+    """Per camera, how many plate reads reached us in the window and how
+    many distinct vehicles that was. The Overview's proof that ANPR is
+    running, summed over a jurisdiction."""
+    return await recent_activity(session, since=datetime.now(UTC) - timedelta(minutes=minutes))
 
 
 # A multi-day operation (the Phase-2 finale spans two days) needs to reach

@@ -7,6 +7,7 @@ import pytest
 from sentinel_core.plates import (
     ambiguity_key,
     correct_plate_grammar,
+    is_full_registration,
     is_valid_plate,
     normalise_plate,
 )
@@ -28,7 +29,17 @@ def test_normalise_plate(raw: str, expected: str) -> None:
 
 @pytest.mark.parametrize(
     "plate",
-    ["GJ01AB1234", "GJ1A1234", "MH12DE1433", "GJ18ABC1234", "22BH6517A", "22BH6517AB"],
+    [
+        "GJ01AB1234",
+        "GJ1A1234",
+        "MH12DE1433",
+        "GJ18ABC1234",
+        "22BH6517A",
+        "22BH6517AB",
+        "GJ05CD123",
+        "GJ5CD12",
+        "GJ01A1",  # numbers print without leading zeros
+    ],
 )
 def test_valid_plates(plate: str) -> None:
     assert is_valid_plate(plate)
@@ -38,8 +49,11 @@ def test_valid_plates(plate: str) -> None:
     "plate",
     [
         "XX01AB1234",  # XX is not a real RTO state code — almost always a misread
-        "GJ01AB123",  # too few digits
+        "GJ01AB",  # no number at all
         "GJ01AB12345",  # too many digits
+        "GJ01ABCD1234",  # too many series letters
+        "CIRCLE",  # a sign, read as text
+        "110DDHH",  # noise from a damaged frame
         "G101AB1234",  # digit in the state-code position
         "",
     ],
@@ -102,3 +116,13 @@ def test_correct_plate_grammar_prefers_the_layout_needing_fewest_swaps() -> None
 @pytest.mark.parametrize("read", ["GJQ3JC5583", "6J05RC9803", "GJ01R55926", "GJ01HM795Z"])
 def test_correction_never_changes_the_ambiguity_key(read: str) -> None:
     assert ambiguity_key(correct_plate_grammar(read)) == ambiguity_key(read)
+
+
+@pytest.mark.parametrize(
+    ("plate", "full"),
+    [("GJ26U0372", True), ("22BH6517A", True), ("GJ26U037", False), ("CIRCLE", False)],
+)
+def test_a_full_registration_has_all_four_digits(plate: str, full: bool) -> None:
+    """GJ26U037 is valid grammar, and also what a truncated read of
+    GJ26U0372 looks like; the voter prefers the full form."""
+    assert is_full_registration(plate) is full

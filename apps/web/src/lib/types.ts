@@ -235,6 +235,14 @@ export interface Department {
   camera_count: number
 }
 
+/** One camera's ANPR output in a window (GET /api/v1/detections/activity). */
+export interface CameraActivity {
+  camera_id: string
+  reads: number
+  vehicles: number
+  last_read_at: string
+}
+
 export interface Detection {
   event_id: string
   camera_id: string

@@ -11,6 +11,7 @@ from core_api.detections.schemas import DetectionIn
 from core_api.detections.service import (
     get_vehicle_route,
     ingest_detection,
+    recent_activity,
     search_detections,
     within_one_edit,
 )
@@ -436,3 +437,51 @@ async def test_impossible_travel_between_exact_reads_is_flagged(db_session: Asyn
     assert route.points[1].infeasible is True
     assert route.points[1].implied_speed_kmh is not None
     assert route.points[1].implied_speed_kmh > 1000
+
+
+async def test_activity_counts_reads_valid_registrations_and_vehicles_per_camera(
+    db_session: AsyncSession,
+) -> None:
+    """Proof that ANPR is running, without a list of reads: the vehicle count
+    is distinct plates, and a row stored before invalid plates were refused
+    is not counted."""
+    await _make_camera(db_session)
+    await _make_camera(db_session, "det-cam-02")
+    reads = [
+        ("det-cam-01", "GJ01AB1234"),
+        ("det-cam-01", "GJ01AB1234"),  # the same vehicle again
+        ("det-cam-01", "GJ05CD9999"),
+        ("det-cam-01", "CIRCLE"),  # not a registration
+        ("det-cam-02", "JJJ0H0J"),
+    ]
+    for i, (camera_id, plate) in enumerate(reads):
+        await ingest_detection(
+            db_session,
+            _detection_in(
+                event_id=f"01JACT00000000000000000{i:02d}",
+                camera_id=camera_id,
+                plate_text=plate,
+                plate_normalised=plate,
+                plate_ambiguity_key=ambiguity_key(plate),
+                camera_time=ANCHOR + timedelta(seconds=i),
+            ),
+        )
+
+    activity = {
+        a.camera_id: (a.reads, a.vehicles)
+        for a in await recent_activity(db_session, since=ANCHOR - timedelta(hours=1))
+        if a.camera_id.startswith("det-cam-")
+    }
+
+    assert activity == {"det-cam-01": (3, 2)}
+
+
+async def test_activity_leaves_out_reads_that_reached_us_before_the_window(
+    db_session: AsyncSession,
+) -> None:
+    await _make_camera(db_session)
+    await ingest_detection(db_session, _detection_in())
+
+    later = await recent_activity(db_session, since=datetime.now(UTC) + timedelta(minutes=1))
+
+    assert [a for a in later if a.camera_id == "det-cam-01"] == []

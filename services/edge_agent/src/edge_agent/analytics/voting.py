@@ -16,6 +16,7 @@ from edge_agent.analytics.plate_reader import PlateCandidate
 from sentinel_core.plates import (
     ambiguity_key,
     correct_plate_grammar,
+    is_full_registration,
     is_valid_plate,
     normalise_plate,
 )
@@ -144,10 +145,13 @@ class PlateVoter:
         # among the ones most likely to be wrong.
         #
         # So the plate grammar breaks the tie: if any read forms a valid
-        # registration, only those lengths are considered. It is a prior
-        # about what plates can be, not a guess about this one.
+        # registration, only those lengths are considered — and of those, a
+        # full four-digit number first, since a shorter number is valid
+        # grammar too and is exactly what a truncated read produces. It is a
+        # prior about what plates can be, not a guess about this one.
+        full = [c for c in self._candidates if is_full_registration(c.text)]
         valid_candidates = [c for c in self._candidates if is_valid_plate(normalise_plate(c.text))]
-        pool = valid_candidates or self._candidates
+        pool = full or valid_candidates or self._candidates
         lengths = Counter(len(c.text) for c in pool)
         mode_length = lengths.most_common(1)[0][0]
         matching = [c for c in self._candidates if len(c.text) == mode_length]

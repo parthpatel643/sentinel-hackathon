@@ -195,6 +195,13 @@ class AnprPipeline:
             # reading "1" looks exactly like one vehicle seen in two places,
             # which is the single claim this system exists to make truthfully.
             return None
+        if not voted.format_valid:
+            # Not an Indian registration (sentinel_core.plates): a sign, a
+            # partial plate, a damaged frame. Measured on the mirror, 93% of
+            # reads; none can be searched for or put a vehicle on a route.
+            # The voter keeps reading the track, so a later valid read of the
+            # same vehicle is still reported.
+            return None
         if self._last_emitted.get(tracked.track_id) == voted.plate_text:
             return None  # unchanged since the last emission for this track
 
