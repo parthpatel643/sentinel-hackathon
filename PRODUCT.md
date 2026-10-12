@@ -23,11 +23,14 @@ untrained constable find a vehicle in under 30 seconds.
 The operator workspace gives monitoring and investigation equal prominence,
 as confirmed for the redesign. Dark control rooms and daytime office or field
 use require both dark and light themes. New sessions open in light mode;
-existing theme preferences are preserved. A navy navigation rail, cobalt
-actions, and compact operational summaries define the redesigned workspace.
-The compact navigation rail expands on demand. Overview workspaces support
-camera filtering, map/list switching, and direct transitions from detections
-and watchlist matches into investigation and triage.
+existing theme preferences are preserved. The workspace is a departures
+gate board for vehicles: ranked rows of ink on cool paper, one amber signal
+reserved for what needs action, and a perforated sighting pass for each
+read (see [DESIGN.md](DESIGN.md)). The board is scoped to the operator's
+jurisdiction, shows one row per vehicle rather than one per read, and rolls
+up by district so it stays readable at statewide scale. Overview workspaces
+support camera filtering, map/list switching, and direct transitions from
+detections and watchlist matches into investigation and triage.
 
 ## Capabilities and Constraints
 
