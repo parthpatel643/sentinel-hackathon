@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Shell } from './components/layout/Shell'
 import { Home } from './routes/Home'
 import { Cameras } from './routes/Cameras'
@@ -42,6 +42,8 @@ function OperatorConsole() {
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/health" element={<Health />} />
         <Route path="/admin" element={<AdminPortal />} />
+        {/* Sign-in shows wherever the visitor lands; a typed /login goes home after it. */}
+        <Route path="/login" element={<Navigate to="/" replace />} />
       </Routes>
     </Shell>
   )
