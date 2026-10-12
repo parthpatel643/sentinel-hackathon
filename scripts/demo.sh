@@ -29,7 +29,7 @@
 #                     The API is then on the internet, so it runs with
 #                     SENTINEL_ENVIRONMENT=prod: secrets are generated into
 #                     .env and the admin password is changed (printed below).
-#   VERCEL_PROJECT=sentinel-console
+#   VERCEL_PROJECT=sentinel-platform
 #   OPEN=0            do not open Safari at the end
 #   INSTALL=1         re-run `make install` even if dependencies are present
 #
@@ -57,7 +57,7 @@ SYNC=${SYNC:-1}
 RESET=${RESET:-0}
 WATCH=${WATCH:-}
 PHONE=${PHONE:-0}
-VERCEL_PROJECT=${VERCEL_PROJECT:-sentinel-console}
+VERCEL_PROJECT=${VERCEL_PROJECT:-sentinel-platform}
 OPEN=${OPEN:-1}
 INSTALL=${INSTALL:-0}
 
