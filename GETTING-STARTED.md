@@ -22,7 +22,6 @@ and container downloads.
 | **Python** | **3.13+** | enforced by `pyproject.toml` | handled by `uv` — see below |
 | **Node** | 20+ | operator console (Vite + React) | `brew install node` |
 | **ffmpeg** | 6+ | RTSP capture and evidence clips | `brew install ffmpeg` |
-| **tesseract** | 5+ | **required for sighting times** — reads the camera's burned-in clock | `brew install tesseract` |
 
 You do **not** need a GPU. The ANPR models run on CPU — CoreML on Apple
 silicon, ONNX elsewhere.
@@ -32,11 +31,13 @@ from `pyproject.toml` and downloads a matching interpreter into the project's
 own environment, so a machine whose system `python3` is much older is fine —
 verified here on a host still running 3.9.
 
-> **On tesseract.** The clock a camera burns into its frames is the only
-> time a sighting is ever reported with — not the stream's PTS, not when we
-> processed the frame. A reading is used only when a second reading of the
-> same camera's clock agrees with it, so a misread digit is never shown.
-> Without tesseract nothing can be read, and every sighting is recorded as
+> **On sighting times.** The clock a camera burns into its frames is the
+> only time a sighting is ever reported with — not the stream's PTS, not when
+> we processed the frame. It is read by PP-OCRv6 models that ship inside the
+> `rapidocr` Python package (installed by `make install`; nothing to download
+> at runtime, no system package). A reading is used only when a second
+> reading of the same camera's clock agrees with it, so a misread digit is
+> never shown. If the models cannot load, every sighting is recorded as
 > *time unknown — camera clock unreadable*: searchable, but kept off the
 > timed route. The worker still runs, with a single warning.
 
@@ -45,7 +46,6 @@ Check everything at once:
 ```bash
 docker info > /dev/null && echo "docker ok"
 uv --version && node --version && ffmpeg -version | head -1
-tesseract --version 2>/dev/null | head -1 || echo "tesseract: not installed (optional)"
 ```
 
 ---

@@ -161,6 +161,7 @@ Reviewers should not have to guess which parts are load-bearing.
 | Capture, reconnect/backoff, PTS timing | Real. Verified against the live government grid and by [chaos drills](evidence/M15-CHAOS-DRILLS.md). |
 | ANPR (detect → track → plate → OCR → vote) | Real open-source models, no mocks. Benchmarked on Apple Silicon. |
 | **ANPR accuracy number** | **Measured, and below target.** 65% exact per crop, 78% after the multi-frame vote, on 81 hand-labelled legible plates from one camera. 79 more were unreadable to a person. See [`evidence/ANPR-ACCURACY.md`](evidence/ANPR-ACCURACY.md). |
+| **Sighting times (camera's burned-in clock)** | **Measured.** PP-OCRv6 reads the exact timestamp on 97.7% of 87 hand-labelled frames with a legible clock (Tesseract: 69.0%), with no wrong times; replayed across all 30 grid cameras, 37.4% of stream-seconds get a verified time (Tesseract: 12.8%). The rest are *time unknown*, mostly streams with no legible clock. See [`evidence/CLOCK-READER-ACCURACY.md`](evidence/CLOCK-READER-ACCURACY.md). |
 | Camera registry, search, alerts, evidence clips | Real, PostGIS-backed, tested against a real database. |
 | Watchlist correlation (both rungs) | Real. Exercised end-to-end on live government reads. |
 | Route search, rung 3 (one-character misreads) | Real, route search only; returned as *probable* hops. Wildcard search and appearance ReID are designed, not built. |
@@ -218,6 +219,7 @@ Reviewers should not have to guess which parts are load-bearing.
 | [M1 — Capacity findings](evidence/M1-CAPACITY-FINDINGS.md) | How many streams this hardware actually sustains |
 | [M2 — Synthetic grid limitation](evidence/M2-SYNTHETIC-GRID-DISCONTINUITY-FINDING.md) | Why the local fixture cannot reproduce a real PTS discontinuity |
 | [M4 — Government grid integration](evidence/M4-GOV-CAMERA-GRID-INTEGRATION.md) | First live run against the real grid, and the two real bugs it found |
+| [Camera-clock reader accuracy](evidence/CLOCK-READER-ACCURACY.md) | PP-OCRv6 against Tesseract on a hand-labelled holdout and a replay of all 30 grid cameras |
 
 Background research: [sentinel-hackathon-research.md](sentinel-hackathon-research.md)
 

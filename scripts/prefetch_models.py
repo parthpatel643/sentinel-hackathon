@@ -4,7 +4,8 @@ internet — a police network, a venue VLAN, a hotspot that drops.
 
 The vehicle detector is exported locally (scripts/export_models.py); the
 plate detector, plate OCR and face detector are fetched on first use and
-cached under ~/.cache. First use on an isolated network is the wrong time to
+cached under ~/.cache. The camera-clock OCR models ship inside the rapidocr
+package and are only checked here. First use on an isolated network is the wrong time to
 discover that, so run this once while online and check with `make doctor`.
 
     uv run --package edge-agent python scripts/prefetch_models.py
@@ -46,6 +47,14 @@ def main() -> int:
         failed = True
         print(f"FAILED face detector: {exc}")
 
+    try:
+        from edge_agent.analytics.frame_clock import PaddleTextEngine
+
+        PaddleTextEngine()
+        print("ok    camera-clock OCR   (PP-OCRv6, bundled with rapidocr)")
+    except Exception as exc:
+        failed = True
+        print(f"FAILED camera-clock OCR: {exc}")
     print("\nall models available offline" if not failed else "\nsome models are missing")
     return 1 if failed else 0
 

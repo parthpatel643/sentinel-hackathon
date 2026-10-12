@@ -1,0 +1,212 @@
+{
+  "cam01": {
+    "stream_s": 178,
+    "coverage": 1.0,
+    "verified": 179,
+    "outliers": 0,
+    "ms_per_s": 30.67427296685238
+  },
+  "cam02": {
+    "stream_s": 178,
+    "coverage": 0.7696629213483146,
+    "verified": 137,
+    "outliers": 1,
+    "ms_per_s": 25.49446405010825
+  },
+  "cam03": {
+    "stream_s": 174,
+    "coverage": 0.8333333333333334,
+    "verified": 145,
+    "outliers": 0,
+    "ms_per_s": 28.35714837344532
+  },
+  "cam04": {
+    "stream_s": 174,
+    "coverage": 0.28160919540229884,
+    "verified": 49,
+    "outliers": 0,
+    "ms_per_s": 18.841112275733668
+  },
+  "cam05": {
+    "stream_s": 178,
+    "coverage": 0.702247191011236,
+    "verified": 125,
+    "outliers": 1,
+    "ms_per_s": 43.108966478479836
+  },
+  "cam06": {
+    "stream_s": 178,
+    "coverage": 0.06179775280898876,
+    "verified": 11,
+    "outliers": 0,
+    "ms_per_s": 21.848663376147854
+  },
+  "cam07": {
+    "stream_s": 177,
+    "coverage": 0.5028248587570622,
+    "verified": 171,
+    "outliers": 4,
+    "ms_per_s": 39.93942091574611
+  },
+  "cam08": {
+    "stream_s": 168,
+    "coverage": 0.07738095238095238,
+    "verified": 18,
+    "outliers": 0,
+    "ms_per_s": 19.01090672024674
+  },
+  "cam09": {
+    "stream_s": 179,
+    "coverage": 0.6201117318435754,
+    "verified": 175,
+    "outliers": 2,
+    "ms_per_s": 59.82796650832876
+  },
+  "cam10": {
+    "stream_s": 178,
+    "coverage": 0.0,
+    "verified": 0,
+    "outliers": 0,
+    "ms_per_s": 20.55864891073643
+  },
+  "cam11": {
+    "stream_s": 139,
+    "coverage": 0.19424460431654678,
+    "verified": 51,
+    "outliers": 1,
+    "ms_per_s": 30.78339725889629
+  },
+  "cam12": {
+    "stream_s": 180,
+    "coverage": 0.28888888888888886,
+    "verified": 52,
+    "outliers": 0,
+    "ms_per_s": 31.771939778102226
+  },
+  "cam13": {
+    "stream_s": 176,
+    "coverage": 0.11931818181818182,
+    "verified": 21,
+    "outliers": 0,
+    "ms_per_s": 22.245581869314762
+  },
+  "cam14": {
+    "stream_s": 176,
+    "coverage": 0.0,
+    "verified": 0,
+    "outliers": 0,
+    "ms_per_s": 13.464948658483165
+  },
+  "cam15": {
+    "stream_s": 176,
+    "coverage": 0.5227272727272727,
+    "verified": 92,
+    "outliers": 0,
+    "ms_per_s": 30.812198443031363
+  },
+  "cam16": {
+    "stream_s": 173,
+    "coverage": 0.0,
+    "verified": 0,
+    "outliers": 0,
+    "ms_per_s": 14.698348717018424
+  },
+  "cam17": {
+    "stream_s": 178,
+    "coverage": 0.0,
+    "verified": 0,
+    "outliers": 0,
+    "ms_per_s": 16.35942484414515
+  },
+  "cam18": {
+    "stream_s": 177,
+    "coverage": 0.0,
+    "verified": 0,
+    "outliers": 0,
+    "ms_per_s": 17.94712188140467
+  },
+  "cam19": {
+    "stream_s": 169,
+    "coverage": 0.0,
+    "verified": 0,
+    "outliers": 0,
+    "ms_per_s": 16.284438651247974
+  },
+  "cam20": {
+    "stream_s": 159,
+    "coverage": 0.3836477987421384,
+    "verified": 61,
+    "outliers": 0,
+    "ms_per_s": 14.342394879647186
+  },
+  "cam21": {
+    "stream_s": 168,
+    "coverage": 0.43452380952380953,
+    "verified": 124,
+    "outliers": 0,
+    "ms_per_s": 33.55677083349985
+  },
+  "cam22": {
+    "stream_s": 177,
+    "coverage": 0.18079096045197737,
+    "verified": 32,
+    "outliers": 0,
+    "ms_per_s": 37.024187887074966
+  },
+  "cam23": {
+    "stream_s": 172,
+    "coverage": 0.0,
+    "verified": 0,
+    "outliers": 0,
+    "ms_per_s": 18.02434616331803
+  },
+  "cam24": {
+    "stream_s": 179,
+    "coverage": 0.9050279329608939,
+    "verified": 194,
+    "outliers": 2,
+    "ms_per_s": 45.37139083301894
+  },
+  "cam25": {
+    "stream_s": 174,
+    "coverage": 0.4942528735632184,
+    "verified": 162,
+    "outliers": 3,
+    "ms_per_s": 39.37897847079031
+  },
+  "cam26": {
+    "stream_s": 178,
+    "coverage": 0.02247191011235955,
+    "verified": 4,
+    "outliers": 0,
+    "ms_per_s": 20.997740185408844
+  },
+  "cam27": {
+    "stream_s": 175,
+    "coverage": 0.8,
+    "verified": 214,
+    "outliers": 1,
+    "ms_per_s": 41.3827286677302
+  },
+  "cam28": {
+    "stream_s": 178,
+    "coverage": 0.8146067415730337,
+    "verified": 234,
+    "outliers": 1,
+    "ms_per_s": 43.574731101022294
+  },
+  "cam29": {
+    "stream_s": 179,
+    "coverage": 0.8435754189944135,
+    "verified": 321,
+    "outliers": 1,
+    "ms_per_s": 55.47926074282335
+  },
+  "cam30": {
+    "stream_s": 175,
+    "coverage": 0.28,
+    "verified": 50,
+    "outliers": 1,
+    "ms_per_s": 17.01072405217149
+  }
+}

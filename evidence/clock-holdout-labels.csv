@@ -1,0 +1,159 @@
+id,frame,camera_id,source,tesseract_verified_live,ground_truth
+c0001,frames/cam15-m3.png,cam15,mirror,,2026-06-13 21:07:00
+c0002,frames/cam28-m2.png,cam28,mirror,,UNREADABLE
+c0003,frames/cam02-m0.png,cam02,mirror,,UNREADABLE
+c0004,frames/cam23-m1.png,cam23,mirror,,UNREADABLE
+c0005,frames/cam04-m2.png,cam04,mirror,,2026-06-13 21:05:41
+c0006,frames/cam26-m0.png,cam26,mirror,,UNREADABLE
+c0007,frames/cam06-s-01M4KDY0ESB6CTVE2KJXTVHVPN.png,cam06,snapshot,no,2026-06-17 18:05:28
+c0008,frames/cam25-m0.png,cam25,mirror,,UNREADABLE
+c0009,frames/cam30-s-01M4KEVTMXRTTA3YBZ1RH9CRDE.png,cam30,snapshot,yes,UNREADABLE
+c0010,frames/cam29-m0.png,cam29,mirror,,2026-06-13 21:00:42
+c0011,frames/cam06-s-01M4MSCTAED290VSS3DTPED5EP.png,cam06,snapshot,yes,2026-06-17 18:02:49
+c0012,frames/cam25-m2.png,cam25,mirror,,UNREADABLE
+c0013,frames/cam30-s-01M4Q9Z7H9BFVN7FVZ3ZYT37YR.png,cam30,snapshot,yes,2026-08-08 21:01:22
+c0014,frames/cam26-m2.png,cam26,mirror,,UNREADABLE
+c0015,frames/cam29-m2.png,cam29,mirror,,2026-06-13 21:00:14
+c0016,frames/cam07-m2.png,cam07,mirror,,2026-06-13 21:01:11
+c0017,frames/cam30-s-01M4MSCEZFYW0KVZ1T1ES1P49F.png,cam30,snapshot,no,2026-08-08 21:06:09
+c0018,frames/cam06-s-01M4Q8FDXPQXY220EEAJ5037PA.png,cam06,snapshot,yes,2026-06-17 18:06:51
+c0019,frames/cam22-m1.png,cam22,mirror,,2026-06-14 04:30:24
+c0020,frames/cam11-m0.png,cam11,mirror,,UNREADABLE
+c0021,frames/cam06-s-01M4KJ8PH3GY3MQ3444GG67Q7C.png,cam06,snapshot,no,2026-06-17 18:08:43
+c0022,frames/cam07-m1.png,cam07,mirror,,2026-06-13 21:00:09
+c0023,frames/cam30-s-01M4QDV9ZPRH4A0YBVJZY5B3PB.png,cam30,snapshot,no,2026-08-08 21:10:33
+c0024,frames/cam01-m3.png,cam01,mirror,,2026-06-13 21:09:06
+c0025,frames/cam06-s-01M4Q9C7CTVQGR22HRGJ1YXW2X.png,cam06,snapshot,no,2026-06-17 18:06:51
+c0026,frames/cam02-m2.png,cam02,mirror,,UNREADABLE
+c0027,frames/cam28-m0.png,cam28,mirror,,UNREADABLE
+c0028,frames/cam03-m1.png,cam03,mirror,,2026-06-13 21:03:10
+c0029,frames/cam01-m1.png,cam01,mirror,,2026-06-13 21:04:59
+c0030,frames/cam30-s-01M4KKC8MV70M4STDYZP3TCB7K.png,cam30,snapshot,yes,2026-08-08 21:13:07
+c0031,frames/cam21-m1.png,cam21,mirror,,UNREADABLE
+c0032,frames/cam30-m2.png,cam30,mirror,,2026-08-08 21:05:20
+c0033,frames/cam22-m0.png,cam22,mirror,,UNREADABLE
+c0034,frames/cam06-s-01M4Q3X050RYJT6AKEHK34E3RW.png,cam06,snapshot,no,2026-06-17 18:01:21
+c0035,frames/cam20-m0.png,cam20,mirror,,UNREADABLE
+c0036,frames/cam30-m1.png,cam30,mirror,,2026-08-08 21:00:49
+c0037,frames/cam09-m3.png,cam09,mirror,,UNREADABLE
+c0038,frames/cam10-m1.png,cam10,mirror,,UNREADABLE
+c0039,frames/cam23-m0.png,cam23,mirror,,UNREADABLE
+c0040,frames/cam23-m3.png,cam23,mirror,,UNREADABLE
+c0041,frames/cam03-m0.png,cam03,mirror,,2026-06-13 21:01:05
+c0042,frames/cam09-m2.png,cam09,mirror,,2026-06-13 21:00:51
+c0043,frames/cam06-m3.png,cam06,mirror,,UNREADABLE
+c0044,frames/cam17-m3.png,cam17,mirror,,UNREADABLE
+c0045,frames/cam29-m3.png,cam29,mirror,,2026-06-13 21:04:19
+c0046,frames/cam01-m2.png,cam01,mirror,,2026-06-13 21:06:23
+c0047,frames/cam20-m3.png,cam20,mirror,,UNREADABLE
+c0048,frames/cam13-m0.png,cam13,mirror,,2026-06-13 21:00:45
+c0049,frames/cam06-s-01M4KH3REG5ED17YK8Y61BHEEJ.png,cam06,snapshot,no,2026-06-17 18:05:06
+c0050,frames/cam24-m0.png,cam24,mirror,,2026-08-08 04:20:54
+c0051,frames/cam15-m2.png,cam15,mirror,,2026-06-13 21:04:17
+c0052,frames/cam02-m1.png,cam02,mirror,,UNREADABLE
+c0053,frames/cam07-m0.png,cam07,mirror,,2026-06-13 21:00:12
+c0054,frames/cam15-m0.png,cam15,mirror,,2026-06-13 21:00:39
+c0055,frames/cam30-s-01M4Q9670JAGP4H1TYABE7962B.png,cam30,snapshot,no,2026-08-08 21:11:13
+c0056,frames/cam27-m0.png,cam27,mirror,,2026-06-14 00:00:31
+c0057,frames/cam16-m1.png,cam16,mirror,,UNREADABLE
+c0058,frames/cam14-m0.png,cam14,mirror,,UNREADABLE
+c0059,frames/cam26-m1.png,cam26,mirror,,2026-08-08 23:22:59
+c0060,frames/cam30-s-01M4KJJQ9JS930VR2EGQFP80MC.png,cam30,snapshot,no,2026-08-08 21:09:29
+c0061,frames/cam06-s-01M4MSMMCDPDG1TFEM7ZA56DK9.png,cam06,snapshot,no,2026-06-17 18:06:51
+c0062,frames/cam14-m1.png,cam14,mirror,,2026-06-13 20:59:25
+c0063,frames/cam11-m1.png,cam11,mirror,,UNREADABLE
+c0064,frames/cam25-m1.png,cam25,mirror,,UNREADABLE
+c0065,frames/cam06-s-01M4QDMSTBBNB0AED2RYZFTNRG.png,cam06,snapshot,yes,2026-06-17 18:02:49
+c0066,frames/cam13-m1.png,cam13,mirror,,UNREADABLE
+c0067,frames/cam30-s-01M4QCQJVKR3BFF1BD8H7FC29B.png,cam30,snapshot,yes,2026-08-08 21:00:49
+c0068,frames/cam03-m3.png,cam03,mirror,,2026-06-13 21:11:38
+c0069,frames/cam06-s-01M4KESJFYT5KV1FXER3ED6V7V.png,cam06,snapshot,yes,2026-06-17 18:00:50
+c0070,frames/cam30-s-01M4KE8KJX3PNKSH526D18FZQS.png,cam30,snapshot,no,2026-08-08 21:09:29
+c0071,frames/cam19-m1.png,cam19,mirror,,UNREADABLE
+c0072,frames/cam27-m2.png,cam27,mirror,,UNREADABLE
+c0073,frames/cam21-m3.png,cam21,mirror,,2026-06-14 00:00:15
+c0074,frames/cam08-m0.png,cam08,mirror,,2026-06-13 21:00:53
+c0075,frames/cam25-m3.png,cam25,mirror,,UNREADABLE
+c0076,frames/cam10-m0.png,cam10,mirror,,UNREADABLE
+c0077,frames/cam01-m0.png,cam01,mirror,,2026-06-13 21:01:15
+c0078,frames/cam05-m0.png,cam05,mirror,,2026-06-13 21:00:50
+c0079,frames/cam18-m3.png,cam18,mirror,,2026-06-13 21:00:12
+c0080,frames/cam03-m2.png,cam03,mirror,,2026-06-13 21:08:25
+c0081,frames/cam13-m2.png,cam13,mirror,,2026-06-13 21:00:00
+c0082,frames/cam30-s-01M4N0MWAMKW72ED4V4EK30MSQ.png,cam30,snapshot,yes,2026-08-08 21:09:29
+c0083,frames/cam06-s-01M4QE8T661Y111T0SCY9BYTWJ.png,cam06,snapshot,yes,2026-06-17 18:00:50
+c0084,frames/cam12-m2.png,cam12,mirror,,UNREADABLE
+c0085,frames/cam21-m0.png,cam21,mirror,,2026-06-14 00:44:54
+c0086,frames/cam02-m3.png,cam02,mirror,,2026-06-13 21:07:43
+c0087,frames/cam24-m2.png,cam24,mirror,,UNREADABLE
+c0088,frames/cam04-m1.png,cam04,mirror,,2026-06-13 21:02:08
+c0089,frames/cam14-m2.png,cam14,mirror,,2026-06-13 21:00:53
+c0090,frames/cam09-m0.png,cam09,mirror,,UNREADABLE
+c0091,frames/cam01-s-01M4MX8RWJG7JFYK8Q6R9GAR86.png,cam01,snapshot,yes,2026-06-13 21:06:09
+c0092,frames/cam13-m3.png,cam13,mirror,,2026-06-13 20:59:35
+c0093,frames/cam04-m0.png,cam04,mirror,,UNREADABLE
+c0094,frames/cam04-m3.png,cam04,mirror,,UNREADABLE
+c0095,frames/cam08-m2.png,cam08,mirror,,UNREADABLE
+c0096,frames/cam17-m0.png,cam17,mirror,,UNREADABLE
+c0097,frames/cam06-m1.png,cam06,mirror,,UNREADABLE
+c0098,frames/cam19-m2.png,cam19,mirror,,UNREADABLE
+c0099,frames/cam18-m2.png,cam18,mirror,,UNREADABLE
+c0100,frames/cam05-m2.png,cam05,mirror,,UNREADABLE
+c0101,frames/cam12-m1.png,cam12,mirror,,UNREADABLE
+c0102,frames/cam28-m3.png,cam28,mirror,,2026-06-13 21:12:16
+c0103,frames/cam30-s-01M4QEYBTJ1M8AHGFZEKVBRQ07.png,cam30,snapshot,no,2026-08-08 21:08:06
+c0104,frames/cam06-s-01M4MY4D7QFD7NKNTCFVTWBNVM.png,cam06,snapshot,no,UNREADABLE
+c0105,frames/cam14-m3.png,cam14,mirror,,2026-06-13 21:04:50
+c0106,frames/cam16-m0.png,cam16,mirror,,UNREADABLE
+c0107,frames/cam19-m3.png,cam19,mirror,,UNREADABLE
+c0108,frames/cam06-s-01M4Q9VDPQ21EVMQM9Y2JVPB58.png,cam06,snapshot,no,2026-06-17 18:05:29
+c0109,frames/cam17-m1.png,cam17,mirror,,UNREADABLE
+c0110,frames/cam24-m3.png,cam24,mirror,,UNREADABLE
+c0111,frames/cam06-s-01M4QAC8QJVVFYK8BTST5GJR5E.png,cam06,snapshot,no,2026-06-17 18:08:43
+c0112,frames/cam29-m1.png,cam29,mirror,,UNREADABLE
+c0113,frames/cam06-m2.png,cam06,mirror,,UNREADABLE
+c0114,frames/cam16-m2.png,cam16,mirror,,UNREADABLE
+c0115,frames/cam30-s-01M4MT82PH8G451MGK48Q6HESX.png,cam30,snapshot,yes,2026-08-08 21:10:38
+c0116,frames/cam12-m0.png,cam12,mirror,,UNREADABLE
+c0117,frames/cam15-m1.png,cam15,mirror,,UNREADABLE
+c0118,frames/cam22-m2.png,cam22,mirror,,UNREADABLE
+c0119,frames/cam20-m1.png,cam20,mirror,,2026-08-03 20:00:06
+c0120,frames/cam11-m2.png,cam11,mirror,,2026-06-13 21:06:01
+c0121,frames/cam01-s-01M4MR51DZ5030KKAF69Y820RN.png,cam01,snapshot,yes,2026-06-13 21:06:12
+c0122,frames/cam30-s-01M4MTZ3EX9TVYQN0C8GTQPEW3.png,cam30,snapshot,no,2026-08-08 21:03:53
+c0123,frames/cam26-m3.png,cam26,mirror,,UNREADABLE
+c0124,frames/cam20-m2.png,cam20,mirror,,UNREADABLE
+c0125,frames/cam27-m1.png,cam27,mirror,,UNREADABLE
+c0126,frames/cam17-m2.png,cam17,mirror,,UNREADABLE
+c0127,frames/cam30-m0.png,cam30,mirror,,2026-08-08 21:01:22
+c0128,frames/cam27-m3.png,cam27,mirror,,UNREADABLE
+c0129,frames/cam30-s-01M4Q38TR69G2R0SQM0V0Y1KVX.png,cam30,snapshot,no,2026-08-08 21:00:59
+c0130,frames/cam22-m3.png,cam22,mirror,,UNREADABLE
+c0131,frames/cam06-s-01M4KFAJQKFDHKEHTBKCJQRSF4.png,cam06,snapshot,no,2026-06-17 18:06:51
+c0132,frames/cam05-m3.png,cam05,mirror,,2026-06-13 21:11:15
+c0133,frames/cam30-s-01M4Q8QGDGTRVCP3R303TZTYQE.png,cam30,snapshot,yes,2026-08-08 21:13:07
+c0134,frames/cam06-s-01M4Q44YV64BJ6XWEX0DX3XB6S.png,cam06,snapshot,yes,2026-06-17 18:02:49
+c0135,frames/cam18-m1.png,cam18,mirror,,UNREADABLE
+c0136,frames/cam06-s-01M4QBV6Y4PFZ254NT54ESGVPY.png,cam06,snapshot,yes,2026-06-17 18:02:49
+c0137,frames/cam06-s-01M4KFQT0WZZV0MSXVQ36ARPVT.png,cam06,snapshot,yes,2026-06-17 18:00:50
+c0138,frames/cam28-m1.png,cam28,mirror,,UNREADABLE
+c0139,frames/cam06-s-01M4QDC0PCJ34N7A3X790H7P5W.png,cam06,snapshot,yes,2026-06-17 18:00:50
+c0140,frames/cam30-s-01M4MVJYXC91P7A2N0RM8HKYMC.png,cam30,snapshot,yes,2026-08-08 21:03:37
+c0141,frames/cam10-m2.png,cam10,mirror,,UNREADABLE
+c0142,frames/cam30-s-01M4Q8J0C5CS3ZF56MJKJK2RA1.png,cam30,snapshot,no,2026-08-08 21:09:29
+c0143,frames/cam30-m3.png,cam30,mirror,,2026-08-08 21:08:08
+c0144,frames/cam30-s-01M4KFG28ZZ6DNREDK2XEZ3HGB.png,cam30,snapshot,no,2026-08-08 21:09:29
+c0145,frames/cam30-s-01M4KK8MHSTD8SKBCNRNW18PKM.png,cam30,snapshot,yes,2026-08-08 21:00:49
+c0146,frames/cam05-m1.png,cam05,mirror,,2026-06-13 21:00:08
+c0147,frames/cam12-m3.png,cam12,mirror,,UNREADABLE
+c0148,frames/cam08-m1.png,cam08,mirror,,2026-06-13 21:01:27
+c0149,frames/cam19-m0.png,cam19,mirror,,UNREADABLE
+c0150,frames/cam18-m0.png,cam18,mirror,,UNREADABLE
+c0151,frames/cam09-m1.png,cam09,mirror,,2026-06-13 21:00:13
+c0152,frames/cam24-m1.png,cam24,mirror,,UNREADABLE
+c0153,frames/cam23-m2.png,cam23,mirror,,UNREADABLE
+c0154,frames/cam21-m2.png,cam21,mirror,,UNREADABLE
+c0155,frames/cam30-s-01M4MRCZNS7GZ2B1J3ZFS489ZB.png,cam30,snapshot,yes,2026-08-08 21:08:07
+c0156,frames/cam06-s-01M4Q3VY54EV47857E60F66D9B.png,cam06,snapshot,yes,2026-06-17 18:00:50
+c0157,frames/cam06-m0.png,cam06,mirror,,UNREADABLE
+c0158,frames/cam16-m3.png,cam16,mirror,,UNREADABLE

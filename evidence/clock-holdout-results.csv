@@ -1,0 +1,475 @@
+engine,id,camera_id,source,truth,read,outcome
+tesseract,c0001,cam15,mirror,2026-06-13 21:07:00,,missed
+tesseract,c0002,cam28,mirror,UNREADABLE,,abstained
+tesseract,c0003,cam02,mirror,UNREADABLE,,abstained
+tesseract,c0004,cam23,mirror,UNREADABLE,,abstained
+tesseract,c0005,cam04,mirror,2026-06-13 21:05:41,,missed
+tesseract,c0006,cam26,mirror,UNREADABLE,,abstained
+tesseract,c0007,cam06,snapshot,2026-06-17 18:05:28,2026-06-17T12:35:28+00:00,exact
+tesseract,c0008,cam25,mirror,UNREADABLE,,abstained
+tesseract,c0009,cam30,snapshot,UNREADABLE,2026-08-08T15:39:14+00:00,invented
+tesseract,c0010,cam29,mirror,2026-06-13 21:00:42,,missed
+tesseract,c0011,cam06,snapshot,2026-06-17 18:02:49,2026-06-17T12:32:49+00:00,exact
+tesseract,c0012,cam25,mirror,UNREADABLE,,abstained
+tesseract,c0013,cam30,snapshot,2026-08-08 21:01:22,2026-08-08T15:31:22+00:00,exact
+tesseract,c0014,cam26,mirror,UNREADABLE,,abstained
+tesseract,c0015,cam29,mirror,2026-06-13 21:00:14,,missed
+tesseract,c0016,cam07,mirror,2026-06-13 21:01:11,2026-06-13T15:31:11+00:00,exact
+tesseract,c0017,cam30,snapshot,2026-08-08 21:06:09,2026-08-08T15:36:09+00:00,exact
+tesseract,c0018,cam06,snapshot,2026-06-17 18:06:51,2026-06-17T12:36:51+00:00,exact
+tesseract,c0019,cam22,mirror,2026-06-14 04:30:24,2026-06-13T23:00:24+00:00,exact
+tesseract,c0020,cam11,mirror,UNREADABLE,,abstained
+tesseract,c0021,cam06,snapshot,2026-06-17 18:08:43,2026-06-17T12:38:43+00:00,exact
+tesseract,c0022,cam07,mirror,2026-06-13 21:00:09,2026-06-13T15:30:09+00:00,exact
+tesseract,c0023,cam30,snapshot,2026-08-08 21:10:33,2026-08-08T15:40:33+00:00,exact
+tesseract,c0024,cam01,mirror,2026-06-13 21:09:06,2026-06-13T15:39:06+00:00,exact
+tesseract,c0025,cam06,snapshot,2026-06-17 18:06:51,2026-06-17T12:36:51+00:00,exact
+tesseract,c0026,cam02,mirror,UNREADABLE,,abstained
+tesseract,c0027,cam28,mirror,UNREADABLE,,abstained
+tesseract,c0028,cam03,mirror,2026-06-13 21:03:10,,missed
+tesseract,c0029,cam01,mirror,2026-06-13 21:04:59,2026-06-13T15:34:59+00:00,exact
+tesseract,c0030,cam30,snapshot,2026-08-08 21:13:07,2026-08-08T15:43:07+00:00,exact
+tesseract,c0031,cam21,mirror,UNREADABLE,,abstained
+tesseract,c0032,cam30,mirror,2026-08-08 21:05:20,2026-08-08T15:35:20+00:00,exact
+tesseract,c0033,cam22,mirror,UNREADABLE,,abstained
+tesseract,c0034,cam06,snapshot,2026-06-17 18:01:21,,missed
+tesseract,c0035,cam20,mirror,UNREADABLE,,abstained
+tesseract,c0036,cam30,mirror,2026-08-08 21:00:49,2026-08-08T15:30:49+00:00,exact
+tesseract,c0037,cam09,mirror,UNREADABLE,2026-06-13T15:30:48+00:00,invented
+tesseract,c0038,cam10,mirror,UNREADABLE,,abstained
+tesseract,c0039,cam23,mirror,UNREADABLE,,abstained
+tesseract,c0040,cam23,mirror,UNREADABLE,,abstained
+tesseract,c0041,cam03,mirror,2026-06-13 21:01:05,2026-06-13T15:31:08+00:00,wrong
+tesseract,c0042,cam09,mirror,2026-06-13 21:00:51,2026-06-13T15:30:51+00:00,exact
+tesseract,c0043,cam06,mirror,UNREADABLE,,abstained
+tesseract,c0044,cam17,mirror,UNREADABLE,,abstained
+tesseract,c0045,cam29,mirror,2026-06-13 21:04:19,,missed
+tesseract,c0046,cam01,mirror,2026-06-13 21:06:23,2026-06-13T15:36:23+00:00,exact
+tesseract,c0047,cam20,mirror,UNREADABLE,,abstained
+tesseract,c0048,cam13,mirror,2026-06-13 21:00:45,2026-06-13T15:30:45+00:00,exact
+tesseract,c0049,cam06,snapshot,2026-06-17 18:05:06,,missed
+tesseract,c0050,cam24,mirror,2026-08-08 04:20:54,,missed
+tesseract,c0051,cam15,mirror,2026-06-13 21:04:17,,missed
+tesseract,c0052,cam02,mirror,UNREADABLE,,abstained
+tesseract,c0053,cam07,mirror,2026-06-13 21:00:12,2026-06-13T15:30:12+00:00,exact
+tesseract,c0054,cam15,mirror,2026-06-13 21:00:39,2026-06-13T15:30:39+00:00,exact
+tesseract,c0055,cam30,snapshot,2026-08-08 21:11:13,2026-08-08T15:41:13+00:00,exact
+tesseract,c0056,cam27,mirror,2026-06-14 00:00:31,,missed
+tesseract,c0057,cam16,mirror,UNREADABLE,,abstained
+tesseract,c0058,cam14,mirror,UNREADABLE,,abstained
+tesseract,c0059,cam26,mirror,2026-08-08 23:22:59,,missed
+tesseract,c0060,cam30,snapshot,2026-08-08 21:09:29,2026-08-08T15:39:29+00:00,exact
+tesseract,c0061,cam06,snapshot,2026-06-17 18:06:51,2026-06-17T12:36:51+00:00,exact
+tesseract,c0062,cam14,mirror,2026-06-13 20:59:25,,missed
+tesseract,c0063,cam11,mirror,UNREADABLE,2026-06-13T15:31:30+00:00,invented
+tesseract,c0064,cam25,mirror,UNREADABLE,,abstained
+tesseract,c0065,cam06,snapshot,2026-06-17 18:02:49,2026-06-17T12:32:49+00:00,exact
+tesseract,c0066,cam13,mirror,UNREADABLE,,abstained
+tesseract,c0067,cam30,snapshot,2026-08-08 21:00:49,2026-08-08T15:30:49+00:00,exact
+tesseract,c0068,cam03,mirror,2026-06-13 21:11:38,2026-06-13T15:41:38+00:00,exact
+tesseract,c0069,cam06,snapshot,2026-06-17 18:00:50,2026-06-17T12:30:50+00:00,exact
+tesseract,c0070,cam30,snapshot,2026-08-08 21:09:29,2026-08-08T15:39:29+00:00,exact
+tesseract,c0071,cam19,mirror,UNREADABLE,,abstained
+tesseract,c0072,cam27,mirror,UNREADABLE,,abstained
+tesseract,c0073,cam21,mirror,2026-06-14 00:00:15,,missed
+tesseract,c0074,cam08,mirror,2026-06-13 21:00:53,2026-06-13T15:30:53+00:00,exact
+tesseract,c0075,cam25,mirror,UNREADABLE,,abstained
+tesseract,c0076,cam10,mirror,UNREADABLE,,abstained
+tesseract,c0077,cam01,mirror,2026-06-13 21:01:15,2026-06-13T15:31:15+00:00,exact
+tesseract,c0078,cam05,mirror,2026-06-13 21:00:50,2026-06-13T15:30:50+00:00,exact
+tesseract,c0079,cam18,mirror,2026-06-13 21:00:12,,missed
+tesseract,c0080,cam03,mirror,2026-06-13 21:08:25,,missed
+tesseract,c0081,cam13,mirror,2026-06-13 21:00:00,,missed
+tesseract,c0082,cam30,snapshot,2026-08-08 21:09:29,2026-08-08T15:39:29+00:00,exact
+tesseract,c0083,cam06,snapshot,2026-06-17 18:00:50,2026-06-17T12:30:50+00:00,exact
+tesseract,c0084,cam12,mirror,UNREADABLE,,abstained
+tesseract,c0085,cam21,mirror,2026-06-14 00:44:54,2026-06-13T19:14:54+00:00,exact
+tesseract,c0086,cam02,mirror,2026-06-13 21:07:43,,missed
+tesseract,c0087,cam24,mirror,UNREADABLE,,abstained
+tesseract,c0088,cam04,mirror,2026-06-13 21:02:08,,missed
+tesseract,c0089,cam14,mirror,2026-06-13 21:00:53,,missed
+tesseract,c0090,cam09,mirror,UNREADABLE,2026-06-13T15:31:17+00:00,invented
+tesseract,c0091,cam01,snapshot,2026-06-13 21:06:09,2026-06-13T15:36:09+00:00,exact
+tesseract,c0092,cam13,mirror,2026-06-13 20:59:35,2026-06-13T15:29:35+00:00,exact
+tesseract,c0093,cam04,mirror,UNREADABLE,,abstained
+tesseract,c0094,cam04,mirror,UNREADABLE,,abstained
+tesseract,c0095,cam08,mirror,UNREADABLE,,abstained
+tesseract,c0096,cam17,mirror,UNREADABLE,,abstained
+tesseract,c0097,cam06,mirror,UNREADABLE,,abstained
+tesseract,c0098,cam19,mirror,UNREADABLE,,abstained
+tesseract,c0099,cam18,mirror,UNREADABLE,,abstained
+tesseract,c0100,cam05,mirror,UNREADABLE,2026-06-13T15:37:02+00:00,invented
+tesseract,c0101,cam12,mirror,UNREADABLE,,abstained
+tesseract,c0102,cam28,mirror,2026-06-13 21:12:16,,missed
+tesseract,c0103,cam30,snapshot,2026-08-08 21:08:06,2026-08-08T15:38:06+00:00,exact
+tesseract,c0104,cam06,snapshot,UNREADABLE,,abstained
+tesseract,c0105,cam14,mirror,2026-06-13 21:04:50,,missed
+tesseract,c0106,cam16,mirror,UNREADABLE,,abstained
+tesseract,c0107,cam19,mirror,UNREADABLE,,abstained
+tesseract,c0108,cam06,snapshot,2026-06-17 18:05:29,2026-06-17T12:35:29+00:00,exact
+tesseract,c0109,cam17,mirror,UNREADABLE,,abstained
+tesseract,c0110,cam24,mirror,UNREADABLE,,abstained
+tesseract,c0111,cam06,snapshot,2026-06-17 18:08:43,2026-06-17T12:38:43+00:00,exact
+tesseract,c0112,cam29,mirror,UNREADABLE,,abstained
+tesseract,c0113,cam06,mirror,UNREADABLE,,abstained
+tesseract,c0114,cam16,mirror,UNREADABLE,,abstained
+tesseract,c0115,cam30,snapshot,2026-08-08 21:10:38,2026-08-08T15:40:38+00:00,exact
+tesseract,c0116,cam12,mirror,UNREADABLE,,abstained
+tesseract,c0117,cam15,mirror,UNREADABLE,,abstained
+tesseract,c0118,cam22,mirror,UNREADABLE,,abstained
+tesseract,c0119,cam20,mirror,2026-08-03 20:00:06,,missed
+tesseract,c0120,cam11,mirror,2026-06-13 21:06:01,,missed
+tesseract,c0121,cam01,snapshot,2026-06-13 21:06:12,2026-06-13T15:36:12+00:00,exact
+tesseract,c0122,cam30,snapshot,2026-08-08 21:03:53,2026-08-08T15:33:53+00:00,exact
+tesseract,c0123,cam26,mirror,UNREADABLE,,abstained
+tesseract,c0124,cam20,mirror,UNREADABLE,,abstained
+tesseract,c0125,cam27,mirror,UNREADABLE,,abstained
+tesseract,c0126,cam17,mirror,UNREADABLE,,abstained
+tesseract,c0127,cam30,mirror,2026-08-08 21:01:22,2026-08-08T15:31:22+00:00,exact
+tesseract,c0128,cam27,mirror,UNREADABLE,,abstained
+tesseract,c0129,cam30,snapshot,2026-08-08 21:00:59,2026-08-08T15:30:59+00:00,exact
+tesseract,c0130,cam22,mirror,UNREADABLE,,abstained
+tesseract,c0131,cam06,snapshot,2026-06-17 18:06:51,2026-06-17T12:36:51+00:00,exact
+tesseract,c0132,cam05,mirror,2026-06-13 21:11:15,2026-06-13T15:41:15+00:00,exact
+tesseract,c0133,cam30,snapshot,2026-08-08 21:13:07,2026-08-08T15:43:07+00:00,exact
+tesseract,c0134,cam06,snapshot,2026-06-17 18:02:49,2026-06-17T12:32:49+00:00,exact
+tesseract,c0135,cam18,mirror,UNREADABLE,,abstained
+tesseract,c0136,cam06,snapshot,2026-06-17 18:02:49,2026-06-17T12:32:49+00:00,exact
+tesseract,c0137,cam06,snapshot,2026-06-17 18:00:50,2026-06-17T12:30:50+00:00,exact
+tesseract,c0138,cam28,mirror,UNREADABLE,,abstained
+tesseract,c0139,cam06,snapshot,2026-06-17 18:00:50,2026-06-17T12:30:50+00:00,exact
+tesseract,c0140,cam30,snapshot,2026-08-08 21:03:37,2026-08-08T15:33:37+00:00,exact
+tesseract,c0141,cam10,mirror,UNREADABLE,,abstained
+tesseract,c0142,cam30,snapshot,2026-08-08 21:09:29,2026-08-08T15:39:29+00:00,exact
+tesseract,c0143,cam30,mirror,2026-08-08 21:08:08,2026-08-08T15:38:08+00:00,exact
+tesseract,c0144,cam30,snapshot,2026-08-08 21:09:29,2026-08-08T15:39:29+00:00,exact
+tesseract,c0145,cam30,snapshot,2026-08-08 21:00:49,2026-08-08T15:30:49+00:00,exact
+tesseract,c0146,cam05,mirror,2026-06-13 21:00:08,,missed
+tesseract,c0147,cam12,mirror,UNREADABLE,,abstained
+tesseract,c0148,cam08,mirror,2026-06-13 21:01:27,,missed
+tesseract,c0149,cam19,mirror,UNREADABLE,,abstained
+tesseract,c0150,cam18,mirror,UNREADABLE,,abstained
+tesseract,c0151,cam09,mirror,2026-06-13 21:00:13,2026-06-13T15:30:13+00:00,exact
+tesseract,c0152,cam24,mirror,UNREADABLE,,abstained
+tesseract,c0153,cam23,mirror,UNREADABLE,,abstained
+tesseract,c0154,cam21,mirror,UNREADABLE,,abstained
+tesseract,c0155,cam30,snapshot,2026-08-08 21:08:07,2026-08-08T15:38:07+00:00,exact
+tesseract,c0156,cam06,snapshot,2026-06-17 18:00:50,2026-06-17T12:30:50+00:00,exact
+tesseract,c0157,cam06,mirror,UNREADABLE,,abstained
+tesseract,c0158,cam16,mirror,UNREADABLE,,abstained
+production,c0001,cam15,mirror,2026-06-13 21:07:00,2026-06-13T15:37:00+00:00,exact
+production,c0002,cam28,mirror,UNREADABLE,2026-06-13T15:37:49+00:00,invented
+production,c0003,cam02,mirror,UNREADABLE,,abstained
+production,c0004,cam23,mirror,UNREADABLE,,abstained
+production,c0005,cam04,mirror,2026-06-13 21:05:41,2026-06-13T15:35:41+00:00,exact
+production,c0006,cam26,mirror,UNREADABLE,,abstained
+production,c0007,cam06,snapshot,2026-06-17 18:05:28,2026-06-17T12:35:28+00:00,exact
+production,c0008,cam25,mirror,UNREADABLE,2026-08-03T15:30:33+00:00,invented
+production,c0009,cam30,snapshot,UNREADABLE,2026-08-08T15:39:13+00:00,invented
+production,c0010,cam29,mirror,2026-06-13 21:00:42,2026-06-13T15:30:42+00:00,exact
+production,c0011,cam06,snapshot,2026-06-17 18:02:49,2026-06-17T12:32:49+00:00,exact
+production,c0012,cam25,mirror,UNREADABLE,,abstained
+production,c0013,cam30,snapshot,2026-08-08 21:01:22,2026-08-08T15:31:22+00:00,exact
+production,c0014,cam26,mirror,UNREADABLE,,abstained
+production,c0015,cam29,mirror,2026-06-13 21:00:14,2026-06-13T15:30:14+00:00,exact
+production,c0016,cam07,mirror,2026-06-13 21:01:11,2026-06-13T15:31:11+00:00,exact
+production,c0017,cam30,snapshot,2026-08-08 21:06:09,2026-08-08T15:36:09+00:00,exact
+production,c0018,cam06,snapshot,2026-06-17 18:06:51,2026-06-17T12:36:51+00:00,exact
+production,c0019,cam22,mirror,2026-06-14 04:30:24,2026-06-13T23:00:24+00:00,exact
+production,c0020,cam11,mirror,UNREADABLE,2026-06-13T15:44:02+00:00,invented
+production,c0021,cam06,snapshot,2026-06-17 18:08:43,2026-06-17T12:38:43+00:00,exact
+production,c0022,cam07,mirror,2026-06-13 21:00:09,2026-06-13T15:30:09+00:00,exact
+production,c0023,cam30,snapshot,2026-08-08 21:10:33,2026-08-08T15:40:33+00:00,exact
+production,c0024,cam01,mirror,2026-06-13 21:09:06,2026-06-13T15:39:06+00:00,exact
+production,c0025,cam06,snapshot,2026-06-17 18:06:51,2026-06-17T12:36:51+00:00,exact
+production,c0026,cam02,mirror,UNREADABLE,2026-06-13T15:33:29+00:00,invented
+production,c0027,cam28,mirror,UNREADABLE,,abstained
+production,c0028,cam03,mirror,2026-06-13 21:03:10,2026-06-13T15:33:10+00:00,exact
+production,c0029,cam01,mirror,2026-06-13 21:04:59,2026-06-13T15:34:59+00:00,exact
+production,c0030,cam30,snapshot,2026-08-08 21:13:07,2026-08-08T15:43:07+00:00,exact
+production,c0031,cam21,mirror,UNREADABLE,2026-06-13T18:31:28+00:00,invented
+production,c0032,cam30,mirror,2026-08-08 21:05:20,2026-08-08T15:35:20+00:00,exact
+production,c0033,cam22,mirror,UNREADABLE,,abstained
+production,c0034,cam06,snapshot,2026-06-17 18:01:21,2026-06-17T12:31:21+00:00,exact
+production,c0035,cam20,mirror,UNREADABLE,2026-08-03T14:42:01+00:00,invented
+production,c0036,cam30,mirror,2026-08-08 21:00:49,2026-08-08T15:30:49+00:00,exact
+production,c0037,cam09,mirror,UNREADABLE,2026-06-13T15:30:46+00:00,invented
+production,c0038,cam10,mirror,UNREADABLE,,abstained
+production,c0039,cam23,mirror,UNREADABLE,,abstained
+production,c0040,cam23,mirror,UNREADABLE,,abstained
+production,c0041,cam03,mirror,2026-06-13 21:01:05,2026-06-13T15:31:05+00:00,exact
+production,c0042,cam09,mirror,2026-06-13 21:00:51,2026-06-13T15:30:51+00:00,exact
+production,c0043,cam06,mirror,UNREADABLE,,abstained
+production,c0044,cam17,mirror,UNREADABLE,,abstained
+production,c0045,cam29,mirror,2026-06-13 21:04:19,2026-06-13T15:34:19+00:00,exact
+production,c0046,cam01,mirror,2026-06-13 21:06:23,2026-06-13T15:36:23+00:00,exact
+production,c0047,cam20,mirror,UNREADABLE,2026-08-03T14:33:08+00:00,invented
+production,c0048,cam13,mirror,2026-06-13 21:00:45,2026-06-13T15:30:45+00:00,exact
+production,c0049,cam06,snapshot,2026-06-17 18:05:06,,missed
+production,c0050,cam24,mirror,2026-08-08 04:20:54,2026-08-07T22:50:54+00:00,exact
+production,c0051,cam15,mirror,2026-06-13 21:04:17,2026-06-13T15:34:17+00:00,exact
+production,c0052,cam02,mirror,UNREADABLE,2026-06-13T15:30:49+00:00,invented
+production,c0053,cam07,mirror,2026-06-13 21:00:12,2026-06-13T15:30:12+00:00,exact
+production,c0054,cam15,mirror,2026-06-13 21:00:39,2026-06-13T15:30:39+00:00,exact
+production,c0055,cam30,snapshot,2026-08-08 21:11:13,2026-08-08T15:41:13+00:00,exact
+production,c0056,cam27,mirror,2026-06-14 00:00:31,2026-06-13T18:30:31+00:00,exact
+production,c0057,cam16,mirror,UNREADABLE,,abstained
+production,c0058,cam14,mirror,UNREADABLE,,abstained
+production,c0059,cam26,mirror,2026-08-08 23:22:59,2026-08-08T17:52:59+00:00,exact
+production,c0060,cam30,snapshot,2026-08-08 21:09:29,2026-08-08T15:39:29+00:00,exact
+production,c0061,cam06,snapshot,2026-06-17 18:06:51,2026-06-17T12:36:51+00:00,exact
+production,c0062,cam14,mirror,2026-06-13 20:59:25,2026-06-13T15:29:25+00:00,exact
+production,c0063,cam11,mirror,UNREADABLE,2026-06-13T15:31:30+00:00,invented
+production,c0064,cam25,mirror,UNREADABLE,2026-08-03T15:34:04+00:00,invented
+production,c0065,cam06,snapshot,2026-06-17 18:02:49,2026-06-17T12:32:49+00:00,exact
+production,c0066,cam13,mirror,UNREADABLE,,abstained
+production,c0067,cam30,snapshot,2026-08-08 21:00:49,2026-08-08T15:30:49+00:00,exact
+production,c0068,cam03,mirror,2026-06-13 21:11:38,2026-06-13T15:41:38+00:00,exact
+production,c0069,cam06,snapshot,2026-06-17 18:00:50,2026-06-17T12:30:50+00:00,exact
+production,c0070,cam30,snapshot,2026-08-08 21:09:29,2026-08-08T15:39:29+00:00,exact
+production,c0071,cam19,mirror,UNREADABLE,,abstained
+production,c0072,cam27,mirror,UNREADABLE,,abstained
+production,c0073,cam21,mirror,2026-06-14 00:00:15,2026-06-13T18:30:15+00:00,exact
+production,c0074,cam08,mirror,2026-06-13 21:00:53,2026-06-13T15:30:53+00:00,exact
+production,c0075,cam25,mirror,UNREADABLE,2026-08-03T15:41:33+00:00,invented
+production,c0076,cam10,mirror,UNREADABLE,,abstained
+production,c0077,cam01,mirror,2026-06-13 21:01:15,2026-06-13T15:31:15+00:00,exact
+production,c0078,cam05,mirror,2026-06-13 21:00:50,2026-06-13T15:30:50+00:00,exact
+production,c0079,cam18,mirror,2026-06-13 21:00:12,,missed
+production,c0080,cam03,mirror,2026-06-13 21:08:25,2026-06-13T15:38:25+00:00,exact
+production,c0081,cam13,mirror,2026-06-13 21:00:00,2026-06-13T15:30:00+00:00,exact
+production,c0082,cam30,snapshot,2026-08-08 21:09:29,2026-08-08T15:39:29+00:00,exact
+production,c0083,cam06,snapshot,2026-06-17 18:00:50,2026-06-17T12:30:50+00:00,exact
+production,c0084,cam12,mirror,UNREADABLE,,abstained
+production,c0085,cam21,mirror,2026-06-14 00:44:54,2026-06-13T19:14:54+00:00,exact
+production,c0086,cam02,mirror,2026-06-13 21:07:43,2026-06-13T15:37:43+00:00,exact
+production,c0087,cam24,mirror,UNREADABLE,,abstained
+production,c0088,cam04,mirror,2026-06-13 21:02:08,2026-06-13T15:32:08+00:00,exact
+production,c0089,cam14,mirror,2026-06-13 21:00:53,2026-06-13T15:30:53+00:00,exact
+production,c0090,cam09,mirror,UNREADABLE,2026-06-13T15:31:17+00:00,invented
+production,c0091,cam01,snapshot,2026-06-13 21:06:09,2026-06-13T15:36:09+00:00,exact
+production,c0092,cam13,mirror,2026-06-13 20:59:35,2026-06-13T15:29:35+00:00,exact
+production,c0093,cam04,mirror,UNREADABLE,2026-06-13T15:30:31+00:00,invented
+production,c0094,cam04,mirror,UNREADABLE,,abstained
+production,c0095,cam08,mirror,UNREADABLE,,abstained
+production,c0096,cam17,mirror,UNREADABLE,,abstained
+production,c0097,cam06,mirror,UNREADABLE,,abstained
+production,c0098,cam19,mirror,UNREADABLE,,abstained
+production,c0099,cam18,mirror,UNREADABLE,,abstained
+production,c0100,cam05,mirror,UNREADABLE,2026-06-13T15:37:02+00:00,invented
+production,c0101,cam12,mirror,UNREADABLE,,abstained
+production,c0102,cam28,mirror,2026-06-13 21:12:16,2026-06-13T15:42:16+00:00,exact
+production,c0103,cam30,snapshot,2026-08-08 21:08:06,2026-08-08T15:38:06+00:00,exact
+production,c0104,cam06,snapshot,UNREADABLE,,abstained
+production,c0105,cam14,mirror,2026-06-13 21:04:50,2026-06-13T15:34:50+00:00,exact
+production,c0106,cam16,mirror,UNREADABLE,,abstained
+production,c0107,cam19,mirror,UNREADABLE,,abstained
+production,c0108,cam06,snapshot,2026-06-17 18:05:29,2026-06-17T12:35:29+00:00,exact
+production,c0109,cam17,mirror,UNREADABLE,,abstained
+production,c0110,cam24,mirror,UNREADABLE,,abstained
+production,c0111,cam06,snapshot,2026-06-17 18:08:43,2026-06-17T12:38:43+00:00,exact
+production,c0112,cam29,mirror,UNREADABLE,2026-06-13T15:40:28+00:00,invented
+production,c0113,cam06,mirror,UNREADABLE,,abstained
+production,c0114,cam16,mirror,UNREADABLE,,abstained
+production,c0115,cam30,snapshot,2026-08-08 21:10:38,2026-08-08T15:40:38+00:00,exact
+production,c0116,cam12,mirror,UNREADABLE,,abstained
+production,c0117,cam15,mirror,UNREADABLE,2026-06-13T15:32:45+00:00,invented
+production,c0118,cam22,mirror,UNREADABLE,,abstained
+production,c0119,cam20,mirror,2026-08-03 20:00:06,2026-08-03T14:30:06+00:00,exact
+production,c0120,cam11,mirror,2026-06-13 21:06:01,2026-06-13T15:36:01+00:00,exact
+production,c0121,cam01,snapshot,2026-06-13 21:06:12,2026-06-13T15:36:12+00:00,exact
+production,c0122,cam30,snapshot,2026-08-08 21:03:53,2026-08-08T15:33:53+00:00,exact
+production,c0123,cam26,mirror,UNREADABLE,,abstained
+production,c0124,cam20,mirror,UNREADABLE,2026-08-03T14:31:26+00:00,invented
+production,c0125,cam27,mirror,UNREADABLE,2026-06-14T07:33:26+00:00,invented
+production,c0126,cam17,mirror,UNREADABLE,,abstained
+production,c0127,cam30,mirror,2026-08-08 21:01:22,2026-08-08T15:31:22+00:00,exact
+production,c0128,cam27,mirror,UNREADABLE,2026-06-13T18:40:04+00:00,invented
+production,c0129,cam30,snapshot,2026-08-08 21:00:59,2026-08-08T15:30:59+00:00,exact
+production,c0130,cam22,mirror,UNREADABLE,,abstained
+production,c0131,cam06,snapshot,2026-06-17 18:06:51,2026-06-17T12:36:51+00:00,exact
+production,c0132,cam05,mirror,2026-06-13 21:11:15,2026-06-13T15:41:15+00:00,exact
+production,c0133,cam30,snapshot,2026-08-08 21:13:07,2026-08-08T15:43:07+00:00,exact
+production,c0134,cam06,snapshot,2026-06-17 18:02:49,2026-06-17T12:32:49+00:00,exact
+production,c0135,cam18,mirror,UNREADABLE,,abstained
+production,c0136,cam06,snapshot,2026-06-17 18:02:49,2026-06-17T12:32:49+00:00,exact
+production,c0137,cam06,snapshot,2026-06-17 18:00:50,2026-06-17T12:30:50+00:00,exact
+production,c0138,cam28,mirror,UNREADABLE,,abstained
+production,c0139,cam06,snapshot,2026-06-17 18:00:50,2026-06-17T12:30:50+00:00,exact
+production,c0140,cam30,snapshot,2026-08-08 21:03:37,2026-08-08T15:33:37+00:00,exact
+production,c0141,cam10,mirror,UNREADABLE,,abstained
+production,c0142,cam30,snapshot,2026-08-08 21:09:29,2026-08-08T15:39:29+00:00,exact
+production,c0143,cam30,mirror,2026-08-08 21:08:08,2026-08-08T15:38:08+00:00,exact
+production,c0144,cam30,snapshot,2026-08-08 21:09:29,2026-08-08T15:39:29+00:00,exact
+production,c0145,cam30,snapshot,2026-08-08 21:00:49,2026-08-08T15:30:49+00:00,exact
+production,c0146,cam05,mirror,2026-06-13 21:00:08,2026-06-13T15:30:08+00:00,exact
+production,c0147,cam12,mirror,UNREADABLE,,abstained
+production,c0148,cam08,mirror,2026-06-13 21:01:27,2026-06-13T15:31:27+00:00,exact
+production,c0149,cam19,mirror,UNREADABLE,,abstained
+production,c0150,cam18,mirror,UNREADABLE,,abstained
+production,c0151,cam09,mirror,2026-06-13 21:00:13,2026-06-13T15:30:13+00:00,exact
+production,c0152,cam24,mirror,UNREADABLE,2026-08-07T22:52:42+00:00,invented
+production,c0153,cam23,mirror,UNREADABLE,,abstained
+production,c0154,cam21,mirror,UNREADABLE,,abstained
+production,c0155,cam30,snapshot,2026-08-08 21:08:07,2026-08-08T15:38:07+00:00,exact
+production,c0156,cam06,snapshot,2026-06-17 18:00:50,2026-06-17T12:30:50+00:00,exact
+production,c0157,cam06,mirror,UNREADABLE,,abstained
+production,c0158,cam16,mirror,UNREADABLE,,abstained
+production-tracked,c0001,cam15,mirror,2026-06-13 21:07:00,2026-06-13T15:37:00+00:00,exact
+production-tracked,c0002,cam28,mirror,UNREADABLE,2026-06-13T15:37:49+00:00,invented
+production-tracked,c0003,cam02,mirror,UNREADABLE,,abstained
+production-tracked,c0004,cam23,mirror,UNREADABLE,,abstained
+production-tracked,c0005,cam04,mirror,2026-06-13 21:05:41,2026-06-13T15:35:41+00:00,exact
+production-tracked,c0006,cam26,mirror,UNREADABLE,,abstained
+production-tracked,c0007,cam06,snapshot,2026-06-17 18:05:28,2026-06-17T12:35:28+00:00,exact
+production-tracked,c0008,cam25,mirror,UNREADABLE,2026-08-03T15:30:33+00:00,invented
+production-tracked,c0009,cam30,snapshot,UNREADABLE,2026-08-08T15:39:13+00:00,invented
+production-tracked,c0010,cam29,mirror,2026-06-13 21:00:42,2026-06-13T15:30:42+00:00,exact
+production-tracked,c0011,cam06,snapshot,2026-06-17 18:02:49,2026-06-17T12:32:49+00:00,exact
+production-tracked,c0012,cam25,mirror,UNREADABLE,,abstained
+production-tracked,c0013,cam30,snapshot,2026-08-08 21:01:22,2026-08-08T15:31:22+00:00,exact
+production-tracked,c0014,cam26,mirror,UNREADABLE,,abstained
+production-tracked,c0015,cam29,mirror,2026-06-13 21:00:14,2026-06-13T15:30:14+00:00,exact
+production-tracked,c0016,cam07,mirror,2026-06-13 21:01:11,2026-06-13T15:31:11+00:00,exact
+production-tracked,c0017,cam30,snapshot,2026-08-08 21:06:09,2026-08-08T15:36:09+00:00,exact
+production-tracked,c0018,cam06,snapshot,2026-06-17 18:06:51,2026-06-17T12:36:51+00:00,exact
+production-tracked,c0019,cam22,mirror,2026-06-14 04:30:24,2026-06-13T23:00:24+00:00,exact
+production-tracked,c0020,cam11,mirror,UNREADABLE,2026-06-13T15:44:02+00:00,invented
+production-tracked,c0021,cam06,snapshot,2026-06-17 18:08:43,2026-06-17T12:38:43+00:00,exact
+production-tracked,c0022,cam07,mirror,2026-06-13 21:00:09,2026-06-13T15:30:09+00:00,exact
+production-tracked,c0023,cam30,snapshot,2026-08-08 21:10:33,2026-08-08T15:40:33+00:00,exact
+production-tracked,c0024,cam01,mirror,2026-06-13 21:09:06,2026-06-13T15:39:06+00:00,exact
+production-tracked,c0025,cam06,snapshot,2026-06-17 18:06:51,2026-06-17T12:36:51+00:00,exact
+production-tracked,c0026,cam02,mirror,UNREADABLE,2026-06-13T15:33:29+00:00,invented
+production-tracked,c0027,cam28,mirror,UNREADABLE,,abstained
+production-tracked,c0028,cam03,mirror,2026-06-13 21:03:10,2026-06-13T15:33:10+00:00,exact
+production-tracked,c0029,cam01,mirror,2026-06-13 21:04:59,2026-06-13T15:34:59+00:00,exact
+production-tracked,c0030,cam30,snapshot,2026-08-08 21:13:07,2026-08-08T15:43:07+00:00,exact
+production-tracked,c0031,cam21,mirror,UNREADABLE,2026-06-13T18:31:28+00:00,invented
+production-tracked,c0032,cam30,mirror,2026-08-08 21:05:20,2026-08-08T15:35:20+00:00,exact
+production-tracked,c0033,cam22,mirror,UNREADABLE,,abstained
+production-tracked,c0034,cam06,snapshot,2026-06-17 18:01:21,2026-06-17T12:31:21+00:00,exact
+production-tracked,c0035,cam20,mirror,UNREADABLE,2026-08-03T14:42:01+00:00,invented
+production-tracked,c0036,cam30,mirror,2026-08-08 21:00:49,2026-08-08T15:30:49+00:00,exact
+production-tracked,c0037,cam09,mirror,UNREADABLE,,abstained
+production-tracked,c0038,cam10,mirror,UNREADABLE,,abstained
+production-tracked,c0039,cam23,mirror,UNREADABLE,,abstained
+production-tracked,c0040,cam23,mirror,UNREADABLE,,abstained
+production-tracked,c0041,cam03,mirror,2026-06-13 21:01:05,2026-06-13T15:31:05+00:00,exact
+production-tracked,c0042,cam09,mirror,2026-06-13 21:00:51,2026-06-13T15:30:51+00:00,exact
+production-tracked,c0043,cam06,mirror,UNREADABLE,,abstained
+production-tracked,c0044,cam17,mirror,UNREADABLE,,abstained
+production-tracked,c0045,cam29,mirror,2026-06-13 21:04:19,2026-06-13T15:34:19+00:00,exact
+production-tracked,c0046,cam01,mirror,2026-06-13 21:06:23,2026-06-13T15:36:23+00:00,exact
+production-tracked,c0047,cam20,mirror,UNREADABLE,2026-08-03T14:33:08+00:00,invented
+production-tracked,c0048,cam13,mirror,2026-06-13 21:00:45,2026-06-13T15:30:45+00:00,exact
+production-tracked,c0049,cam06,snapshot,2026-06-17 18:05:06,,missed
+production-tracked,c0050,cam24,mirror,2026-08-08 04:20:54,2026-08-07T22:50:54+00:00,exact
+production-tracked,c0051,cam15,mirror,2026-06-13 21:04:17,2026-06-13T15:34:17+00:00,exact
+production-tracked,c0052,cam02,mirror,UNREADABLE,2026-06-13T15:30:49+00:00,invented
+production-tracked,c0053,cam07,mirror,2026-06-13 21:00:12,2026-06-13T15:30:12+00:00,exact
+production-tracked,c0054,cam15,mirror,2026-06-13 21:00:39,2026-06-13T15:30:39+00:00,exact
+production-tracked,c0055,cam30,snapshot,2026-08-08 21:11:13,2026-08-08T15:41:13+00:00,exact
+production-tracked,c0056,cam27,mirror,2026-06-14 00:00:31,2026-06-13T18:30:31+00:00,exact
+production-tracked,c0057,cam16,mirror,UNREADABLE,,abstained
+production-tracked,c0058,cam14,mirror,UNREADABLE,,abstained
+production-tracked,c0059,cam26,mirror,2026-08-08 23:22:59,2026-08-08T17:52:59+00:00,exact
+production-tracked,c0060,cam30,snapshot,2026-08-08 21:09:29,2026-08-08T15:39:29+00:00,exact
+production-tracked,c0061,cam06,snapshot,2026-06-17 18:06:51,2026-06-17T12:36:51+00:00,exact
+production-tracked,c0062,cam14,mirror,2026-06-13 20:59:25,2026-06-13T15:29:25+00:00,exact
+production-tracked,c0063,cam11,mirror,UNREADABLE,2026-06-13T15:31:30+00:00,invented
+production-tracked,c0064,cam25,mirror,UNREADABLE,2026-08-03T15:34:04+00:00,invented
+production-tracked,c0065,cam06,snapshot,2026-06-17 18:02:49,2026-06-17T12:32:49+00:00,exact
+production-tracked,c0066,cam13,mirror,UNREADABLE,,abstained
+production-tracked,c0067,cam30,snapshot,2026-08-08 21:00:49,2026-08-08T15:30:49+00:00,exact
+production-tracked,c0068,cam03,mirror,2026-06-13 21:11:38,2026-06-13T15:41:38+00:00,exact
+production-tracked,c0069,cam06,snapshot,2026-06-17 18:00:50,2026-06-17T12:30:50+00:00,exact
+production-tracked,c0070,cam30,snapshot,2026-08-08 21:09:29,2026-08-08T15:39:29+00:00,exact
+production-tracked,c0071,cam19,mirror,UNREADABLE,,abstained
+production-tracked,c0072,cam27,mirror,UNREADABLE,,abstained
+production-tracked,c0073,cam21,mirror,2026-06-14 00:00:15,2026-06-13T18:30:15+00:00,exact
+production-tracked,c0074,cam08,mirror,2026-06-13 21:00:53,2026-06-13T15:30:53+00:00,exact
+production-tracked,c0075,cam25,mirror,UNREADABLE,2026-08-03T15:41:33+00:00,invented
+production-tracked,c0076,cam10,mirror,UNREADABLE,,abstained
+production-tracked,c0077,cam01,mirror,2026-06-13 21:01:15,2026-06-13T15:31:15+00:00,exact
+production-tracked,c0078,cam05,mirror,2026-06-13 21:00:50,2026-06-13T15:30:50+00:00,exact
+production-tracked,c0079,cam18,mirror,2026-06-13 21:00:12,,missed
+production-tracked,c0080,cam03,mirror,2026-06-13 21:08:25,2026-06-13T15:38:25+00:00,exact
+production-tracked,c0081,cam13,mirror,2026-06-13 21:00:00,2026-06-13T15:30:00+00:00,exact
+production-tracked,c0082,cam30,snapshot,2026-08-08 21:09:29,2026-08-08T15:39:29+00:00,exact
+production-tracked,c0083,cam06,snapshot,2026-06-17 18:00:50,2026-06-17T12:30:50+00:00,exact
+production-tracked,c0084,cam12,mirror,UNREADABLE,,abstained
+production-tracked,c0085,cam21,mirror,2026-06-14 00:44:54,2026-06-13T19:14:54+00:00,exact
+production-tracked,c0086,cam02,mirror,2026-06-13 21:07:43,2026-06-13T15:37:43+00:00,exact
+production-tracked,c0087,cam24,mirror,UNREADABLE,,abstained
+production-tracked,c0088,cam04,mirror,2026-06-13 21:02:08,2026-06-13T15:32:08+00:00,exact
+production-tracked,c0089,cam14,mirror,2026-06-13 21:00:53,2026-06-13T15:30:53+00:00,exact
+production-tracked,c0090,cam09,mirror,UNREADABLE,2026-06-13T15:31:17+00:00,invented
+production-tracked,c0091,cam01,snapshot,2026-06-13 21:06:09,2026-06-13T15:36:09+00:00,exact
+production-tracked,c0092,cam13,mirror,2026-06-13 20:59:35,2026-06-13T15:29:35+00:00,exact
+production-tracked,c0093,cam04,mirror,UNREADABLE,2026-06-13T15:30:31+00:00,invented
+production-tracked,c0094,cam04,mirror,UNREADABLE,,abstained
+production-tracked,c0095,cam08,mirror,UNREADABLE,,abstained
+production-tracked,c0096,cam17,mirror,UNREADABLE,,abstained
+production-tracked,c0097,cam06,mirror,UNREADABLE,,abstained
+production-tracked,c0098,cam19,mirror,UNREADABLE,,abstained
+production-tracked,c0099,cam18,mirror,UNREADABLE,,abstained
+production-tracked,c0100,cam05,mirror,UNREADABLE,2026-06-13T15:37:02+00:00,invented
+production-tracked,c0101,cam12,mirror,UNREADABLE,,abstained
+production-tracked,c0102,cam28,mirror,2026-06-13 21:12:16,2026-06-13T15:42:16+00:00,exact
+production-tracked,c0103,cam30,snapshot,2026-08-08 21:08:06,2026-08-08T15:38:06+00:00,exact
+production-tracked,c0104,cam06,snapshot,UNREADABLE,,abstained
+production-tracked,c0105,cam14,mirror,2026-06-13 21:04:50,2026-06-13T15:34:50+00:00,exact
+production-tracked,c0106,cam16,mirror,UNREADABLE,,abstained
+production-tracked,c0107,cam19,mirror,UNREADABLE,,abstained
+production-tracked,c0108,cam06,snapshot,2026-06-17 18:05:29,2026-06-17T12:35:29+00:00,exact
+production-tracked,c0109,cam17,mirror,UNREADABLE,,abstained
+production-tracked,c0110,cam24,mirror,UNREADABLE,,abstained
+production-tracked,c0111,cam06,snapshot,2026-06-17 18:08:43,2026-06-17T12:38:43+00:00,exact
+production-tracked,c0112,cam29,mirror,UNREADABLE,2026-06-13T15:40:28+00:00,invented
+production-tracked,c0113,cam06,mirror,UNREADABLE,,abstained
+production-tracked,c0114,cam16,mirror,UNREADABLE,,abstained
+production-tracked,c0115,cam30,snapshot,2026-08-08 21:10:38,2026-08-08T15:40:38+00:00,exact
+production-tracked,c0116,cam12,mirror,UNREADABLE,,abstained
+production-tracked,c0117,cam15,mirror,UNREADABLE,2026-06-13T15:32:45+00:00,invented
+production-tracked,c0118,cam22,mirror,UNREADABLE,,abstained
+production-tracked,c0119,cam20,mirror,2026-08-03 20:00:06,2026-08-03T14:30:06+00:00,exact
+production-tracked,c0120,cam11,mirror,2026-06-13 21:06:01,2026-06-13T15:36:01+00:00,exact
+production-tracked,c0121,cam01,snapshot,2026-06-13 21:06:12,2026-06-13T15:36:12+00:00,exact
+production-tracked,c0122,cam30,snapshot,2026-08-08 21:03:53,2026-08-08T15:33:53+00:00,exact
+production-tracked,c0123,cam26,mirror,UNREADABLE,,abstained
+production-tracked,c0124,cam20,mirror,UNREADABLE,,abstained
+production-tracked,c0125,cam27,mirror,UNREADABLE,2026-05-14T07:33:25+00:00,invented
+production-tracked,c0126,cam17,mirror,UNREADABLE,,abstained
+production-tracked,c0127,cam30,mirror,2026-08-08 21:01:22,2026-08-08T15:31:22+00:00,exact
+production-tracked,c0128,cam27,mirror,UNREADABLE,2026-06-13T18:40:04+00:00,invented
+production-tracked,c0129,cam30,snapshot,2026-08-08 21:00:59,2026-08-08T15:30:59+00:00,exact
+production-tracked,c0130,cam22,mirror,UNREADABLE,,abstained
+production-tracked,c0131,cam06,snapshot,2026-06-17 18:06:51,2026-06-17T12:36:51+00:00,exact
+production-tracked,c0132,cam05,mirror,2026-06-13 21:11:15,2026-06-13T15:41:15+00:00,exact
+production-tracked,c0133,cam30,snapshot,2026-08-08 21:13:07,2026-08-08T15:43:07+00:00,exact
+production-tracked,c0134,cam06,snapshot,2026-06-17 18:02:49,2026-06-17T12:32:49+00:00,exact
+production-tracked,c0135,cam18,mirror,UNREADABLE,,abstained
+production-tracked,c0136,cam06,snapshot,2026-06-17 18:02:49,2026-06-17T12:32:49+00:00,exact
+production-tracked,c0137,cam06,snapshot,2026-06-17 18:00:50,2026-06-17T12:30:50+00:00,exact
+production-tracked,c0138,cam28,mirror,UNREADABLE,,abstained
+production-tracked,c0139,cam06,snapshot,2026-06-17 18:00:50,2026-06-17T12:30:50+00:00,exact
+production-tracked,c0140,cam30,snapshot,2026-08-08 21:03:37,2026-08-08T15:33:37+00:00,exact
+production-tracked,c0141,cam10,mirror,UNREADABLE,,abstained
+production-tracked,c0142,cam30,snapshot,2026-08-08 21:09:29,2026-08-08T15:39:29+00:00,exact
+production-tracked,c0143,cam30,mirror,2026-08-08 21:08:08,2026-08-08T15:38:08+00:00,exact
+production-tracked,c0144,cam30,snapshot,2026-08-08 21:09:29,2026-08-08T15:39:29+00:00,exact
+production-tracked,c0145,cam30,snapshot,2026-08-08 21:00:49,2026-08-08T15:30:49+00:00,exact
+production-tracked,c0146,cam05,mirror,2026-06-13 21:00:08,2026-06-13T15:30:08+00:00,exact
+production-tracked,c0147,cam12,mirror,UNREADABLE,,abstained
+production-tracked,c0148,cam08,mirror,2026-06-13 21:01:27,2026-06-13T15:31:27+00:00,exact
+production-tracked,c0149,cam19,mirror,UNREADABLE,,abstained
+production-tracked,c0150,cam18,mirror,UNREADABLE,,abstained
+production-tracked,c0151,cam09,mirror,2026-06-13 21:00:13,2026-06-13T15:30:13+00:00,exact
+production-tracked,c0152,cam24,mirror,UNREADABLE,2026-08-07T22:52:42+00:00,invented
+production-tracked,c0153,cam23,mirror,UNREADABLE,,abstained
+production-tracked,c0154,cam21,mirror,UNREADABLE,,abstained
+production-tracked,c0155,cam30,snapshot,2026-08-08 21:08:07,2026-08-08T15:38:07+00:00,exact
+production-tracked,c0156,cam06,snapshot,2026-06-17 18:00:50,2026-06-17T12:30:50+00:00,exact
+production-tracked,c0157,cam06,mirror,UNREADABLE,,abstained
+production-tracked,c0158,cam16,mirror,UNREADABLE,,abstained

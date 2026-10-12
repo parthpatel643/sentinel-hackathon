@@ -497,9 +497,9 @@ def test_an_unconfirmed_reading_is_not_a_time() -> None:
 
 def test_the_sightings_own_frame_is_read_when_no_earlier_frame_was() -> None:
     """The once-a-second read happened on a frame without this vehicle; the
-    plate resolves later in the same second. Its own frame's clock is read
-    and confirmed by the earlier reading."""
-    clock = _clock_reader({1: "17-06-2026 18:04:42", 2: "17-06-2026 18:04:42"})
+    plate resolves a second later. Its own frame's clock is read and
+    confirmed by the earlier reading (a different tick of the overlay)."""
+    clock = _clock_reader({1: "17-06-2026 18:04:41", 2: "17-06-2026 18:04:42"})
     pipeline = AnprPipeline(
         FakeVehicleDetector([[], [_car()]]),
         FakePlateReader([[_plate("GJ01AB1234")]]),
@@ -507,7 +507,7 @@ def test_the_sightings_own_frame_is_read_when_no_earlier_frame_was() -> None:
         model_versions={},
         frame_clock=clock,
     )
-    pipeline.process_frame(_marked_frame(1000.0, 1))
+    pipeline.process_frame(_marked_frame(400.0, 1))
     events = pipeline.process_frame(_marked_frame(1500.0, 2))
     assert events[0].camera_time == datetime(2026, 6, 17, 12, 34, 42, tzinfo=UTC)
 

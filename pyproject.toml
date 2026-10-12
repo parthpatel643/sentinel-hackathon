@@ -67,7 +67,7 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 # None of these ship inline type hints or py.typed markers.
-module = ["fast_alpr.*", "onnxruntime.*", "pytesseract.*", "scipy.*", "ultralytics.*"]
+module = ["fast_alpr.*", "onnxruntime.*", "rapidocr.*", "scipy.*", "ultralytics.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

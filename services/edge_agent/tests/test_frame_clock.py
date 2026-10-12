@@ -1,9 +1,11 @@
 """Tests for reading the camera's burned-in clock.
 
 The parsing cases here are not invented: every malformed string below is
-real Tesseract output observed against frames from the government grid. The
-OSD font reads reliably digit-by-digit and drops separators unpredictably,
-so tolerating that is the whole job.
+real OCR output observed against frames from the government grid (from the
+Tesseract reader this replaced and from PP-OCRv6). The OSD font reads
+reliably digit-by-digit and drops separators unpredictably, so tolerating
+that is the whole job. The OCR models themselves are stood in for by a fake
+engine; their accuracy is measured on real frames by scripts/eval_clock.py.
 """
 
 from __future__ import annotations
@@ -14,9 +16,10 @@ import numpy as np
 import pytest
 
 from edge_agent.analytics.frame_clock import (
-    _ATTEMPTS,
     IST,
     FrameClockReader,
+    _clock_lines,
+    _ClockBox,
     parse_overlay_timestamp,
 )
 
@@ -24,7 +27,7 @@ from edge_agent.analytics.frame_clock import (
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
-        # Every malformed form here is real Tesseract output from grid frames.
+        # Every malformed form here is real OCR output from grid frames.
         ("17-06-2026 18:04:42", (2026, 6, 17, 12, 34, 42)),
         ("17-06-202618:04:42", (2026, 6, 17, 12, 34, 42)),  # date/time run together
         ("13-06-2026 2102:28", (2026, 6, 13, 15, 32, 28)),  # a dropped colon
@@ -32,7 +35,7 @@ from edge_agent.analytics.frame_clock import (
     ],
 )
 def test_separators_are_optional(text: str, expected: tuple[int, ...]) -> None:
-    """Tesseract drops separators from this OSD font unpredictably; the
+    """OCR drops separators from this OSD font unpredictably; the
     digits are what carry the meaning."""
     parsed = parse_overlay_timestamp(text)
     assert parsed is not None
@@ -118,10 +121,42 @@ def _blank_frame() -> np.ndarray:
     return np.zeros((720, 1280, 3), dtype=np.uint8)
 
 
+class _NoEngine:
+    """An OCR engine that sees no text: a camera with no clock."""
+
+    def find(self, image: np.ndarray) -> list[tuple[str, tuple[int, int, int, int]]]:
+        return []
+
+    def read(self, image: np.ndarray) -> str | None:
+        return None
+
+
+class _FakeEngine:
+    """Detection finds `lines` (text and box, in the band's pixels) in the
+    top band; recognising a cropped box returns `box_text`. Counts calls."""
+
+    def __init__(
+        self, lines: list[tuple[str, tuple[int, int, int, int]]], box_text: str | None
+    ) -> None:
+        self.lines = lines
+        self.box_text = box_text
+        self.finds = 0
+        self.reads = 0
+
+    def find(self, image: np.ndarray) -> list[tuple[str, tuple[int, int, int, int]]]:
+        self.finds += 1
+        # Only the top band of a 720p frame (93 px) holds the overlay.
+        return self.lines if image.shape[0] < 100 and self.finds % 2 == 1 else []
+
+    def read(self, image: np.ndarray) -> str | None:
+        self.reads += 1
+        return self.box_text
+
+
 def _reader_reading(texts: dict[int, str | None], **kwargs: float) -> FrameClockReader:
     """A reader whose OCR returns `texts[second]` for a frame at that second
     of stream time — the frame's own overlay, as the camera printed it."""
-    reader = FrameClockReader(**kwargs)  # type: ignore[arg-type]
+    reader = FrameClockReader(engine=_NoEngine(), **kwargs)  # type: ignore[arg-type]
     current: dict[str, int] = {"second": 0}
 
     def ocr(frame: np.ndarray) -> str | None:
@@ -146,7 +181,7 @@ def _utc(text: str) -> datetime:
 
 def test_a_frame_with_no_readable_clock_has_no_time() -> None:
     """A black frame has no overlay, so nothing is known about its time."""
-    reader = FrameClockReader()
+    reader = FrameClockReader(engine=_NoEngine())
     assert reader.observe(_blank_frame(), pts_ms=1000.0) is None
     assert reader.verified(1000.0) is None
 
@@ -154,7 +189,7 @@ def test_a_frame_with_no_readable_clock_has_no_time() -> None:
 def test_the_overlay_is_read_at_most_once_per_stream_second() -> None:
     """The overlay changes once a second; OCR on every frame would be 25x
     the cost for the same answer."""
-    reader = FrameClockReader()
+    reader = FrameClockReader(engine=_NoEngine())
     calls = 0
 
     def counting(frame: np.ndarray) -> str | None:
@@ -230,12 +265,25 @@ def test_a_frame_cannot_confirm_itself() -> None:
 
 def test_read_now_reads_a_frame_the_once_a_second_rhythm_skipped() -> None:
     """A sighting's own frame may fall in a second already read; its clock
-    is still read, and confirmed by the reading earlier in that second."""
-    reader = _reader_reading({1: "17-06-2026 18:04:42"})
+    is still read, and confirmed by the previous second's reading."""
+    reader = _reader_reading({0: "17-06-2026 18:04:41", 1: "17-06-2026 18:04:42"})
+    reader.observe(_blank_frame(), pts_ms=400.0)
     reader.observe(_blank_frame(), pts_ms=1000.0)
     assert reader.observe(_blank_frame(), pts_ms=1500.0) is None
     assert reader.read_now(_blank_frame(), pts_ms=1500.0) == _utc("17-06-2026 18:04:42")
     assert reader.verified(1500.0) == _utc("17-06-2026 18:04:42")
+
+
+def test_frames_of_one_overlay_tick_do_not_confirm_each_other() -> None:
+    """Found on the grid: frames 40 ms apart show the same digits, damaged
+    the same way by the same compression block, and the model read the
+    same wrong second on both. They are one observation, so neither
+    confirms the other; a reading from another tick is needed."""
+    reader = _reader_reading({1: "03-08-2026 21:05:15"})
+    reader.observe(_blank_frame(), pts_ms=1000.0)
+    reader.read_now(_blank_frame(), pts_ms=1040.0)
+    assert reader.verified(1000.0) is None
+    assert reader.verified(1040.0) is None
 
 
 def test_readings_too_far_apart_are_not_compared() -> None:
@@ -288,10 +336,10 @@ def test_an_absurdly_old_timestamp_is_refused() -> None:
 
 
 def test_a_camera_never_read_backs_off() -> None:
-    """Each attempt on an unread camera shells out to tesseract for every
-    region and variant. A camera whose overlay is unreadable would otherwise
-    pay that every second forever, for no information."""
-    reader = FrameClockReader(failure_backoff_after=3, failure_backoff_s=30.0)
+    """Each attempt on an unread camera runs text detection over the frame's
+    edges. A camera whose overlay is unreadable would otherwise pay that every
+    second forever, for no information."""
+    reader = FrameClockReader(engine=_NoEngine(), failure_backoff_after=3, failure_backoff_s=30.0)
     attempts = 0
 
     def failing(frame: np.ndarray) -> str | None:
@@ -313,8 +361,8 @@ def test_a_camera_never_read_backs_off() -> None:
 def test_a_camera_already_read_keeps_trying_every_second() -> None:
     """Once its overlay has been found, a failure is one cheap attempt, and
     a corrupted frame is no reason to stop reading the next one."""
-    reader = FrameClockReader(failure_backoff_after=2)
-    reader._preferred = _ATTEMPTS[0]
+    reader = FrameClockReader(engine=_NoEngine(), failure_backoff_after=2)
+    reader._preferred = _ClockBox((0.0, 0.05, 0.0, 0.3))
     attempts = 0
 
     def failing(frame: np.ndarray) -> str | None:
@@ -328,34 +376,42 @@ def test_a_camera_already_read_keeps_trying_every_second() -> None:
     assert attempts == 7
 
 
-def test_the_working_region_is_remembered(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Every attempt is a Tesseract call. A camera whose overlay needs the
-    fifth attempt pays for five once, then for one."""
-    import pytesseract
-
-    calls: list[str] = []
-
-    def image_to_string(image: np.ndarray, config: str) -> str:
-        calls.append(config)
-        return "17-06-2026 18:04:42" if "--psm 11" in config else ""
-
-    monkeypatch.setattr(pytesseract, "image_to_string", image_to_string)
-    reader = FrameClockReader(full_scan_interval_s=30.0)
+def test_the_clock_box_is_remembered_and_only_recognised_after() -> None:
+    """Detection runs until the clock is found; after that only its box is
+    recognised, the cheap half of the models."""
+    engine = _FakeEngine(
+        [("17-06-2026 18:04:42", (10, 8, 300, 40))], box_text="17-06-2026 18:04:43"
+    )
+    reader = FrameClockReader(engine=engine, full_scan_interval_s=30.0)
     assert reader.observe(_blank_frame(), pts_ms=1000.0) is not None
-    first_scan = len(calls)
-    assert first_scan > 1
+    assert engine.finds >= 1 and engine.reads == 0
+    assert reader._preferred is not None
 
-    calls.clear()
+    finds = engine.finds
+    assert reader.observe(_blank_frame(), pts_ms=2000.0) is not None
+    assert engine.finds == finds, "a known camera does not re-run detection"
+    assert engine.reads == 1
+    assert reader.verified(2000.0) is not None
+
+
+def test_a_failing_box_falls_back_to_a_full_scan_in_time() -> None:
+    """If the remembered box stops reading (the overlay moved), the camera
+    is scanned in full again once the interval has passed."""
+    engine = _FakeEngine([("17-06-2026 18:04:42", (10, 8, 300, 40))], box_text=None)
+    reader = FrameClockReader(engine=engine, full_scan_interval_s=5.0)
+    reader.observe(_blank_frame(), pts_ms=1000.0)
+    finds = engine.finds
     reader.observe(_blank_frame(), pts_ms=2000.0)
-    assert len(calls) == 1
-    assert "--psm 11" in calls[0]
+    assert engine.finds == finds
+    reader.observe(_blank_frame(), pts_ms=7000.0)
+    assert engine.finds > finds
 
 
 def test_eager_reads_more_often_while_a_vehicle_needs_evidence() -> None:
     """Any frame of a passing vehicle may become its evidence, so while one
     needs a clock frame the overlay is read more than once a second — up to
-    a cap, because each read is a Tesseract process."""
-    reader = FrameClockReader(max_reads_per_second=2)
+    a cap, because every read runs inline in the camera's analysis loop."""
+    reader = FrameClockReader(engine=_NoEngine(), max_reads_per_second=2)
     calls = 0
 
     def counting(frame: np.ndarray) -> str | None:
@@ -366,30 +422,61 @@ def test_eager_reads_more_often_while_a_vehicle_needs_evidence() -> None:
     reader._ocr = counting  # type: ignore[method-assign]
     for pts in (1000.0, 1250.0, 1500.0, 1750.0):
         reader.observe(_blank_frame(), pts_ms=pts, eager=True)
-    assert calls == 2, "capped at max_reads_per_second: each read is a Tesseract process"
-    assert reader.verified(1250.0) is not None, "frames in one second confirm each other"
+    assert calls == 2, "capped at max_reads_per_second"
+    assert reader.verified(1250.0) is None, "frames of one overlay tick are one observation"
+    reader.observe(_blank_frame(), pts_ms=2250.0, eager=True)
+    assert reader.verified(1250.0) is not None, "the next tick confirms it"
 
 
-def test_the_attempt_that_reads_best_is_preferred(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Found on the grid: the first crop to read a camera misread its year as
-    2036 on a third of frames while a looser crop read every one. Attempts
-    are ranked by how often they have read this camera's clock."""
-    import pytesseract
+@pytest.mark.parametrize(
+    ("lines", "expected"),
+    [
+        # Real PP-OCRv6 detections on grid frames (band pixels).
+        ([("13-06-2026 09:07:49 PM", (817, 26, 1237, 105))], "13-06-2026 09:07:49 PM"),
+        # AM/PM as its own box: without it 09:07 PM parses as the morning.
+        (
+            [
+                ("13-06-2026", (817, 26, 1013, 105)),
+                ("09:07:49", (1014, 26, 1171, 105)),
+                ("PM", (1172, 26, 1237, 105)),
+            ],
+            "13-06-2026 09:07:49 PM",
+        ),
+        # A camera name on the same row stays out of the clock's box.
+        (
+            [("08-08-2026 21:09:13", (0, 0, 460, 40)), ("GDM-Rambaugh_PTZ2", (1500, 0, 1910, 40))],
+            "08-08-2026 21:09:13",
+        ),
+        # A weekday between date and time belongs to the clock.
+        (
+            [
+                ("2026-08-03", (0, 0, 220, 40)),
+                ("Mon", (240, 0, 300, 40)),
+                ("21:00:43", (320, 0, 480, 40)),
+            ],
+            "2026-08-03 Mon 21:00:43",
+        ),
+        ([("Camera 01", (900, 0, 1100, 40))], None),
+    ],
+)
+def test_the_clock_is_assembled_from_its_own_boxes(
+    lines: list[tuple[str, tuple[int, int, int, int]]], expected: str | None
+) -> None:
+    found = _clock_lines(lines)
+    assert (found[0] if found else None) == expected
 
-    calls: list[str] = []
-    frame_number = {"n": 0}
 
-    def image_to_string(image: np.ndarray, config: str) -> str:
-        calls.append(config)
-        # The first attempt reads only every other frame; sparse text reads all.
-        if "--psm 11" in config:
-            return "17-06-2026 18:04:42"
-        return "17-06-2026 18:04:42" if frame_number["n"] % 2 == 0 else ""
+def test_the_clock_in_the_bottom_band_is_found() -> None:
+    """Some cameras print the clock bottom-left; the box is remembered in
+    whole-frame fractions so the bottom band maps back correctly."""
 
-    monkeypatch.setattr(pytesseract, "image_to_string", image_to_string)
-    reader = FrameClockReader(full_scan_interval_s=0.0)
-    for n in range(1, 6):
-        frame_number["n"] = n
-        reader.observe(_blank_frame(), pts_ms=n * 1000.0)
+    class BottomEngine(_FakeEngine):
+        def find(self, image: np.ndarray) -> list[tuple[str, tuple[int, int, int, int]]]:
+            self.finds += 1
+            return self.lines if self.finds == 2 else []
+
+    engine = BottomEngine([("14-06-2026 12:10:04 AM", (100, 20, 600, 70))], box_text=None)
+    reader = FrameClockReader(engine=engine)
+    assert reader.observe(_blank_frame(), pts_ms=1000.0) is not None
     assert reader._preferred is not None
-    assert reader._preferred.psm == 11
+    assert reader._preferred.region[0] > 0.85, "the box sits in the bottom band"
