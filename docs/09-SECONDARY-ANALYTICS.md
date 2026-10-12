@@ -116,10 +116,14 @@ reported as not recognised at ≈58 s. Cost is 35–60 ms of CPU per check,
 i.e. under 3% of one core per camera at one check every 2 s. cam06's
 corrupted stream gives neither detections nor false alarms.
 
-**Demo:** `make angle-demo` replays mirrored cam01 as camera `angle-demo`,
-knocks it 12% at 60 s and puts it back at 180 s (the burned-in clock stays
-fixed, as it would on a real camera). Run `make worker SOURCE=registry
-CAMERAS=angle-demo` alongside it; `make angle-demo-stop` ends it.
+**Demo:** `make angle-demo` replays mirrored cam01 as camera `angle-demo`
+from 300 s into the recording (before that the stitched clip's burned-in
+clock jumps backwards), knocks it 12% at 60 s and puts it back at 180 s. The
+burned-in clock stays fixed, as it would on a real camera, and reads ≈21:06:3x
+at the knock and ≈21:08:3x at the restore. Run `make angle-demo-worker`
+alongside it (2 fps; at 8 fps a second worker on a laptop falls behind live
+and the alert arrives a minute late); `make angle-demo-stop` ends it.
+Measured live: alert 6 s after the knock, closed 6 s after the restore.
 
 Tests: `test_tamper.py`, `test_view_monitor.py` (13),
 `test_worker_view_change.py` (10), `test_camera_events_api.py` (8),

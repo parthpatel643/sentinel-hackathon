@@ -7,8 +7,17 @@ person would), and optionally puts it back later. The camera is registered in
 the console, so the edge worker's view monitor sees it like any other:
 
     uv run python scripts/angle_change_demo.py start            # knock at 60 s, restore at 180 s
-    make worker SOURCE=registry CAMERAS=angle-demo               # in another terminal
+    make worker SOURCE=registry CAMERAS=angle-demo SAMPLED_FPS=2 # in another terminal
     uv run python scripts/angle_change_demo.py stop
+
+The replay starts 300 s into the recording by default: the mirrored clips
+were stitched from overlapping captures, and before that point cam01's
+burned-in clock jumps backwards. The camera's clock is the only time shown,
+so the demo plays a stretch where it runs straight (knock ≈ 21:06:3x,
+restore ≈ 21:08:3x on cam01).
+
+Run the worker at the same sampled rate as the main one (`SAMPLED_FPS=2` on
+a laptop): at 8 fps a second worker falls behind live and alerts arrive late.
 
 What to expect: the worker learns the normal view in a few seconds; about 6 s
 after the knock a "Camera view changed" banner appears on every open console,
@@ -60,7 +69,7 @@ def _crop_filter(knock_at: float, restore_at: float, shift: float) -> str:
 def _register(settings_token: str, api: str) -> None:
     body = {
         "camera_id": CAMERA_ID,
-        "name": "Angle-change demo (Chiman bhai Bridge, recorded)",
+        "name": "Chiman Bhai Bridge · angle-change demo",
         "driver_id": "rtsp",
         "department_name": "Police",
         "site_name": "Demonstration",
@@ -89,19 +98,29 @@ def start(args: argparse.Namespace) -> None:
     settings = get_settings()
     _register(settings.edge_service_token.get_secret_value(), settings.core_api_url)
     command = [
-        ffmpeg, "-hide_banner", "-loglevel", "error", "-re", "-stream_loop", "-1", "-i", str(clip),
+        ffmpeg, "-hide_banner", "-loglevel", "error", "-re", "-stream_loop", "-1",
+        "-ss", f"{args.start_at:.0f}", "-i", str(clip),
         "-filter_complex", _crop_filter(args.knock_at, args.restore_at, args.shift),
         "-an", "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-g", "50",
         "-f", "rtsp", "-rtsp_transport", "tcp", PUBLISH_URL,
     ]  # fmt: skip
     STATE.parent.mkdir(parents=True, exist_ok=True)
-    process = subprocess.Popen(command, start_new_session=True)
+    log = STATE.with_suffix(".log")
+    with log.open("wb") as log_file:
+        process = subprocess.Popen(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
     STATE.write_text(str(process.pid))
     restore = f", restored at {args.restore_at:.0f} s" if args.restore_at > 0 else ""
     print(
         f"publishing {args.camera} as rtsp://127.0.0.1:8554/dev/{CAMERA_ID} "
         f"(pid {process.pid}): knocked {args.shift * 100:.0f}% at {args.knock_at:.0f} s{restore}.\n"
-        f"Now run:  make worker SOURCE=registry CAMERAS={CAMERA_ID}"
+        f"ffmpeg log: {log}\n"
+        f"Now run:  make worker SOURCE=registry CAMERAS={CAMERA_ID} SAMPLED_FPS=2"
     )
 
 
@@ -128,6 +147,12 @@ def main() -> None:
     start_cmd = sub.add_parser("start", help="publish the demo camera and register it")
     start_cmd.add_argument(
         "--camera", default="cam01", help="mirrored camera to replay (default cam01)"
+    )
+    start_cmd.add_argument(
+        "--start-at",
+        type=float,
+        default=300.0,
+        help="seconds into the recording to start from (default 300: cam01's clock runs straight)",
     )
     start_cmd.add_argument("--knock-at", type=float, default=60.0, help="seconds into the stream")
     start_cmd.add_argument("--restore-at", type=float, default=180.0, help="0 = never put back")

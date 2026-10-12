@@ -255,7 +255,7 @@ list (**Overview** recent reads) for a near-miss plate.
 | Model 1 registry & GIS | Cameras map with the department filter and **Show coverage gaps**; **Coverage & lifecycle** with its CSV work list; bulk CSV and device discovery; the Registry API at `/api/docs` |
 | Model 2 viewing & analytics | Live wall layouts; ANPR reads on the overview; camera-wise search |
 | Alerts | The banner on a live hit, the Alerts queue, acknowledging one (audited) |
-| Camera tamper | `make angle-demo` + `make worker SOURCE=registry CAMERAS=angle-demo` (start ≈2 min before): at 60 s the banner "Camera view changed"; Alerts → Camera views shows before/after; it closes itself at 180 s. See [09 §2a](./09-SECONDARY-ANALYTICS.md) |
+| Camera tamper | `make angle-demo`, then `make angle-demo-worker` in a second terminal (start it 1 min before the segment): at 60 s the banner "Camera view changed"; Alerts → Camera views shows before/after; it closes itself at 180 s. See [09 §2a](./09-SECONDARY-ANALYTICS.md) |
 | Security & privacy | Stream credentials shown as `***` everywhere; blurred snapshots and reveal-with-reason; RLS department scoping; audit-chain verification |
 | Operations | Health screen, integrator compliance panel, `make doctor` |
 | Scale | [04 — Scale Plan](./04-SCALE-PLAN.md): measured on this hardware vs. projected to 80,000 |
