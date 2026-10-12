@@ -22,6 +22,16 @@ const TIER_VALUE: Record<(typeof TIER_CHOICES)[number], string> = {
   motionGated: 'c_motion_gated',
 }
 
+/** Both coordinates as a point, or null unless each is a number in range. */
+function parseCoordinates(latText: string, lonText: string): { lat: number; lon: number } | null {
+  if (!latText.trim() || !lonText.trim()) return null
+  const lat = Number(latText)
+  const lon = Number(lonText)
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null
+  if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null
+  return { lat, lon }
+}
+
 interface OnboardingWizardProps {
   open: boolean
   onClose: () => void
@@ -45,6 +55,11 @@ export function OnboardingWizard({ open, onClose, onOnboarded, initialStep = 'lo
   const [departmentName, setDepartmentName] = useState('')
   const [siteName, setSiteName] = useState('')
   const [pin, setPin] = useState<{ lat: number; lon: number } | null>(null)
+  // The coordinates as typed, so a half-entered number is not overwritten;
+  // the map is only re-centred when the pin came from typing, never from a click.
+  const [latText, setLatText] = useState('')
+  const [lonText, setLonText] = useState('')
+  const [pinTyped, setPinTyped] = useState(false)
   const [facingDegrees, setFacingDegrees] = useState(0)
 
   // Step 2 — How do we connect? ("I have a link" path)
@@ -78,6 +93,9 @@ export function OnboardingWizard({ open, onClose, onOnboarded, initialStep = 'lo
     setDepartmentName('')
     setSiteName('')
     setPin(null)
+    setLatText('')
+    setLonText('')
+    setPinTyped(false)
     setFacingDegrees(0)
     setProtocol('rtsp')
     setUrl('')
@@ -94,6 +112,28 @@ export function OnboardingWizard({ open, onClose, onOnboarded, initialStep = 'lo
     reset()
     onClose()
   }
+
+  function pinFromMap(lat: number, lon: number) {
+    setPin({ lat, lon })
+    setLatText(lat.toFixed(5))
+    setLonText(lon.toFixed(5))
+    setPinTyped(false)
+  }
+
+  /** Typed coordinates. Pasting "21.5222, 70.4579" into either field fills both. */
+  function typeCoordinate(field: 'lat' | 'lon', value: string) {
+    let lat = field === 'lat' ? value : latText
+    let lon = field === 'lon' ? value : lonText
+    const pair = value.split(/[,\s]+/).filter(Boolean)
+    if (pair.length === 2 && pair.every((v) => Number.isFinite(Number(v)))) [lat, lon] = pair
+    setLatText(lat)
+    setLonText(lon)
+    const point = parseCoordinates(lat, lon)
+    setPin(point)
+    setPinTyped(point !== null)
+  }
+
+  const coordinatesInvalid = (latText.trim() !== '' || lonText.trim() !== '') && parseCoordinates(latText, lonText) === null
 
   const markers: MapMarker[] = pin
     ? [{ id: 'pin', lat: pin.lat, lon: pin.lon, color: '#ffb000' }]
@@ -208,18 +248,19 @@ export function OnboardingWizard({ open, onClose, onOnboarded, initialStep = 'lo
             />
             <div className="onboarding-field-pair">
               <label className="monitoring-field-label">{t('monitoring:department')}
-              <select
+              {/* Free text with the registry's departments suggested: a
+                  department that is not registered yet is created with the camera. */}
+              <Input
+                list="onboarding-departments"
+                placeholder={t('onboarding.departmentPlaceholder')}
                 value={departmentName}
                 onChange={(e) => setDepartmentName(e.target.value)}
-                className="h-10 rounded-md border border-border-subtle bg-bg-inset px-3 text-sm text-text-primary"
-              >
-                <option value="">{t('onboarding.noDepartment')}</option>
+              />
+              <datalist id="onboarding-departments">
                 {departments.map((d) => (
-                  <option key={d.id} value={d.name}>
-                    {d.name}
-                  </option>
+                  <option key={d.id} value={d.name} />
                 ))}
-              </select>
+              </datalist>
               </label>
               <label className="monitoring-field-label">{t('monitoring:site')}
               <Input
@@ -229,19 +270,39 @@ export function OnboardingWizard({ open, onClose, onOnboarded, initialStep = 'lo
               />
               </label>
             </div>
-            <p className="text-xs text-text-tertiary">{t('onboarding.clickMapToPin')}</p>
+            <div className="onboarding-field-pair">
+              <label className="monitoring-field-label">{t('onboarding.latitude')}
+              <Input
+                inputMode="decimal"
+                placeholder="21.5222"
+                value={latText}
+                aria-invalid={coordinatesInvalid}
+                onChange={(e) => typeCoordinate('lat', e.target.value)}
+              />
+              </label>
+              <label className="monitoring-field-label">{t('onboarding.longitude')}
+              <Input
+                inputMode="decimal"
+                placeholder="70.4579"
+                value={lonText}
+                aria-invalid={coordinatesInvalid}
+                onChange={(e) => typeCoordinate('lon', e.target.value)}
+              />
+              </label>
+            </div>
+            <p className={coordinatesInvalid ? 'text-xs text-sev-critical' : 'text-xs text-text-tertiary'}>
+              {t(coordinatesInvalid ? 'onboarding.coordinatesInvalid' : 'onboarding.coordinatesHelp')}
+            </p>
             <div className="relative h-64 overflow-hidden rounded-md border border-border-subtle">
               <MapView
                 markers={markers}
                 className="absolute inset-0"
-                onMapClick={(lat, lon) => setPin({ lat, lon })}
+                fitToMarkers={pinTyped}
+                onMapClick={pinFromMap}
               />
             </div>
             {pin && (
               <div className="flex items-center gap-3 text-xs text-text-secondary">
-                <span className="plate-mono">
-                  {pin.lat.toFixed(4)}, {pin.lon.toFixed(4)}
-                </span>
                 <label className="flex items-center gap-2">
                   <Compass size={14} className="text-text-tertiary" />
                   {t('onboarding.facing')}
@@ -257,7 +318,7 @@ export function OnboardingWizard({ open, onClose, onOnboarded, initialStep = 'lo
               </div>
             )}
             <div className="flex justify-end">
-              <Button disabled={!name.trim()} onClick={() => setStep('connect')}>
+              <Button disabled={!name.trim() || coordinatesInvalid} onClick={() => setStep('connect')}>
                 {t('onboarding.next')}
               </Button>
             </div>

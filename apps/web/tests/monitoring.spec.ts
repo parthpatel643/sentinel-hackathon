@@ -119,7 +119,16 @@ test('manual onboarding submits the selected monitoring profile and shows the re
   await page.getByRole('button', { name: 'Add camera', exact: true }).click()
   const dialog = page.getByRole('dialog')
   await dialog.getByRole('textbox', { name: 'Camera name', exact: true }).fill('North Gate')
+  await dialog.getByRole('combobox', { name: 'Department', exact: true }).fill('Traffic Police')
   await dialog.getByRole('textbox', { name: 'Site', exact: true }).fill('North')
+  // Out of range: the step cannot be left until it is fixed.
+  await dialog.getByRole('textbox', { name: 'Latitude', exact: true }).fill('121.5')
+  await dialog.getByRole('textbox', { name: 'Longitude', exact: true }).fill('70.4579')
+  await expect(dialog.getByText(/latitude between -90 and 90/)).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Next', exact: true })).toBeDisabled()
+  // A pasted "lat, lon" pair fills both fields.
+  await dialog.getByRole('textbox', { name: 'Latitude', exact: true }).fill('21.5222, 70.4579')
+  await expect(dialog.getByRole('textbox', { name: 'Longitude', exact: true })).toHaveValue('70.4579')
   await dialog.getByRole('button', { name: 'Next', exact: true }).click()
   await dialog.getByRole('textbox', { name: 'Stream link' }).fill('rtsp://camera.local/stream')
   await dialog.getByRole('button', { name: 'Next', exact: true }).click()
@@ -127,7 +136,7 @@ test('manual onboarding submits the selected monitoring profile and shows the re
   await dialog.getByRole('button', { name: 'Add camera', exact: true }).click()
   await expect(dialog.getByText('North Gate was added')).toBeVisible()
   await expect(dialog.getByText('Relay unavailable')).toBeVisible()
-  expect(created).toMatchObject({ camera_id: 'north-gate', name: 'North Gate', site_name: 'North', tier: 'c_motion_gated', profiles: [{ protocol: 'rtsp', url: 'rtsp://camera.local/stream' }] })
+  expect(created).toMatchObject({ camera_id: 'north-gate', name: 'North Gate', department_name: 'Traffic Police', site_name: 'North', location: { lat: 21.5222, lon: 70.4579 }, tier: 'c_motion_gated', profiles: [{ protocol: 'rtsp', url: 'rtsp://camera.local/stream' }] })
 })
 
 test('CSV onboarding previews before commit and catalogue discovery calls the real action', async ({ page }) => {
