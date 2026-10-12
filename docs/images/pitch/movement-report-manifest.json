@@ -1,0 +1,26 @@
+{
+  "files": {
+    "evidence/hop-01-01M4R16JYC1BFT4AH7YANSEJC7.jpg": {
+      "bytes": 553851,
+      "sha256": "39df8b2b1437e23082e80513b7879b8d4e2c40b1cc70c3c441bb0469621969b3"
+    },
+    "report.csv": {
+      "bytes": 363,
+      "sha256": "cde7918bc28b314a09c8b8a31a6eb928c9f1666b9d75f211f627320976941d7e"
+    },
+    "report.pdf": {
+      "bytes": 556983,
+      "sha256": "7ef88b707cfd252dd524f38abfec47350ea8a8c58cd9a0121ffad3e42d2fa7c6"
+    }
+  },
+  "first_seen_at": "2026-06-17T12:31:21+00:00",
+  "generated_at": "2026-10-12T14:04:38.310018+00:00",
+  "generated_by": "admin@sentinel-platform.com",
+  "last_seen_at": "2026-06-17T12:31:21+00:00",
+  "note": "report_sha256 = sha256(report.pdf sha256 + ':' + report.csv sha256). Recompute both file hashes and this value to verify neither artifact has been altered since export.",
+  "plate_normalised": "GJ11S7924",
+  "point_count": 1,
+  "report_sha256": "0616ea25c31de3e747088615f03679768e72b89c266f628ac8ea9c90eef9c0ee",
+  "time_basis": "each camera's own burned-in clock; untimed sightings: unreadable",
+  "untimed_count": 0
+}

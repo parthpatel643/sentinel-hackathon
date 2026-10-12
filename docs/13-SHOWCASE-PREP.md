@@ -50,8 +50,10 @@ solution.
 
 Code and test evidence for each row is in
 [12 — Requirements traceability](./12-REQUIREMENTS-TRACEABILITY.md); this
-section is the on-stage view. **Slide** numbers refer to the 13-slide
-[pitch deck](./Sentinel-Finale-Pitch.pptx) (01–12) and its appendix (A1–A9); **Demo 1–3** are the live steps in §4.
+section is the on-stage view. **Slide** numbers refer to the 15-slide
+[pitch deck](./Sentinel-Finale-Pitch.pptx) (01–15) and its appendix (A1–A9). **Demo 1–3** are the live
+trace in §4.2: Demo 1 is open a camera and read a plate (slides 05–06), Demo 2 is trace and hand over
+(07, 09), Demo 3 is watch and alert (08).
 
 **Status:** **Built** — working and demonstrable · **Partial** — built, with the
 stated limit · **Design** — documented and sized, not running · **Excluded** —
@@ -64,31 +66,31 @@ the one to rehearse.
 
 | They ask | Sentinel feature | Show it | Status | Risk on the day |
 |---|---|---|---|---|
-| Onboard ~50 cameras across departments, technologies, formats and VMS | CSV import with a dry run; ONVIF, Hikvision and Dahua device discovery; catalogue sync; registry with department, location and tier | Slide 05 · Demo 1 (backup A2): Cameras map | **Built** — all 30 sandbox cameras onboarded from the live catalogue; H.264 and H.265, 720p to 1440p | Unseen network, credentials and ports (runbook §4) |
-| Integrate the live feeds; centralised monitoring | Live wall (focus, 2×2, 3×3, 4×4) through the local relay, one upstream pull per camera; Health screen with fps and lag | Slide 05 · Demo 1 (backup A2): Live Wall, Health | **Built** | H.265 does not play in Chrome (use Safari or an H.264 profile); laptop CPU when preview and ANPR compete |
-| AI-powered video analytics | ANPR with multi-frame voting; vehicle class and colour; people counts; zone rules; tamper | Demo 2–3; A5, A8 | **Built** — 78% exact plates after the vote | Plates too small on wide-angle cameras (§6.2) |
-| Identify and trace the designated vehicle from its registration number | Find a Vehicle: exact, look-alike and one-character-off matching; 24 h / 48 h / 7 d windows | Slide 05 · Demo 2 (backup A3) | **Built** | **The vehicle passes a camera we were not analysing** (§6.1–6.2) |
-| Complete route with timestamped, location-wise movement history | Map and timeline ordered by each camera's own clock; Movement Report (PDF, CSV, evidence frames, SHA-256 manifest) | Slide 05 · Demo 2 (backup A3): Export report | **Built** | A camera with no readable date-time overlay gives *time unknown* stops; one without coordinates is not mapped. Ask the organisers (runbook §1) |
-| Continuous cross-referencing with a watchlist; automated real-time alerts | Every confirmed read matched against the watchlist; alert banner and sound on every console within a second; field app | Slide 05 · Demo 3 (backup A4) | **Built** | "Real-time" wording: a read is confirmed after several frames agree (§2 item 1) |
-| Representative watchlist database | Stolen, wanted, missing and BOLO entries with priority, case reference and validity | Slide 05 · Demo 3 (backup A4) | **Built** | Arm entries from plates actually read that morning (§6.3) |
-| Visualise on GIS | MapLibre map: camera pins, route with earliest-to-latest styling, coverage-gap layer | Demo 1–2 (backups A2, A3) | **Built** | No basemap offline; pins and routes still draw |
+| Onboard ~50 cameras across departments, technologies, formats and VMS | CSV import with a dry run; ONVIF, Hikvision and Dahua device discovery; catalogue sync; registry with department, location and tier | Slide 04 · Demo 1 (backup 12): Cameras map | **Built** — all 30 sandbox cameras onboarded from the live catalogue; H.264 and H.265, 720p to 1440p | Unseen network, credentials and ports (runbook §4) |
+| Integrate the live feeds; centralised monitoring | Live wall (focus, 2×2, 3×3, 4×4) through the local relay, one upstream pull per camera; Health screen with fps and lag | Slide 04 · Demo 1 (backup 05): Live Wall, Health | **Built** | H.265 does not play in Chrome (use Safari or an H.264 profile); laptop CPU when preview and ANPR compete |
+| AI-powered video analytics | ANPR with multi-frame voting; vehicle class and colour; people counts; zone rules; tamper | Demo 2–3; 11, A5 | **Built** — 78% exact plates after the vote | Plates too small on wide-angle cameras (§6.2) |
+| Identify and trace the designated vehicle from its registration number | Find a Vehicle: exact, look-alike and one-character-off matching; 24 h / 48 h / 7 d windows | Slide 04 · Demo 2 (backup 07) | **Built** | **The vehicle passes a camera we were not analysing** (§6.1–6.2) |
+| Complete route with timestamped, location-wise movement history | Map and timeline ordered by each camera's own clock; Movement Report (PDF, CSV, evidence frames, SHA-256 manifest) | Slide 04 · Demo 2 (backup 07): Export report | **Built** | A camera with no readable date-time overlay gives *time unknown* stops; one without coordinates is not mapped. Ask the organisers (runbook §1) |
+| Continuous cross-referencing with a watchlist; automated real-time alerts | Every confirmed read matched against the watchlist; alert banner and sound on every console within a second; field app | Slide 04 · Demo 3 (backup 08) | **Built** | "Real-time" wording: a read is confirmed after several frames agree (§2 item 1) |
+| Representative watchlist database | Stolen, wanted, missing and BOLO entries with priority, case reference and validity | Slide 04 · Demo 3 (backup 08) | **Built** | Arm entries from plates actually read that morning (§6.3) |
+| Visualise on GIS | MapLibre map: camera pins, route with earliest-to-latest styling, coverage-gap layer | Demo 1–2 (backups 07, 12) | **Built** | No basemap offline; pins and routes still draw |
 | Searchable events and history | Detections searchable by plate, camera and time; alert queue; zone-event queue | Demo 2–3 | **Built** | — |
-| Evidence of integration, interoperability, scalability and end-to-end performance | Health screen; 600+ automated tests; measured capacity; DR drill | Slides 08, 09, A6, A8 | **Built**, measured on a laptop; 80,000 is arithmetic | — |
+| Evidence of integration, interoperability, scalability and end-to-end performance | Health screen; 600+ automated tests; measured capacity; DR drill | Slides 11, 13, A3 | **Built**, measured on a laptop; 80,000 is arithmetic | — |
 
 ### 1.2 The solution they asked for (Step 3, Expected Solution Approach)
 
 | They ask | Sentinel feature | Show it | Status |
 |---|---|---|---|
 | Continuously process the provided feeds | Registry-driven edge worker; picks up new cameras every 30 s without a restart | Demo 1 | **Built** |
-| Watchlist database structure, matching logic, alerting mechanism, user interface | Watchlist entries; four-rung matching ladder; dedupe window; alert lifecycle new → acknowledged → resolved / not this vehicle | Slide A4 · Demo 3 | **Built** |
+| Watchlist database structure, matching logic, alerting mechanism, user interface | Watchlist entries; four-rung matching ladder; dedupe window; alert lifecycle new → acknowledged → resolved / not this vehicle | Slide 08 · Demo 3 | **Built** |
 | Create and use representative datasets | Seeded watchlist; camera-import CSV template; recorded copy of the government grid | Demo 3 | **Built** |
-| Identify specified vehicles *or other entities* (wanted or missing persons) | Vehicles by plate. People are counted and held to zones, never identified | Slides A4, A5 | **Partial** — persons **Excluded** by decision (no face recognition) |
-| Open, modular, standards-based, vendor-neutral; documented APIs; adapter framework | OpenAPI at `/api/docs`; driver SDK with a conformance suite; open-source stack | Slides 08, A6 | **Built** |
+| Identify specified vehicles *or other entities* (wanted or missing persons) | Vehicles by plate. People are counted and held to zones, never identified | Slides 08, A5 | **Partial** — persons **Excluded** by decision (no face recognition) |
+| Open, modular, standards-based, vendor-neutral; documented APIs; adapter framework | OpenAPI at `/api/docs`; driver SDK with a conformance suite; open-source stack | Slides 13, A3 | **Built** |
 
 ### 1.3 The reference models (Step 2): we are a hybrid
 
 Model 1 as the mandatory foundation, Models 2 and 3 adopted, Model 4 only where
-it pays off. **This is slide 07**; its speaker notes carry the justification.
+it pays off. **This is slide A2**; its speaker notes carry the justification.
 
 | Model · feature they list | Sentinel | Status |
 |---|---|---|
@@ -121,29 +123,29 @@ it pays off. **This is slide 07**; its speaker notes carry the justification.
 
 | Dimension | Slide | Depth |
 |---|---|---|
-| Overall architecture | 07, 09, 10 | [01 — Architecture](./01-ARCHITECTURE.md), HLD PDF |
-| Integration strategy | 07, A2, A7 | [07 — Driver SDK](./07-DRIVER-SDK.md) |
-| AI and video analytics | A4, A5 | [02 — ANPR](./02-ANPR-PIPELINE.md), [09 — Secondary analytics](./09-SECONDARY-ANALYTICS.md) |
-| Cybersecurity, privacy, RBAC, audit | 06 | [08 — Security](./08-SECURITY-HARDENING.md) |
-| Deployment architecture (central, regional, edge) | 09 | 01 §10 |
-| Infrastructure sizing | A6 | [04 — Scale plan](./04-SCALE-PLAN.md) §3–4 |
+| Overall architecture | 13, A1, A2 | [01 — Architecture](./01-ARCHITECTURE.md), HLD PDF |
+| Integration strategy | 05, 12, A2, A8 | [07 — Driver SDK](./07-DRIVER-SDK.md) |
+| AI and video analytics | 06, 08, A5, A9 | [02 — ANPR](./02-ANPR-PIPELINE.md), [09 — Secondary analytics](./09-SECONDARY-ANALYTICS.md) |
+| Cybersecurity, privacy, RBAC, audit | 10 | [08 — Security](./08-SECURITY-HARDENING.md) |
+| Deployment architecture (central, regional, edge) | 13 | 01 §10 |
+| Infrastructure sizing | A3 | [04 — Scale plan](./04-SCALE-PLAN.md) §3–4 |
 | Cost-benefit analysis | 11 (cost); 08 and A7 (what it buys) | §9, 04 §6 |
-| Department-wise information requirements | 13 | 04 §8 |
-| Scalability strategy | 08, 09, A6 | 04 |
-| Future roadmap | A8, A9 | 04 §7, [14 — Appearance ReID](./14-APPEARANCE-REID-DESIGN.md) |
+| Department-wise information requirements | 15 | 04 §8 |
+| Scalability strategy | 13, A3 | 04 |
+| Future roadmap | 15, A9 | 04 §7, [14 — Appearance ReID](./14-APPEARANCE-REID-DESIGN.md) |
 
 ### 1.5 Plan for scale (Step 6)
 
 | They ask us to explain | Slide | Answer in one line |
 |---|---|---|
-| Central, regional and edge compute | 09 | Analysis in 34 district nodes plus edge boxes at remote sites; the state core does search, storage and alerts |
-| GPU or accelerator requirements | A6 | ≈560 L4 GPUs with N+1, sized by tier — **say it; it is not on the slide** |
-| Bandwidth and low-bandwidth strategies | 08 | ≈140 Mbps statewide; metadata-only mode at ≈4.5 Mbps; 72 h offline queue |
-| Hot, warm and cold storage by retention | 08 | ≈390 TB usable instead of 12.1 PB a week; departments keep their 7–15 days |
-| Load balancing, horizontal scaling, monitoring, logging, health checks | 09 | Health screen, JSON structured logs and health endpoints built; autoscaling on queue depth designed |
-| HA, backup, DR, cybersecurity controls | 06, 09, A8 | RPO 15 min, RTO 1 h; DR drill restores a million records in 5.7 s and catches tampering |
-| Estimated implementation and operational costs | 11 | ≈₹80 cr to build, ≈₹24 cr a year to run; ≈₹10,000 and ≈₹3,000 a year per camera; ₹0 licences; centralising is ₹400 cr+ (§9) |
-| Phased statewide rollout | A9 | 500 → 5,000 → 30,000 → 80,000 cameras over 36 months |
+| Central, regional and edge compute | 13 | Analysis in 34 district nodes plus edge boxes at remote sites; the state core does search, storage and alerts |
+| GPU or accelerator requirements | A3 | ≈560 L4 GPUs with N+1, sized by tier — **say it; it is not on the slide** |
+| Bandwidth and low-bandwidth strategies | 13 | ≈140 Mbps statewide; metadata-only mode at ≈4.5 Mbps; 72 h offline queue |
+| Hot, warm and cold storage by retention | 13 | ≈390 TB usable instead of 12.1 PB a week; departments keep their 7–15 days |
+| Load balancing, horizontal scaling, monitoring, logging, health checks | 13 | Health screen, JSON structured logs and health endpoints built; autoscaling on queue depth designed |
+| HA, backup, DR, cybersecurity controls | 10, 11, 13 | RPO 15 min, RTO 1 h; DR drill restores a million records in 5.7 s and catches tampering |
+| Estimated implementation and operational costs | 14 | ≈₹80 cr to build, ≈₹24 cr a year to run; ≈₹10,000 and ≈₹3,000 a year per camera; ₹0 licences; centralising is ₹400 cr+ (§9) |
+| Phased statewide rollout | 15 | 500 → 5,000 → 30,000 → 80,000 cameras over 36 months |
 
 ### 1.6 The background asks
 
@@ -159,26 +161,26 @@ it pays off. **This is slide 07**; its speaker notes carry the justification.
 
 | # | Area | Slides | Live | Hand over |
 |---|---|---|---|---|
-| 01 | Successful test case | 05, A2, A3, A4 | Demo 1–3 on today's feeds | Movement Report ZIP |
-| 02 | Presentation: problem, model and justification, key features | 02, 03, 04, 07, 12, A1, A7 | — | The deck |
-| 03 | Solution architecture | 07, 08, 09, 10, A6 | — | HLD PDF |
-| 04 | Working platform, own feed and government feed | A2, A3, A4 | The console; the government-grid copy as fallback (§11) | — |
-| 05 | Analytics: ANPR, vehicle and person detection, intrusion, objects, timestamps, reports | 06, A3, A4, A5 | Zone events, people counts, camera-clock times | Movement Report; `scripts/evidence_report.py` output |
-| 06 | Scalability and PoC readiness | 08, 09, 11, A6, A8, A9 | Health screen | Runbook |
+| 01 | Successful test case | 04–09 | Demo 1–3 on today's feeds | Movement Report ZIP |
+| 02 | Presentation: problem, model and justification, key features | 01, 02, 03, 11, A2, A6, A8 | — | The deck |
+| 03 | Solution architecture | 13, A1, A2, A3 | — | HLD PDF |
+| 04 | Working platform, own feed and government feed | 05, 07, 08 | The console; the government-grid copy as fallback (§11) | — |
+| 05 | Analytics: ANPR, vehicle and person detection, intrusion, objects, timestamps, reports | 06, 07, 09, 10, A5 | Zone events, people counts, camera-clock times | Movement Report; `scripts/evidence_report.py` output |
+| 06 | Scalability and PoC readiness | 11, 13, 14, 15, A3 | Health screen | Runbook |
 | 07 | Submission completeness | — | — | Already submitted (06 — Submission playbook) |
-| Bonus | Hybrid architecture · cross-camera correlation · analytics beyond ANPR · edge and low bandwidth · security, privacy, audit, RBAC · dashboards, alerts, health, APIs | 06, 07, 08, 09, 10, 11, 12, A4, A5, A6, A7 | Probable stops, impossible travel, Audit → Verify integrity | — |
+| Bonus | Hybrid architecture · cross-camera correlation · analytics beyond ANPR · edge and low bandwidth · security, privacy, audit, RBAC · dashboards, alerts, health, APIs | 08, 10, 11, 13, 14, A1, A2, A3, A5, A8 | Probable stops, impossible travel, Audit → Verify integrity | — |
 
 ### 1.8 Gaps a juror can find, and the answer to give
 
 | A juror notices | Answer |
 |---|---|
-| ~~The model choice and its justification are not on a slide~~ — **on slide 07** | If pressed on *why hybrid*: *"Model 1 is the foundation everything stands on; Models 2 and 3 connect every department without changing its system; Model 4's central recording only where it pays off, because centralising everything needs a backbone the State does not have (slide 08)."* |
-| *"How firm are these costs?"* (slide 11) | Order of magnitude, for comparing approaches, not a tender. The biggest line, district analysis servers, rests on a vendor GPU benchmark; Phase 0's first exit criterion is measuring it. Every figure re-derives from the scale plan's formulas (04 §9). |
+| ~~The model choice and its justification are not on a slide~~ — **on slide A2** | If pressed on *why hybrid*: *"Model 1 is the foundation everything stands on; Models 2 and 3 connect every department without changing its system; Model 4's central recording only where it pays off, because centralising everything needs a backbone the State does not have (slide 13)."* |
+| *"How firm are these costs?"* (slide 14) | Order of magnitude, for comparing approaches, not a tender. The biggest line, district analysis servers, rests on a vendor GPU benchmark; Phase 0's first exit criterion is measuring it. Every figure re-derives from the scale plan's formulas (04 §9). |
 | Face recognition (Model 4, FAQ 22) | Excluded by decision. Faces are detected only to be blurred; the platform can host a recognition module behind the same access controls if policy allows. |
 | Wanted and missing *persons* in the watchlist | Matching is by vehicle plate. Person records are reached through the eGujCop and AFIS connectors once access exists; no face matching. |
 | Event bus, tiered storage, HA, network segmentation | Designed and sized (01, 04, 08), not running on a laptop. What is running is the same code that sits at each district. |
 | No camera-type layer on the map | Filters by department and status, plus the coverage-gap layer; camera type is a registry field. |
-| *"Where does the 12 / 28 / 35 / 25% split of the 80,000 cameras come from?"* (slide A6) | It is our planning assumption, labelled as such on the slide: the brief gives the total and how departments use cameras, not a breakdown. We estimated it from those uses — check-posts and highways continuous, junctions sampled, godowns and offices motion-triggered, indoor and private feeds view-only. The GPU count and server cost follow from it, so the pilot replaces it with each department's inventory and every figure re-derives (04 §1.1, §9). |
+| *"Where does the 12 / 28 / 35 / 25% split of the 80,000 cameras come from?"* (slide A3) | It is our planning assumption, labelled as such on the slide: the brief gives the total and how departments use cameras, not a breakdown. We estimated it from those uses — check-posts and highways continuous, junctions sampled, godowns and offices motion-triggered, indoor and private feeds view-only. The GPU count and server cost follow from it, so the pilot replaces it with each department's inventory and every figure re-derives (04 §1.1, §9). |
 | No 80,000-camera load test | Measured capacity per machine plus the arithmetic, re-derivable from five formulas (04 §9); the pilot's first exit criterion is a measured benchmark. |
 | Hikvision and Dahua not tested on hardware | Written to the vendors' published APIs and tested against mocks; ONVIF and RTSP reach the same devices. |
 | The FAQ says the sandbox feeds were *"synchronised on a common timeline"* | Our measurement found the replayed clips came from different dates ([cross-camera finding](../evidence/CROSS-CAMERA-TRACKING-FINDINGS.md)); that is why every stop carries the camera's own clock, and why a mismatched route is visible rather than hidden. Raise it only if timing comes up. |
@@ -196,7 +198,7 @@ Ordered by how badly each could hurt in front of the jury.
 | 3 | **Cross-camera has only ever been shown with one camera's sightings.** | It is the headline capability. | Own-car, three-camera drill before Monday (§0 item 2, §6.5). Record it as the fallback video. |
 | 4 | **ANPR accuracy is 78% after the vote**, below the 85% gate. | "Is it good enough for evidence?" | Own it: the holdout, the method, the 8.6% → 78% story, and that every hop carries a snapshot an officer confirms. Never claim a higher number. |
 | 5 | **The L4 300 fps/GPU figure is a vendor-benchmark estimate**, not measured. | The whole GPU count (≈560 L4) rests on it. | Say "estimated, and re-derivable": show the formula in [04 §9](./04-SCALE-PLAN.md) and offer a pilot-phase benchmark as Phase 0's first exit criterion. |
-| 6 | ~~README screenshots predate the UI redesign.~~ | Slides must show the product they are about to see. | **Done (12 Oct):** pitch deck (`npm run screenshots:pitch`, `make pitch`) and README set (`npm run screenshots`) recaptured from the gate-board console on the mirror. The submission deck (`make deck`) still shows the earlier screens. |
+| 6 | ~~README screenshots predate the UI redesign.~~ | Slides must show the product they are about to see. | **Done (12 Oct):** pitch deck rebuilt around the live trace and recaptured (`npm run screenshots:pitch`, `make pitch`); README set (`npm run screenshots`) recaptured from the gate-board console on the mirror. The submission deck (`make deck`) still shows the earlier screens. |
 | 7 | ~~Uncommitted mirror work~~ (`scripts/gov_mirror.py`, `SOURCE=mirror`). | The sandbox grid is being taken down; the mirror is our only copy of real government footage. | **Done:** committed 10 Oct (`7f01c44`); all 30 cameras recorded to `data/gov-mirror/` (gitignored — copy it to the M4 by hand). |
 
 ---
@@ -215,58 +217,98 @@ Ordered by how badly each could hurt in front of the jury.
 
 ## 4. The 20 minutes
 
-Slides: [Sentinel-Finale-Pitch.pptx](./Sentinel-Finale-Pitch.pptx) — **13 main slides and a 9-slide
-appendix** (A1–A9), light theme. Rebuild with `make pitch` (screenshots: `npm run screenshots:pitch` in
-`apps/web`). Speaker notes carry the talk track for every slide.
+Slides: [Sentinel-Finale-Pitch.pptx](./Sentinel-Finale-Pitch.pptx) — **15 main slides and a 9-slide
+appendix** (A1–A9), set in the console's own gate-board look (DESIGN.md). Rebuild with `make pitch`;
+recapture its screens with `npm run screenshots:pitch` in `apps/web` (needs a worker on the mirror;
+`PITCH_ONLY=live` re-shoots just the live wall). Speaker notes carry the talk track and the click path
+for every slide.
 
 ### 4.1 The room
 
-The jury is **senior IPS officers and technology professors**. Pitch to both at once:
+The jury is **senior IPS officers and technology professors**, and they will ask us to **open one
+camera and trace a vehicle from it, live**. The deck is built around that request: one slide sets up
+the drill, five slides are its steps (and its backup if the network fails), and everything else
+explains why the result can be trusted and scaled.
 
-- **Officers decide on outcomes and trust.** Lead every slide with what changes on duty — a vehicle
-  traced, an alert raised, a report that stands up in a case file. Use their words: investigation, case
-  file, bandobast, chain of custody. Never explain policing to them.
-- **Professors decide on rigour.** Give the method in one sentence, then the measurement, then the
-  limitation: *"the clock is read off the frame and accepted only when a second reading agrees; when it
-  can't be read we say time unknown."* Say the numbers we did not reach before they ask.
-- **Relaxed means fewer slides, longer pauses.** Thirteen slides in twenty minutes, seven of them on the
-  live demo. Finish a sentence, pause, then click. If a slide has been understood, move on.
+- **Officers decide on outcomes and trust.** Lead with what changes on duty — a vehicle traced, an
+  alert raised, a report that stands up in a case file. Use their words: investigation, case file,
+  bandobast, chain of custody. Never explain policing to them; ask instead (*"how many calls did the
+  last such trace take?"*).
+- **Professors decide on rigour.** Method in one sentence, then the measurement, then the limit:
+  *"the clock is read off the frame and accepted only when a second reading agrees; when it can't be
+  read we say time unknown."* Say the numbers we did not reach before they ask (slide 11).
+- **Grounded numbers only.** Every number on a slide is either from the brief (80,000 cameras, 26
+  departments, 7–15 days), measured by us (78%, 97.7%, 4 × 4 fps, 27–40 s, 5.7 s), or labelled as
+  planning arithmetic (bandwidth, storage, cost). Do not add a number on stage that is not on a slide
+  or in the cheat card — in particular, never put an hour figure on today's manual trace.
 
 ### 4.2 The storyline
 
-The tracker in each slide's top-right shows the chapter: **Why → What → Demo → Trust → How → Value →
-Next**. Every chapter answers the question the room is asking at that moment.
+The tracker on each slide shows the chapter: **The case → Live → Trust → Scale → Next**. Each chapter
+answers the question the room is asking at that moment.
 
 | Time | Chapter · the room is asking | Slide | On screen | Rubric area |
 |---|---|---|---|---|
-| 0:00–1:00 | **Opening** · *who are you?* | 01–02 | Title; team (20 s) | Presentation |
-| 1:00–2:30 | **Why** · *what is wrong today?* | 03 | ~80,000 cameras, 26 systems; today versus with Sentinel | Presentation |
-| 2:30–3:00 | **What** · *what is it?* | 04 | See, find, alert | Presentation |
-| 3:00–10:00 | **Demo** · *does it work?* | 05, then live | Connect → trace the designated vehicle → watchlist alert → hand over the Movement Report | **Test case** |
-| 10:00–11:00 | **Trust** · *can we rely on it in court?* | 06 | Camera's own clock, blur, hash-chained audit; live: Admin → Audit → Verify integrity | Analytics; bonus: security |
-| 11:00–15:30 | **How** · *will it work across the State?* | 07–10 | The hybrid model and why; send meaning, not video; five layers; the tech stack | Architecture; scalability |
-| 15:30–17:30 | **Value** · *what does it cost, and why you?* | 11–12 | Estimated cost; three pillars with proof and a stated-plainly line | Scalability (costs); presentation |
-| 17:30–18:30 | **Next** · *what do you need from us?* | 13 | Rollout and the three asks; the closing line | PoC readiness |
-| 18:30–20:00 | Buffer and questions | Appendix | Jump to A1–A9 by number | — |
+| 0:00–0:45 | **Opening** · *who are you?* | 01 | Title; one real sighting from the grid; team and credentials on screen, not read out | Presentation |
+| 0:45–2:00 | **The case** · *what is wrong today?* | 02 | The four steps of a manual trace; 80,000 / 26 / 7–15 days | Presentation |
+| 2:00–2:45 | **The case** · *what is it?* | 03 | See, find, alert; read-only; three languages | Presentation |
+| 2:45–10:00 | **Live** · *does it work, on our camera?* | 04, then the console | The five-step drill (§4.3); 05–09 are its backup | Test case |
+| 10:00–11:00 | **Trust** · *can we rely on it in court?* | 10 | Time unknown, never a guess; no face recognition; RLS; consent | Analytics; security |
+| 11:00–12:30 | **Trust** · *how good is it, really?* | 11 | Six measurements with their conditions; stated plainly | Analytics; presentation |
+| 12:30–13:15 | **Scale** · *will our departments' cameras work?* | 12 | Catalogue, CSV, device discovery, tiers | Architecture |
+| 13:15–15:00 | **Scale** · *will it work across the State?* | 13 | Five boxes; 160 Gbps vs ≈140 Mbps, 12.1 PB vs ≈390 TB | Architecture; scalability |
+| 15:00–16:30 | **Scale** · *what does it cost?* | 14 | ≈₹80 cr build, ≈₹24 cr/yr, ₹0 licences; vs ₹400 cr+ | Scalability (costs) |
+| 16:30–18:00 | **Next** · *what do you need from us?* | 15 | Pilot → statewide; three asks; closing line | PoC readiness |
+| 18:00–20:00 | Questions | Appendix | Jump to A1–A9 by number | — |
 
-**If the jury gives the vehicle number at the start**, run the demo first and come back to slide 03.
-**If time runs short**, shorten How to slides 07 and 08 only; the five layers are in the speaker notes, and the tech stack (10) can be a 20-second pass unless a professor leans in.
-Never cut the demo.
+**If the jury asks for the live trace at the start**, go straight to slide 04 and the console; come
+back to 02 afterwards. **If time runs short**, cut 12 and give 14 in one sentence (*"about ₹80 crore to
+build, ₹24 crore a year, no licences"*). **Never cut the live trace or slide 11.**
 
-### 4.3 The appendix, for questions
+### 4.3 The live trace, from one camera
 
-Not presented. Each slide carries its number (A1–A9) in the corner; the divider after slide 13 lists
-them. Type the number and press Enter in slideshow mode to jump.
+This is what they will ask for. Slide 04 is on screen while you set it up; say the five steps out loud
+before the first click, and say the timing before anyone has to wait for it.
+
+| Step | Say | Click | Backup slide |
+|---|---|---|---|
+| **01 Open** | *"Name any camera. This is it, live, through our relay — the department's system sees one viewer, and its own recording keeps running."* Point at the date and time on the frame: *"that printed time is what every sighting carries."* | Live Wall → **Focus view** → choose the camera. Prefer one we are analysing, on a road with legible plates (§6.2). | 05 |
+| **02 Read** | *"When a vehicle passes, the edge reads its plate on several frames and commits it only when they agree — so it reaches the screen in about half a minute, sometimes a minute and a half."* | Keep the tile up. While waiting, open **Overview → ANPR activity** to show reads arriving per camera. The plate appears in the tile's top-right corner. | 06 |
+| **03 Trace** | *"We type that plate — spacing and case don't matter. Every sighting, timed by each camera's own clock, on the map and the timeline."* Open a stop: camera, printed time, plate as read, evidence frame. | Top search box → Enter → **Find a Vehicle**. If there are several stops, **Replay route**. Set **Search window** to 48 h if it may have passed earlier. | 07 |
+| **04 Watch** | *"Now we watch for it. Every future read is checked; the next sighting raises a banner and a sound on every open screen, and on officers' phones."* | **Watch for this vehicle**. If a watchlist plate is read meanwhile, let the banner speak for itself. | 08 |
+| **05 Hand over** | *"And this is what goes into the case file: the route, the printed times, the frames — sealed with SHA-256. Change one byte and it no longer verifies."* | **Export report** → hand over the ZIP. Optionally **Admin → Audit log → Verify integrity**. | 09 |
+
+**Which camera.** We can only read plates where they are large enough. On the mirrored grid only
+cam06 (Timbavadi Gate) and cam30 (Gandhidham) yield valid plates; on the day, the triage in §6.2 finds
+the equivalents. If the jury names a camera with no legible plates, open it anyway, say so plainly
+(*"plates here are about 20 pixels tall; no model reads them, and we will not guess"*), then trace from
+a camera that does read — or take the plate they give and start at step 03.
+
+**If the vehicle is not found.** Say so; open **Health** to show which cameras were analysed and when;
+widen the window to 48 h; show any *probable* (one-character-off) matches with the plate as read. A
+calm, explained "not seen on the cameras we analysed" is stronger than a fabricated route — and the
+system will not draw one.
+
+**If the network fails.** Say which rung of §11 we are on and continue on slides 05–09: they are the
+same five steps on the recorded government grid.
+
+### 4.4 The appendix, for questions
+
+Not presented. Each slide carries its number (A1–A9); the divider after slide 15 lists them. Type the
+number of the slide in slideshow mode and press Enter to jump (the divider is slide 16, so A1 is
+slide 17).
 
 | Likely question | Go to |
 |---|---|
-| *Who uses it day to day?* | A1 Who it serves |
-| *Show me again* — if the live demo failed | A2–A4 Demo backups |
-| *What else does it detect?* | A5 Beyond number plates |
-| *How did you size 80,000 cameras?* | A6 Camera tiering (planning assumption) |
-| *How is this different from a central VMS?* | A7 How Sentinel compares |
-| *How accurate is it, really?* | A8 Measured results |
-| *What exactly happens in each phase?* | A9 Rollout in detail |
+| *What is it built on? Why those parts?* | A1 Tech stack (slide 17) |
+| *Which reference model did you choose, and why?* | A2 Our approach (18) |
+| *How did you size 80,000 cameras?* | A3 Camera tiers — planning assumption (19) |
+| *How is the cost made up?* | A4 Cost, line by line (20) |
+| *What else does it detect?* | A5 Beyond number plates (21) |
+| *Does it work on a phone? In Gujarati?* | A6 Field app and languages (22) |
+| *How do you know it's healthy? Are the VAHAN connectors real?* | A7 Operations (23) |
+| *Why not a central VMS?* | A8 Approaches compared (24) |
+| *What if the plate cannot be read?* | A9 When the plate is unreadable (25) — and §7 |
 
 Three roles, fixed in rehearsal:
 
@@ -278,76 +320,59 @@ Three roles, fixed in rehearsal:
 
 ## 5. Pitch script
 
-Say it in your own words after the first rehearsal; the shape is what matters. Each chapter opens with
-one line that answers the room's question.
+Say it in your own words after the first rehearsal; the shape is what matters. Every slide's speaker
+notes carry the same lines with the method for the professors.
 
-**0:00 — Opening** (slides 01–02).
-> "Sentinel lets an officer type a registration number and see where that
-> vehicle went, across every government camera, in seconds — and be told the
-> moment it is seen again."
+**0:00 — Opening** (slide 01).
+> "Sentinel lets an officer type a registration number and see where that vehicle went, across the
+> government's cameras — and be told the moment it is seen again."
 
-Then twenty seconds on the team: *"We are Invental Data Labs. I'm Parth Patel;
-I lead the team — a consulting AI solution architect who has worked with IBM and
-United Airlines, with an MTech in Data Science from IIT Bombay. With me is Anuj
-Patel, a data scientist from Göttingen."*
+Then ten seconds on the team. **Don't read the credentials out** — they are on the slide (IIT Bombay
+MTech, IBM, United Airlines; data scientist in Göttingen), and the panel has heard every team recite
+theirs. Turn them into a promise about this pitch instead: *"I'm Parth Patel, I lead the team; with me
+is Anuj Patel. Our backgrounds are on the slide — enterprise AI and data science. What that means for
+you: every number we show today, we measured, and we'll tell you where we fell short."*
 
-**1:00 — Why** (slide 03).
-> "Gujarat already has about eighty thousand cameras across twenty-six
-> departments. They exist; they don't work together. When a vehicle is used in
-> a crime, tracing it means phoning each department, separate logins, manual
-> review — while the footage is overwritten within a week or two."
+**0:45 — The case** (slide 02).
+> "Gujarat already has about eighty thousand cameras, run by twenty-six departments. They exist; they
+> don't work together. To trace one vehicle today, an officer works out whose cameras are on the
+> route, calls each department, asks for footage and reviews it by hand — racing a one-to-two-week
+> overwrite."
 
-**2:30 — What** (slide 04).
-> "One platform, three jobs: see every camera, find any vehicle, and be alerted
-> when one of interest appears. Let us show you, on today's cameras."
+**2:00 — Our answer** (slide 03).
+> "One number in, one route out. See every department's cameras on one map; find any vehicle by its
+> plate; be alerted when one of interest is read. Nothing is installed on anyone's system — we only
+> read. Rather than describe it, let us show you, on a camera you choose."
 
-**3:00 — Demo** (slide 05, then live). Follow §6 and runbook §7; narrate each
-step *before* clicking.
-> "These are the cameras we were given this morning, on one map and one wall.
-> We type the number you gave us — spacing and case don't matter. Every
-> sighting appears in the order the cameras' own clocks give. Each stop: the
-> camera, the time printed on its frame, the plate as read, the snapshot with
-> faces blurred. A hop no vehicle could make is flagged, not drawn. We arm a
-> watch, and the alert reaches every screen. And here is the Movement Report —
-> sealed with a hash manifest — which we hand you now."
+**2:45 — Live** (slide 04, then the console). Follow §4.3 step by step; narrate before each click.
 
-**10:00 — Trust** (slide 06).
-> "The time in that report is the time the camera printed on its own frame. If
-> it cannot be read, we say *time unknown* — we never guess. Every search,
-> export and reveal is in a hash chain: change one entry and verification fails.
-> And we do no face recognition at all."
+**10:00 — Trust** (slide 10).
+> "When a camera's clock can't be read, the sighting is still listed — labelled *time unknown* and kept
+> off the route. We never put a guessed time in an evidence record. And we do no face recognition at
+> all."
 
-**11:00 — How** (slides 07–10). §8 for the full walkthrough.
-> "We built a hybrid of the four reference models — the registry as the
-> foundation, one console over every department's system, adapters so nothing
-> is replaced, and central recording only where it pays off. The reason is
-> physics: centralising every camera needs 160 gigabits a second from sites a
-> thousand kilometres apart. We read plates where the video is filmed and send
-> only what we find — about 140 megabits. What you saw today is the district
-> layer, on a laptop: the same code."
+**11:00 — Measured, not promised** (slide 11). Read each row as *"we measured that"*, then read the
+stated-plainly panel aloud:
+> "Plate accuracy is 78%, below our own 85% target. It is near-real-time, for investigation, not for
+> lifting a boom gate. The grid's footage could not show a multi-camera route; today's trace does. The
+> statewide sizing is arithmetic, not a load test. The government connectors run against mocks until
+> access is granted. And matching a vehicle whose plate is never read is designed, not built."
 
-Slide 10, the tech stack, for the professors — one line per layer, then the
-licence line:
-> "All of it is open source and runs offline. Five small models at the edge on
-> ONNX Runtime; one PostgreSQL for the map, sightings over time and misread-plate
-> search; React in three languages. The one copyleft part is the vehicle
-> detector, and its Apache-licensed replacement is identified."
+**12:30 — Scale** (slides 12–13).
+> "Departments onboard the cameras they already have — a catalogue sync, a CSV, or a device on the
+> network — and set how much attention each one gets. Video is analysed in the district it was filmed
+> in; what travels is about 31 kilobytes per sighting. Centralising every camera needs 160 gigabits a
+> second and 12 petabytes a week; this needs about 140 megabits and 390 terabytes. What you saw today
+> is the district box, on one laptop — the same code."
 
-**15:30 — Value** (slides 11–12). Say *order of magnitude* before the first number.
-> "About ₹80 crore to build and ₹24 crore a year to run, for eighty thousand
-> cameras — roughly ten thousand rupees a camera — with no licence fees, against
-> ₹400 crore-plus to centralise. Why us: it is proven on Gujarat's own cameras,
-> its evidence holds up, and it fits what the State already owns."
+**15:00 — Cost** (slide 14). Say *order of magnitude* before the first number.
+> "About ₹80 crore to build and ₹24 crore a year to run, for eighty thousand cameras — roughly ₹10,000 a
+> camera — with no licence fees, against ₹400 crore or more to centralise."
 
-Read the stated-plainly line on slide 12 aloud: *"Plate accuracy is 78%, below
-our own target; the compute is sized from vendor benchmarks; plate-less
-matching is designed, not built."*
-
-**17:30 — Next** (slide 13).
-> "Start with one district. Each phase is useful on its own; none needs a
-> switch-over. To begin, we need each department's camera inventory, read-only
-> access, and database access when it is ready. Type a plate — see where it
-> went. Thank you."
+**16:30 — Next** (slide 15).
+> "Start with one district. Each phase is useful on its own; none needs a switch-over. To begin we
+> need each department's camera inventory, read-only access, and VAHAN and eGujCop access when it is
+> ready. Type a plate — see where it went. Thank you."
 
 Then stop, and wait for questions.
 
@@ -524,7 +549,7 @@ Script, one breath per layer:
    databases through one integration gateway, with department-scoped access
    enforced in the database itself."
 
-Close with the formula slide:
+Close on slide 13's footnote:
 > "Every number here re-derives from five formulas. Give us your camera mix and
 > we will recompute it in front of you."
 
@@ -532,7 +557,7 @@ Close with the formula slide:
 
 ## 9. Impact on infrastructure cost
 
-On screen: **slide 11**. Indicative, for comparing architectures, not for
+On screen: **slide 14** (line by line: A4). Indicative, for comparing architectures, not for
 tendering. Source: [04 — Scale Plan §6](./04-SCALE-PLAN.md). Per-camera figures
 are derived here.
 
@@ -640,8 +665,11 @@ Use the highest rung that works, and **say which rung you are on.**
 | Capex / opex / 5-yr TCO | ≈ ₹80 cr / ≈ ₹24 cr/yr / ≈ ₹200 cr |
 | Per camera | ≈ ₹10,000 capex, ≈ ₹3,000/yr opex |
 | Model 4 comparison | ₹400 cr+ capex |
-| ANPR accuracy (measured) | 78% exact after vote, 88% per character, 81 real plates |
-| Laptop edge (measured, M2) | ≈ 16 analysed fps total |
+| ANPR accuracy (measured) | 78% exact after vote (41 vehicles), 88% per character, 81 legible crops |
+| Camera clock (measured) | 97.7% exact on 87 legible clocks, none wrong; 37% of grid stream-seconds timed |
+| Footage → stored sighting (measured) | median 27–40 s, p90 67–87 s (two evidence runs) |
+| Laptop edge (measured, M2) | ≈ 16 analysed fps total; 4 cameras × 4 fps kept up |
+| Tests | 698 backend + 65 browser |
 | Event size / snapshot | ≈ 1 KB / ≈ 30 KB |
 | Edge autonomy | 72 h store-and-forward |
 | DR | RPO 15 min, RTO 1 h (5 min for alerting); drill: 1 M rows restored in 5.7 s |
