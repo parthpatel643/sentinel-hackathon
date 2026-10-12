@@ -1183,6 +1183,35 @@ def status() -> None:
         print(f"  {record['camera_id']:8s} {path:16s} {marker}")
 
 
+def register() -> None:
+    """Put every mirrored camera in the registry, as onboarding would: on the
+    map and the live wall, whether or not a worker analyses it. A worker only
+    registers the cameras it runs, so after a database reset the other
+    cameras would otherwise be missing from the console."""
+    import httpx
+
+    from edge_agent.worker import _load_mirror_descriptors, _register_camera
+    from sentinel_core.config import get_settings
+
+    settings = get_settings()
+
+    async def _run() -> int:
+        headers = {"X-Service-Token": settings.edge_service_token.get_secret_value()}
+        async with httpx.AsyncClient(
+            base_url=settings.core_api_url, timeout=10.0, headers=headers
+        ) as client:
+            descriptors = _load_mirror_descriptors()
+            for descriptor in descriptors:
+                await _register_camera(client, descriptor)
+            return len(descriptors)
+
+    try:
+        count = asyncio.run(_run())
+    except httpx.HTTPError as exc:
+        raise SystemExit(f"could not reach the core API ({exc}) — is `make api` running?") from exc
+    print(f"{count} mirrored cameras registered")
+
+
 # --------------------------------------------------------------------------
 # CLI
 # --------------------------------------------------------------------------
@@ -1225,6 +1254,7 @@ def main() -> None:
     pub.add_argument("--cameras", help="comma-separated ids (default: every assembled clip)")
     sub.add_parser("stop", help="stop the publishers")
     sub.add_parser("status", help="show which mirror/* paths the relay sees")
+    sub.add_parser("register", help="add every mirrored camera to the registry (needs the API)")
 
     args = parser.parse_args()
     if args.command in ("capture", "assemble", "start") and shutil.which("ffmpeg") is None:
@@ -1239,6 +1269,8 @@ def main() -> None:
         stop()
     elif args.command == "status":
         status()
+    elif args.command == "register":
+        register()
 
 
 if __name__ == "__main__":

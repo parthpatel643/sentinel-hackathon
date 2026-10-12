@@ -6,7 +6,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 
 .DEFAULT_GOAL := help
-.PHONY: help install up down logs ps api web worker mirror-capture mirror mirror-start mirror-stop angle-demo angle-demo-worker angle-demo-stop deck pitch seed dr-drill uat prefetch test lint fmt types check audit secrets-scan sbom clean
+.PHONY: help install up down logs ps api web worker mirror-capture mirror mirror-start mirror-stop angle-demo angle-demo-worker angle-demo-stop deck pitch seed dr-drill reset-db uat prefetch test lint fmt types check audit secrets-scan sbom clean
 
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -93,6 +93,9 @@ seed: ## Create the default operator login
 
 dr-drill: ## Back up, restore into a fresh DB, verify counts and the audit chain
 	./scripts/dr_drill.sh
+
+reset-db: ## Back up, then start the database from nothing (CONFIRM=yes; MIRROR=1 also registers the 30 mirrored cameras)
+	CONFIRM=$(CONFIRM) MIRROR=$(MIRROR) ./scripts/reset_db.sh
 
 uat: ## Automated M4 acceptance checks into var/uat/ (QUICK=1 skips capacity; see docs/11-M4-UAT.md)
 	QUICK=$(QUICK) ./scripts/uat.sh

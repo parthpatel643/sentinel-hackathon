@@ -166,7 +166,7 @@ it pays off. **This is slide 07**; its speaker notes carry the justification.
 | 05 | Analytics: ANPR, vehicle and person detection, intrusion, objects, timestamps, reports | 06, A3, A4, A5 | Zone events, people counts, camera-clock times | Movement Report; `scripts/evidence_report.py` output |
 | 06 | Scalability and PoC readiness | 08, 09, 10, A6, A8, A9 | Health screen | Runbook |
 | 07 | Submission completeness | — | — | Already submitted (06 — Submission playbook) |
-| Bonus | Hybrid architecture · cross-camera correlation · analytics beyond ANPR · edge and low bandwidth · security, privacy, audit, RBAC · dashboards, alerts, health, APIs | 06, 07, 08, 09, 10, 11, A4, A5, A6, A7 | Probable stops, impossible travel, Audit → Verify chain | — |
+| Bonus | Hybrid architecture · cross-camera correlation · analytics beyond ANPR · edge and low bandwidth · security, privacy, audit, RBAC · dashboards, alerts, health, APIs | 06, 07, 08, 09, 10, 11, A4, A5, A6, A7 | Probable stops, impossible travel, Audit → Verify integrity | — |
 
 ### 1.8 Gaps a juror can find, and the answer to give
 
@@ -243,7 +243,7 @@ Next**. Every chapter answers the question the room is asking at that moment.
 | 1:00–2:30 | **Why** · *what is wrong today?* | 03 | ~80,000 cameras, 26 systems; today versus with Sentinel | Presentation |
 | 2:30–3:00 | **What** · *what is it?* | 04 | See, find, alert | Presentation |
 | 3:00–10:00 | **Demo** · *does it work?* | 05, then live | Connect → trace the designated vehicle → watchlist alert → hand over the Movement Report | **Test case** |
-| 10:00–11:00 | **Trust** · *can we rely on it in court?* | 06 | Camera's own clock, blur, hash-chained audit; live: Audit → Verify chain | Analytics; bonus: security |
+| 10:00–11:00 | **Trust** · *can we rely on it in court?* | 06 | Camera's own clock, blur, hash-chained audit; live: Admin → Audit → Verify integrity | Analytics; bonus: security |
 | 11:00–15:00 | **How** · *will it work across the State?* | 07–09 | The hybrid model and why; send meaning, not video; five layers | Architecture; scalability |
 | 15:00–17:30 | **Value** · *what does it cost, and why you?* | 10–11 | Estimated cost; three pillars with proof and a stated-plainly line | Scalability (costs); presentation |
 | 17:30–18:30 | **Next** · *what do you need from us?* | 12 | Rollout and the three asks; the closing line | PoC readiness |
@@ -428,7 +428,7 @@ turns triage into certainty.
 
 - Repeat it aloud and type it. If there are **no sightings**: say so plainly,
   open Health to show which cameras were analysed, then try the ambiguity
-  rung and the Overview recent reads for a near-miss. A calm, explained "not
+  rung and the Overview's Detections list (latest reads) for a near-miss. A calm, explained "not
   seen on analysed cameras" beats a fabricated route — and the system refuses
   to fabricate one by design.
 - If there are sightings on **one** camera only: show it fully, then say which

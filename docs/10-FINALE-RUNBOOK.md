@@ -90,6 +90,19 @@ live wall. What will not: basemap tiles, unless you point
 `VITE_MAP_TILE_URL` in `apps/web/.env` at a local tile server. Without tiles the
 map says so, and camera pins, routes and gap cells still draw correctly.
 
+**Start the jury's day from a clean database.** Rehearsals leave sightings,
+alerts and audit entries behind, and the audit log cannot be edited without
+breaking its chain. With the API and every worker stopped:
+
+```bash
+make reset-db CONFIRM=yes            # backs up to var/backups/, then schema + admin login only
+make reset-db CONFIRM=yes MIRROR=1   # the same, plus the 30 mirrored cameras on the map
+```
+
+Then re-create the operator logins (above). **Do not run `make test` on the
+demo laptop afterwards:** the tests write test users and audit entries into
+the same database.
+
 ---
 
 ## 4. On arrival
@@ -240,11 +253,11 @@ Rehearse this until it takes under two minutes.
    detection immediately — the alert banner proves correlation is live.
 8. **Export report**: the Movement Report ZIP (PDF and CSV in IST with UTC
    alongside, plus a hash manifest). Hand it over. Every one of these actions
-   is in **Admin → Audit log**; **Verify chain** proves nothing was altered.
+   is in **Admin → Audit log**; **Verify integrity** proves nothing was altered.
 
 If there are no sightings: check **Health** that the cameras on the vehicle's
 likely path are live and analysed, widen the window, and search the raw read
-list (**Overview** recent reads) for a near-miss plate.
+list (**Overview → Detections**, the latest reads) for a near-miss plate.
 
 ---
 

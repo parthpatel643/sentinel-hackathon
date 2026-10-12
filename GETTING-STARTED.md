@@ -317,6 +317,8 @@ make mirror-stop
 
 To register them in the console instead, onboard the RTSP URLs from
 `data/gov-mirror/catalogue.json` and run `make worker SOURCE=registry`.
+`uv run python scripts/gov_mirror.py register` puts all 30 on the map and the
+live wall in one step (a worker registers only the cameras it runs).
 
 While the remote is still reachable, the copy can be extended — `make
 mirror-capture` records every camera to `data/gov-mirror/raw/` (resumable;
