@@ -2,10 +2,11 @@
  * Builds the grand-finale pitch deck: docs/Sentinel-Finale-Pitch.pptx.
  *
  * A business pitch for the 20-minute on-site evaluation (docs/13-SHOWCASE-PREP.md
- * §4), written for a mixed room: police leadership who want outcomes, and a
- * technical jury who want to see how it holds at 80,000 cameras. Each slide
- * leads with what changes for the people using it; the technical detail sits
- * underneath. Cost is on one slide only, because the brief asks for estimated
+ * §4), for a room of senior IPS officers and technology professors. Twelve main
+ * slides follow one storyline — Why, What, Demo, Trust, How, Value, Next — with
+ * a chapter tracker so the room always knows where it is; each slide leads with
+ * the operational outcome and gives the method underneath. Everything else is
+ * an appendix, indexed, for questions. Cost is on one slide only, because the brief asks for estimated
  * implementation and operational costs; its figures are docs/04-SCALE-PLAN.md §6.
  *
  * Generated, so it cannot drift from what it cites: every number comes from a
@@ -112,30 +113,63 @@ async function whole(name) {
 
 // --- building blocks --------------------------------------------------------
 
-let pageNumber = 0
+// The storyline of the main slides. Each slide is tagged with its chapter by
+// main(), and a small tracker in the top-right shows where the room is.
+const CHAPTERS = ['Why', 'What', 'Demo', 'Trust', 'How', 'Value', 'Next']
+const section = { chapter: null, appendix: false }
+let mainCount = 0
+let appendixCount = 0
 
-function pageNo(s) {
-  s.addText(String(pageNumber).padStart(2, '0'), {
+/** Main slides are numbered 01, 02…; appendix slides A1, A2…. */
+function nextLabel() {
+  if (section.appendix) {
+    appendixCount += 1
+    return `A${appendixCount}`
+  }
+  mainCount += 1
+  return String(mainCount).padStart(2, '0')
+}
+
+function pageNo(s, label) {
+  s.addText(label, {
     x: W - M - 0.6, y: SLIDE_H - 0.45, w: 0.6, h: 0.25, margin: 0, align: 'right',
     fontFace: H, fontSize: 9, color: MUTED,
   })
 }
 
+function tracker(s) {
+  const opts = { x: W - M - 6.2, y: 0.42, w: 6.2, h: 0.3, margin: 0, align: 'right', fontFace: H, fontSize: 10, charSpacing: 1 }
+  if (section.appendix) {
+    s.addText('APPENDIX  ·  FOR REFERENCE', { ...opts, bold: true, color: MUTED })
+    return
+  }
+  if (!section.chapter) return
+  const runs = []
+  for (const [i, chapter] of CHAPTERS.entries()) {
+    const current = chapter === section.chapter
+    runs.push({ text: chapter, options: { bold: current, color: current ? BLUE : 'A3ADBF' } })
+    if (i < CHAPTERS.length - 1) runs.push({ text: '   ', options: {} })
+  }
+  s.addText(runs, opts)
+}
+
 /** Every content slide: white ground, a saffron eyebrow, a large navy title,
- * a quiet page number. The variation belongs in the body. */
+ * the chapter tracker and a quiet page number. The variation belongs in the body. */
 function frame({ eyebrow, title, notes, background = WHITE }) {
-  pageNumber += 1
+  const label = nextLabel()
   const s = pres.addSlide()
   s.background = { color: background }
-  s.addText(eyebrow.toUpperCase(), {
-    x: M, y: 0.42, w: CW, h: 0.3, margin: 0,
+  const prefix = section.appendix ? `${label}  ·  ` : ''
+  s.addText((prefix + eyebrow).toUpperCase(), {
+    x: M, y: 0.42, w: CW - 6.3, h: 0.3, margin: 0,
     fontFace: H, fontSize: 11, bold: true, color: SAFFRON_TEXT, charSpacing: 3,
   })
+  tracker(s)
   s.addText(title, {
     x: M, y: 0.74, w: CW, h: 0.8, margin: 0, valign: 'top',
     fontFace: H, fontSize: 32, bold: true, color: INK,
   })
-  pageNo(s)
+  pageNo(s, label)
   if (notes) s.addNotes(notes)
   return s
 }
@@ -193,7 +227,7 @@ async function chip(s, { icon: name, label, x, y, w, color = BLUE }) {
 // --- slides -------------------------------------------------------------------
 
 async function titleSlide() {
-  pageNumber += 1
+  nextLabel()
   const s = pres.addSlide()
   s.background = { color: WHITE }
   // Right half: the product, on the console's own tint.
@@ -224,7 +258,7 @@ async function titleSlide() {
     x: M + 0.6, y: 6.38, w: 5.6, h: 0.3, fontSize: 13, color: MUTED,
   })
   s.addNotes(
-    'Open with the outcome, not the technology. "Sentinel lets an officer type a registration number and see where that vehicle went, across every government camera, in seconds — and be told the moment it is seen again." If the jury gives the vehicle number now, go straight to the demonstration (slide 7) and come back.',
+    'Open with the outcome, not the technology. "Sentinel lets an officer type a registration number and see where that vehicle went, across every government camera, in seconds — and be told the moment it is seen again." Two sentences, then move: this room has heard many pitches. If the jury gives the vehicle number now, go straight to the demonstration (slide 5) and come back.',
   )
 }
 
@@ -294,71 +328,54 @@ async function teamSlide() {
   }
 }
 
-async function challengeSlide() {
+async function problemSlide() {
   const s = frame({
     eyebrow: 'The challenge',
-    title: 'When a vehicle disappears, every minute counts',
-    notes: 'Paint the picture for the non-technical members of the jury. Gujarat already has the cameras — around eighty thousand of them across twenty-six departments. What it does not have is a way to use them together. When a stolen car leaves Ahmedabad for Rajkot, tracing it is phone calls, separate logins and manual review, while the footage quietly ages out after a week or two.',
+    title: 'The cameras exist. They don’t work together.',
+    notes: 'Speak to the officers first. Gujarat already has about eighty thousand cameras across twenty-six departments — Home, Civil Supplies, RTO and the rest. What it lacks is a way to use them together. When a vehicle is used in a crime, tracing it is phone calls to each department, separate logins and manual review, while the footage is overwritten within a week or two. The right-hand side is what the next eighteen minutes show.',
   })
   const stats = [
-    ['~80,000', 'cameras already installed across the State', 'LuCamera'],
-    ['26', 'departments, each with its own system', 'LuBuilding2'],
+    ['~80,000', 'cameras already installed', 'LuCamera'],
+    ['26', 'departments, each its own system', 'LuBuilding2'],
     ['7–15', 'days before footage is overwritten', 'LuHourglass'],
-    ['~1,000', 'km between the farthest camera sites', 'LuMap'],
+    ['~1,000', 'km between the farthest sites', 'LuMap'],
   ]
-  const cw = (CW - 3 * 0.3) / 4
+  const sw = (CW - 3 * 0.3) / 4
   for (const [i, [value, label, ic]] of stats.entries()) {
-    const x = M + i * (cw + 0.3)
-    card(s, x, 1.9, cw, 2.55)
-    await badge(s, ic, x + 0.3, 2.15, 0.52)
-    text(s, value, { x: x + 0.3, y: 2.85, w: cw - 0.6, h: 0.8, fontFace: H, fontSize: 38, bold: true, color: SAFFRON })
-    text(s, label, { x: x + 0.3, y: 3.7, w: cw - 0.6, h: 0.6, fontSize: 14, color: MUTED })
+    const x = M + i * (sw + 0.3)
+    card(s, x, 1.75, sw, 1.2)
+    await badge(s, ic, x + 0.25, 2.07, 0.56)
+    text(s, value, { x: x + 0.98, y: 1.88, w: sw - 1.15, h: 0.55, fontFace: H, fontSize: 26, bold: true, color: SAFFRON })
+    text(s, label, { x: x + 0.98, y: 2.42, w: sw - 1.15, h: 0.45, fontSize: 12, color: MUTED })
   }
-  panel(s, M, 4.85, CW, 1.65, 'FFF4EC', 'F6D9C4')
-  await badge(s, 'LuPhoneCall', M + 0.35, 5.33, 0.7, RED)
-  text(s, 'Today: a stolen car leaves Ahmedabad for Rajkot.', {
-    x: M + 1.3, y: 5.15, w: CW - 1.6, h: 0.45, fontFace: H, fontSize: 20, bold: true,
-  })
-  text(s, 'Tracing it means phone calls to several departments — each with its own viewer, its own login and its own retention — while the footage ages out and the vehicle moves on.', {
-    x: M + 1.3, y: 5.62, w: CW - 1.6, h: 0.7, fontSize: 15, color: MUTED,
-  })
-}
-
-async function beforeAfterSlide() {
-  const s = frame({
-    eyebrow: 'What changes',
-    title: 'From phone calls to one search',
-    notes: 'This is the whole pitch on one slide. Read the right-hand column. Nothing on the left is replaced — every department keeps its cameras and its system — Sentinel sits across them.',
-  })
   const rows = [
+    ['A vehicle is traced by phoning departments, one by one', 'One search traces it across every department’s cameras'],
     ['26 systems, 26 logins, no shared map', 'Every camera on one map, behind one login'],
-    ['A vehicle traced by phoning departments', 'Type a plate; see its route and evidence in seconds'],
-    ['Watchlists checked by hand, if at all', 'Every plate read is checked automatically, around the clock'],
-    ['Footage ages out before anyone asks', 'Sightings stay searchable, with the frame as evidence'],
-    ['Integration means replacing systems', 'Works with the cameras and VMS already installed'],
+    ['Footage is overwritten before anyone asks for it', 'Each sighting is kept, with its frame as evidence'],
   ]
   const colW = 5.55
-  const leftX = M
+  const top = 3.25
+  const ph = 3.6
   const rightX = W - M - colW
-  panel(s, leftX, 1.85, colW, 4.95, SOFT)
-  panel(s, rightX, 1.85, colW, 4.95, TINT, 'C9D7F7')
-  text(s, 'Today', { x: leftX + 0.35, y: 2.05, w: 3, h: 0.4, fontFace: H, fontSize: 18, bold: true, color: MUTED })
-  text(s, 'With Sentinel', { x: rightX + 0.35, y: 2.05, w: 3, h: 0.4, fontFace: H, fontSize: 18, bold: true, color: BLUE })
+  panel(s, M, top, colW, ph, SOFT)
+  panel(s, rightX, top, colW, ph, TINT, 'C9D7F7')
+  text(s, 'Today', { x: M + 0.35, y: top + 0.25, w: 3, h: 0.4, fontFace: H, fontSize: 18, bold: true, color: MUTED })
+  text(s, 'With Sentinel', { x: rightX + 0.35, y: top + 0.25, w: 3, h: 0.4, fontFace: H, fontSize: 18, bold: true, color: BLUE })
   for (const [i, [before, after]] of rows.entries()) {
-    const y = 2.65 + i * 0.8
-    await badge(s, 'LuX', leftX + 0.35, y, 0.38, 'B8C0CE')
-    text(s, before, { x: leftX + 0.9, y: y - 0.02, w: colW - 1.2, h: 0.45, fontSize: 15, color: MUTED, valign: 'middle' })
-    await badge(s, 'LuCheck', rightX + 0.35, y, 0.38, BLUE)
-    text(s, after, { x: rightX + 0.9, y: y - 0.02, w: colW - 1.2, h: 0.45, fontSize: 15, bold: true, valign: 'middle' })
+    const y = top + 0.95 + i * 0.85
+    await badge(s, 'LuX', M + 0.35, y + 0.08, 0.38, 'B8C0CE')
+    text(s, before, { x: M + 0.9, y, w: colW - 1.2, h: 0.55, fontSize: 15, color: MUTED, valign: 'middle' })
+    await badge(s, 'LuCheck', rightX + 0.35, y + 0.08, 0.38, BLUE)
+    text(s, after, { x: rightX + 0.9, y, w: colW - 1.2, h: 0.55, fontSize: 15, bold: true, valign: 'middle' })
   }
-  await badge(s, 'LuArrowRight', W / 2 - 0.3, 4.03, 0.6, SAFFRON)
+  await badge(s, 'LuArrowRight', W / 2 - 0.3, top + ph / 2 - 0.3, 0.6, SAFFRON)
 }
 
 async function platformSlide() {
   const s = frame({
     eyebrow: 'The platform',
     title: 'One platform, three jobs',
-    notes: 'Three jobs, one console. See: every camera from every department on one map and one live wall, with its health. Find: any vehicle by its plate — route, evidence and a report you can hand over. Alert: stolen, wanted and missing vehicles are checked against every read, and officers are told immediately.',
+    notes: 'One idea per column, in plain words. See: every camera, from every department, on one map and one live wall. Find: any vehicle by its plate — the route, the evidence at every stop, and a report for the case file. Alert: stolen, wanted and missing vehicles flagged the moment any camera reads them. Each job maps to a role the officers in the room already command.',
   })
   const jobs = [
     ['LuMonitor', 'See', 'Every camera, from every department, on one map and one live wall — with its health at a glance.', 'Control rooms'],
@@ -417,9 +434,10 @@ async function audienceSlide() {
 }
 
 async function demoSlide() {
-  pageNumber += 1
+  const label = nextLabel()
   const s = pres.addSlide()
   s.background = { color: TINT }
+  tracker(s)
   text(s, 'LIVE DEMONSTRATION', { x: M, y: 0.9, w: CW, h: 0.35, fontFace: H, fontSize: 13, bold: true, color: SAFFRON_TEXT, charSpacing: 4 })
   text(s, 'On today’s cameras, in front of you', { x: M, y: 1.3, w: CW, h: 0.9, fontFace: H, fontSize: 40, bold: true })
   const steps = [
@@ -436,16 +454,16 @@ async function demoSlide() {
     text(s, title, { x: x + 0.35, y: 4.25, w: cw - 0.7, h: 0.5, fontFace: H, fontSize: 20, bold: true })
     text(s, body, { x: x + 0.35, y: 4.8, w: cw - 0.7, h: 1.2, fontSize: 15, color: MUTED })
   }
-  text(s, 'If the venue network fails, we say which fallback we are on: our own cameras, then a recorded copy of the government grid.', {
+  text(s, 'If the venue network fails, we say which fallback we are on: our own cameras, then a recorded copy of the government grid. Screens of each step are in Appendix A2–A4.', {
     x: M, y: 6.5, w: CW, h: 0.4, fontSize: 13, color: MUTED, italic: true,
   })
-  pageNo(s)
-  s.addNotes('Say what you will do before you do it. The narrator faces the jury; the driver only clicks. If the vehicle number was already given, run step 2 first.')
+  pageNo(s, label)
+  s.addNotes('About seven minutes, live. Say what you will do before you do it; the narrator faces the jury and the driver only clicks. If the vehicle number was already given, run step 2 first. For the officers, narrate it as an investigation: the number comes in, the route comes out, the report goes into the case file. For the professors, name the method at each step in one sentence — the camera’s own clock, the speed check, the hash-sealed report.')
 }
 
 async function connectSlide() {
   const s = frame({
-    eyebrow: '1 · Connect and see',
+    eyebrow: 'Demo backup · Connect and see',
     title: 'Works with the cameras you already have',
     notes: 'Nothing is replaced and nothing is installed on a department’s system. A camera list, a device on the network or a department’s catalogue — each is onboarded in minutes and appears on the map and the live wall. For the technical jury: RTSP, ONVIF, Hikvision and Dahua drivers; one connection per camera however many people watch; credentials never reach a browser.',
   })
@@ -466,7 +484,7 @@ async function connectSlide() {
 
 async function traceSlide() {
   const s = frame({
-    eyebrow: '2 · Trace the vehicle',
+    eyebrow: 'Demo backup · Trace the vehicle',
     title: 'Type a plate. See where it went.',
     notes: 'Type the number — spacing and case do not matter. Every sighting appears on the map and the timeline, in the order the cameras’ own clocks give. Open a stop: the camera, the time printed on the frame, the plate as read, the snapshot with faces blurred. Arm a watch for future sightings. Then export the Movement Report and hand it over.',
   })
@@ -489,7 +507,7 @@ async function traceSlide() {
 
 async function alertSlide() {
   const s = frame({
-    eyebrow: '3 · Get alerted',
+    eyebrow: 'Demo backup · Get alerted',
     title: 'Flagged the moment it is seen',
     notes: 'Every plate any camera reads is checked against the watchlist — stolen, wanted, missing — automatically. A match raises a prioritised alert on every open console and on officers’ phones, with a sound, and repeat sightings at a red light do not flood anyone. It also catches the misreads cameras make: a zero read as an O, a one as an I. Anything less than an exact match is shown as probable, for an officer to confirm on the frame.',
   })
@@ -522,14 +540,14 @@ async function trustSlide() {
   const s = frame({
     eyebrow: 'Evidence and privacy',
     title: 'Evidence that holds up. Privacy by default.',
-    notes: 'For the legal and leadership side of the room. The time we report is the time the camera printed on its own frame — and if it cannot be read, we say “time unknown” rather than guess. Faces are blurred by default; revealing one needs a reason and is logged. Every search, export and reveal is in a tamper-evident log. We do no face recognition at all.',
+    notes: 'This is the slide for both halves of the room. For the officers: the time in the report is the time printed on the camera’s own frame, and if it cannot be read we say “time unknown” rather than guess — a record that holds up under cross-examination. Every search, export and reveal is logged in a hash chain; change one entry and verification fails. For the professors: the clock reading is accepted only when a second reading agrees, and exports carry a SHA-256 manifest. And we do no face recognition at all — faces are detected only to be blurred. If time allows, show Admin, then Audit, then Verify chain.',
   })
   const shot = await crop('time-unknown', { x: 818, y: 422, w: 765, h: 520 })
   screenshot(s, shot, M + 6.95, 1.9, CW - 7.0)
   const items = [
     ['LuClock', 'The time on the frame is the time in the report', 'Read from the camera’s own clock. If it cannot be read, we say “time unknown” — never a guess.'],
     ['LuEyeOff', 'Faces blurred by default', 'Seeing an original needs a stated reason, and is recorded.'],
-    ['LuFingerprint', 'A log no one can quietly edit', 'Every search, export and reveal. Change one entry and verification fails.'],
+    ['LuFingerprint', 'A chain of custody no one can quietly edit', 'Every search, export and reveal is logged and hash-chained; reports carry a SHA-256 manifest.'],
     ['LuKeyRound', 'Each department sees its own', 'Access scoped in the database itself; private cameras only with current consent.'],
   ]
   for (const [i, [ic, title, body]] of items.entries()) {
@@ -573,7 +591,7 @@ async function approachSlide() {
   const s = frame({
     eyebrow: 'Our approach',
     title: 'A hybrid of the four reference models',
-    notes: 'This answers “which model, and why”. We built a hybrid. Model 1’s registry and GIS is the foundation every other part stands on. Model 2 gives one console that views and analyses every accessible stream. Model 3’s adapters mean no department changes its system — a new vendor is a driver, not a release. And Model 4’s central recording is used only where it pays off: critical cameras and alert clips. We do not centralise everything, and the next slide shows why.',
+    notes: 'This answers the brief’s “which model, and why”. A hybrid. Model 1’s registry and GIS is the foundation everything stands on. Model 2 gives one console that views and analyses every accessible stream. Model 3’s adapters mean no department changes its system — a new vendor is a driver, not a release. Model 4’s central recording is used only where it pays off. The next slide is the reason we do not centralise everything.',
   })
   const models = [
     ['Model 1', 'Registry & GIS', 'Every camera on one map, with health, coverage gaps and an ageing-asset work list.', 'The foundation every other part stands on.', 'LuMap', 'Foundation'],
@@ -611,7 +629,7 @@ async function efficiencySlide() {
   const s = frame({
     eyebrow: 'Why it scales',
     title: 'Send meaning, not video',
-    notes: 'This is why the design scales where others cannot. Pulling every camera’s video to one centre would need a 160-gigabit backbone from sites a thousand kilometres apart, and petabytes of storage for a single week. Sentinel reads plates in the district where the video is filmed and sends only what it found — a few kilobytes per sighting. And if a district’s link drops, it keeps reading and alerting locally.',
+    notes: 'For the professors, this is the argument the design rests on; for the officers, it is why it will work in Dahod and Dwarka, not only in Ahmedabad. Pulling every camera’s video to one centre needs about 160 gigabits a second sustained, from sites up to a thousand kilometres apart, and petabytes of storage for a single week. Reading plates where the video is filmed and sending only what was found needs about 140 megabits — roughly a thousand times less — and a district that loses its link keeps reading and alerting for up to three days. Every figure here re-derives from five formulas in our scale plan.',
   })
   const rows = [
     ['LuNetwork', 'Network backbone, statewide', '160 Gbps', '≈140 Mbps', '~1,000× less'],
@@ -644,7 +662,7 @@ async function architectureSlide() {
   const s = frame({
     eyebrow: 'How it works at 80,000 cameras',
     title: 'Five layers, each doing one job',
-    notes: 'For the technical jury, bottom to top. Cameras, tiered by how much analysis they need. Department systems stay — we pull read-only. Each district decodes and analyses its own video and queues what it finds if its link drops. The state core is about search and storage, not throughput, with a warm disaster-recovery site. And the consumers: control rooms, the field app and the national and state databases. What you saw today is the district layer, on a laptop: the same code.',
+    notes: 'Bottom to top, one sentence each. Cameras, tiered by how much analysis they need. Department systems stay as they are; we pull read-only. Each district decodes and analyses its own video and queues what it finds if its link drops. The state core does search, storage and alerts, with a warm disaster-recovery site. At the top, the control rooms, the field app and the State’s databases. What you just saw is the district layer running on a laptop — the same code.',
   })
   const layers = [
     ['Consumers', 'Command centres · Field app · VAHAN · SARTHI · eGujCop · AFIS · NAFIS', 'Live alerts · open APIs', 'LuUsers', false],
@@ -725,7 +743,7 @@ async function costSlide() {
   const s = frame({
     eyebrow: 'Estimated cost',
     title: 'What it takes to run statewide',
-    notes: 'The brief asks for estimated implementation and operational costs, so here they are — order of magnitude, for comparing approaches, not a tender. About eighty crore to build and about twenty-four crore a year to run, for eighty thousand cameras: roughly ten thousand rupees a camera to build and three thousand a year to run. The biggest line is the district analysis servers, and it moves with tiering — the department controls its own cost. No software licences: the stack is open source. Centralising every camera is conservatively four hundred crore to build before its higher running cost, because it buys a backbone and storage the State would otherwise not need. And the saving comes from reuse: no camera, recorder or VMS is replaced. The pilot replaces every estimate here with a measured number.',
+    notes: 'The brief asks for estimated costs, so we show them — and say “order of magnitude” before the first number. About eighty crore to build and twenty-four crore a year to run for eighty thousand cameras: roughly ten thousand rupees a camera to build and three thousand a year to run. The largest line, district servers, follows from the camera tiering in Appendix A6, which is our planning assumption until departments’ inventories replace it. No software licences. Centralising every camera is conservatively four hundred crore to build. The saving is reuse: nothing installed is replaced. The pilot replaces every estimate with a measured number.',
   })
   s.addChart(pres.charts.BAR, [{
     name: 'Capex',
@@ -779,7 +797,7 @@ async function whySlide() {
   const s = frame({
     eyebrow: 'Why Sentinel',
     title: 'What sets Sentinel apart',
-    notes: 'This is the answer to “why you”. Three things, each with its proof. One: it is already proven on Gujarat’s own cameras — we connected the government grid from its live catalogue and measured plate reading on its footage, not on demo videos. Two: the evidence holds up — every time is the camera’s own, every stop has its frame, nothing is ever guessed, and the record cannot be quietly changed. Three: it fits what Gujarat already owns — any vendor, nothing replaced, analysis in each district so it keeps working when links drop. Then point at the strip: Gujarati, the State’s databases, open standards, and no face recognition.',
+    notes: 'The answer to “why you”, in three claims, each with its proof. Proven on Gujarat’s own cameras — the government grid, its footage, its plates. Evidence that holds up — the camera’s own clock, the frame at every stop, a record no one can quietly change. Fits what Gujarat already owns — any vendor, nothing replaced, analysis in each district. Then read the stated-plainly line aloud: the professors will respect it, and the officers will trust the rest more for it.',
   })
   panel(s, M, 1.7, CW, 0.95, TINT, 'C9D7F7')
   text(s, 'Sentinel traces a vehicle across every department’s cameras — on the systems Gujarat already owns, with evidence that holds up.', {
@@ -809,18 +827,12 @@ async function whySlide() {
     text(s, 'Proof', { x: x + 0.7, y: y + 2.17, w: 1.5, h: 0.3, fontFace: H, fontSize: 11, bold: true, color: TEAL, valign: 'middle' })
     text(s, proof, { x: x + 0.3, y: y + 2.52, w: cw - 0.6, h: 0.78, fontSize: 12, color: MUTED })
   }
-  const extras = [
-    ['LuLanguages', 'English, Hindi and Gujarati'],
-    ['LuPlugZap', 'VAHAN, eGujCop and more: ready'],
-    ['LuLockOpen', 'Open standards, no lock-in'],
-    ['LuEyeOff', 'No face recognition'],
-  ]
-  const ew = CW / 4
-  for (const [i, [ic, label]] of extras.entries()) {
-    const x = M + i * ew
-    await badge(s, ic, x, 6.55, 0.4, TEAL)
-    text(s, label, { x: x + 0.52, y: 6.55, w: ew - 0.6, h: 0.4, fontSize: 12, bold: true, valign: 'middle' })
-  }
+  panel(s, M, 6.45, CW, 0.62, 'FDF1DF', 'F5D6A6')
+  await badge(s, 'LuMessageSquareText', M + 0.15, 6.53, 0.46, SAFFRON)
+  text(s, [
+    { text: 'Stated plainly:  ', options: { bold: true, color: SAFFRON_TEXT } },
+    { text: 'plate accuracy is 78%, below our 85% target  ·  compute is sized from vendor benchmarks  ·  plate-less matching is designed, not built.', options: { color: INK } },
+  ], { x: M + 0.75, y: 6.47, w: CW - 0.9, h: 0.58, fontSize: 12.5, valign: 'middle' })
 }
 
 async function compareSlide() {
@@ -931,56 +943,103 @@ async function rolloutSlide() {
   }
 }
 
-async function askSlide() {
-  pageNumber += 1
-  const s = pres.addSlide()
-  s.background = { color: TINT }
-  text(s, 'THE NEXT STEP', { x: M, y: 0.8, w: CW, h: 0.35, fontFace: H, fontSize: 13, bold: true, color: SAFFRON_TEXT, charSpacing: 4 })
-  text(s, 'Start with a 90-day pilot in one district', { x: M, y: 1.2, w: CW, h: 0.85, fontFace: H, fontSize: 36, bold: true })
-  const asks = [
-    ['LuClipboardList', 'A camera inventory', 'One template per department: cameras, recorders, network, locations — and whether each feed shows the date and time.'],
-    ['LuLink', 'Read-only access', 'To the streams or each VMS. Nothing installed on department infrastructure.'],
-    ['LuKeyRound', 'Database access', 'When ready: VAHAN, SARTHI, eGujCop, AFIS, NAFIS — switched on as a setting the day it is granted.'],
+async function nextSlide() {
+  const s = frame({
+    eyebrow: 'The next step',
+    title: 'Start with one district. Grow without a switch-over.',
+    background: TINT,
+    notes: 'Close calmly. Each phase is useful on its own — a district pilot in three months, then four districts, then every district, then consented private cameras — and none needs a big-bang cutover. To begin we need three things: each department’s camera inventory, read-only access, and database access when it is ready. Then the line, and stop talking. Hand over the Movement Report from the demonstration if it has not been handed over already.',
+  })
+  const phases = [
+    ['Pilot', '0–3 months', '~500 cameras', '1 district, 2 departments', true],
+    ['Expand', '3–9 months', '~5,000 cameras', '4 districts, 6 departments', false],
+    ['Statewide', '9–21 months', '~30,000 cameras', 'All 34 districts', false],
+    ['Complete', '21–36 months', '80,000 cameras', 'Plus consented private cameras', false],
   ]
-  const cw = (CW - 2 * 0.35) / 3
-  for (const [i, [ic, title, body]] of asks.entries()) {
-    const x = M + i * (cw + 0.35)
-    card(s, x, 2.45, cw, 2.9)
-    await badge(s, ic, x + 0.35, 2.75, 0.66)
-    text(s, title, { x: x + 0.35, y: 3.6, w: cw - 0.7, h: 0.55, fontFace: H, fontSize: 18, bold: true })
-    text(s, body, { x: x + 0.35, y: 4.18, w: cw - 0.7, h: 1.0, fontSize: 14, color: MUTED })
+  const pw = (CW - 3 * 0.3) / 4
+  for (const [i, [name, when, count, scope, pilot]] of phases.entries()) {
+    const x = M + i * (pw + 0.3)
+    card(s, x, 1.75, pw, 1.35)
+    text(s, `${name}  ·  ${when}`, { x: x + 0.25, y: 1.88, w: pw - 0.5, h: 0.3, fontFace: H, fontSize: 12, bold: true, color: pilot ? SAFFRON_TEXT : BLUE })
+    text(s, count, { x: x + 0.25, y: 2.2, w: pw - 0.5, h: 0.45, fontFace: H, fontSize: 19, bold: true })
+    text(s, scope, { x: x + 0.25, y: 2.67, w: pw - 0.5, h: 0.35, fontSize: 12, color: MUTED })
   }
-  text(s, 'Type a plate. See where it went.', { x: M, y: 5.7, w: CW, h: 0.8, fontFace: H, fontSize: 34, bold: true, color: BLUE })
-  text(s, 'Thank you — questions welcome.', { x: M, y: 6.5, w: CW, h: 0.45, fontSize: 18, color: MUTED })
-  pageNo(s)
-  s.addNotes('Close on the ask, then the line. Hand over the Movement Report from the demonstration if it has not been handed over already. Questions: see docs/13-SHOWCASE-PREP.md §10.')
+  text(s, 'To begin the pilot, we need', { x: M, y: 3.35, w: CW, h: 0.4, fontFace: H, fontSize: 16, bold: true })
+  const asks = [
+    ['LuClipboardList', 'Each department’s camera inventory', 'Cameras, recorders, network, locations — and whether each feed shows the date and time.'],
+    ['LuLink', 'Read-only access', 'To the streams or each VMS. Nothing installed on department infrastructure.'],
+    ['LuKeyRound', 'Database access, when ready', 'VAHAN, SARTHI, eGujCop, AFIS, NAFIS — switched on as a setting the day it is granted.'],
+  ]
+  const aw = (CW - 2 * 0.3) / 3
+  for (const [i, [ic, title, body]] of asks.entries()) {
+    const x = M + i * (aw + 0.3)
+    card(s, x, 3.8, aw, 1.75)
+    await badge(s, ic, x + 0.25, 4.05, 0.56)
+    text(s, title, { x: x + 0.95, y: 4.02, w: aw - 1.15, h: 0.62, fontFace: H, fontSize: 15, bold: true, valign: 'middle' })
+    text(s, body, { x: x + 0.95, y: 4.68, w: aw - 1.15, h: 0.8, fontSize: 12.5, color: MUTED })
+  }
+  text(s, 'Type a plate. See where it went.', { x: M, y: 5.85, w: CW, h: 0.7, fontFace: H, fontSize: 32, bold: true, color: BLUE })
+  text(s, 'Thank you — questions welcome.', { x: M, y: 6.55, w: CW, h: 0.4, fontSize: 16, color: MUTED })
+}
+
+const APPENDIX = [
+  ['A1', 'Who it serves', 'Operator, investigator, patrol, leadership; field app'],
+  ['A2', 'Demo backup — connect and see', 'The live wall on government footage'],
+  ['A3', 'Demo backup — trace the vehicle', 'A route timed by the camera’s own clock'],
+  ['A4', 'Demo backup — get alerted', 'A watchlist alert and how misreads are caught'],
+  ['A5', 'Beyond number plates', 'Vehicle type and colour, people counts, zones, tamper'],
+  ['A6', 'Camera tiering at 80,000', 'The planning split behind compute and cost'],
+  ['A7', 'How Sentinel compares', 'Against separate systems and full centralisation'],
+  ['A8', 'Measured results', 'Accuracy, capacity, tests and the DR drill'],
+  ['A9', 'Rollout in detail', 'Each phase with its exit criteria'],
+]
+
+async function appendixDivider() {
+  const s = pres.addSlide()
+  s.background = { color: SOFT }
+  text(s, 'APPENDIX', { x: M, y: 0.9, w: CW, h: 0.35, fontFace: H, fontSize: 13, bold: true, color: SAFFRON_TEXT, charSpacing: 4 })
+  text(s, 'For reference and questions', { x: M, y: 1.3, w: CW, h: 0.8, fontFace: H, fontSize: 36, bold: true })
+  const cw = (CW - 0.4) / 2
+  for (const [i, [label, title, body]] of APPENDIX.entries()) {
+    const col = i < 5 ? 0 : 1
+    const row = i < 5 ? i : i - 5
+    const x = M + col * (cw + 0.4)
+    const y = 2.45 + row * 0.9
+    card(s, x, y, cw, 0.74)
+    text(s, label, { x: x + 0.25, y: y + 0.12, w: 0.7, h: 0.5, fontFace: H, fontSize: 18, bold: true, color: BLUE, valign: 'middle' })
+    text(s, title, { x: x + 1.0, y: y + 0.08, w: cw - 1.2, h: 0.32, fontFace: H, fontSize: 14, bold: true })
+    text(s, body, { x: x + 1.0, y: y + 0.4, w: cw - 1.2, h: 0.3, fontSize: 12, color: MUTED })
+  }
+  s.addNotes('Not presented. Jump here from a question: each appendix slide is numbered A1–A9 in its corner.')
 }
 
 async function main() {
-  await titleSlide()
-  await teamSlide()
-  await challengeSlide()
-  await beforeAfterSlide()
-  await platformSlide()
-  await audienceSlide()
-  await demoSlide()
-  await connectSlide()
-  await traceSlide()
-  await alertSlide()
-  await trustSlide()
-  await beyondSlide()
-  await approachSlide()
-  await efficiencySlide()
-  await architectureSlide()
-  await tieringSlide()
-  await costSlide()
-  await whySlide()
-  await compareSlide()
-  await proofSlide()
-  await rolloutSlide()
-  await askSlide()
+  const story = [
+    [null, titleSlide],
+    [null, teamSlide],
+    ['Why', problemSlide],
+    ['What', platformSlide],
+    ['Demo', demoSlide],
+    ['Trust', trustSlide],
+    ['How', approachSlide],
+    ['How', efficiencySlide],
+    ['How', architectureSlide],
+    ['Value', costSlide],
+    ['Value', whySlide],
+    ['Next', nextSlide],
+  ]
+  for (const [chapter, build] of story) {
+    section.chapter = chapter
+    await build()
+  }
+  section.chapter = null
+  section.appendix = true
+  await appendixDivider()
+  for (const build of [audienceSlide, connectSlide, traceSlide, alertSlide, beyondSlide, tieringSlide, compareSlide, proofSlide, rolloutSlide]) {
+    await build()
+  }
   await pres.writeFile({ fileName: OUT })
-  console.log(`wrote ${OUT} (${pageNumber} slides)`)
+  console.log(`wrote ${OUT} (${mainCount} main slides, appendix A1–A${appendixCount})`)
 }
 
 main().catch((error) => {
