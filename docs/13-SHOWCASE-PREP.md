@@ -68,7 +68,7 @@ the one to rehearse.
 |---|---|---|---|---|
 | Onboard ~50 cameras across departments, technologies, formats and VMS | CSV import with a dry run; ONVIF, Hikvision and Dahua device discovery; catalogue sync; registry with department, location and tier | Slide 04 · Demo 1 (backup 12): Cameras map | **Built** — all 30 sandbox cameras onboarded from the live catalogue; H.264 and H.265, 720p to 1440p | Unseen network, credentials and ports (runbook §4) |
 | Integrate the live feeds; centralised monitoring | Live wall (focus, 2×2, 3×3, 4×4) through the local relay, one upstream pull per camera; Health screen with fps and lag | Slide 04 · Demo 1 (backup 05): Live Wall, Health | **Built** | H.265 does not play in Chrome (use Safari or an H.264 profile); laptop CPU when preview and ANPR compete |
-| AI-powered video analytics | ANPR with multi-frame voting; vehicle class and colour; people counts; zone rules; tamper | Demo 2–3; 11, A5 | **Built** — 78% exact plates after the vote | Plates too small on wide-angle cameras (§6.2) |
+| AI-powered video analytics | ANPR with multi-frame voting; vehicle class and colour; people counts; zone rules; tamper | Demo 2–3; 11, A5 | **Built** — 80.5% exact plates after the vote | Plates too small on wide-angle cameras (§6.2) |
 | Identify and trace the designated vehicle from its registration number | Find a Vehicle: exact, look-alike and one-character-off matching; 24 h / 48 h / 7 d windows | Slide 04 · Demo 2 (backup 07) | **Built** | **The vehicle passes a camera we were not analysing** (§6.1–6.2) |
 | Complete route with timestamped, location-wise movement history | Map and timeline ordered by each camera's own clock; Movement Report (PDF, CSV, evidence frames, SHA-256 manifest) | Slide 04 · Demo 2 (backup 07): Export report | **Built** | A camera with no readable date-time overlay gives *time unknown* stops; one without coordinates is not mapped. Ask the organisers (runbook §1) |
 | Continuous cross-referencing with a watchlist; automated real-time alerts | Every confirmed read matched against the watchlist; alert banner and sound on every console within a second; field app | Slide 04 · Demo 3 (backup 08) | **Built** | "Real-time" wording: a read is confirmed after several frames agree (§2 item 1) |
@@ -196,7 +196,7 @@ Ordered by how badly each could hurt in front of the jury.
 | 1 | **Latency wording is inconsistent.** [04-SCALE-PLAN §7](./04-SCALE-PLAN.md) sets a pilot exit criterion of "alert latency < 5 s"; the [M14 run](../evidence/M14-EVIDENCE-RUN.md) measured **27.4 s median, 86.6 s p90** from scene time to stored detection (archived replays through a remote gateway, with temporal voting). | A juror who reads both will ask. | Measure on the M4 with the local synthetic grid. Say it precisely: *"An alert reaches every console within a second of a confirmed read. A read is confirmed after several frames agree — that is a deliberate choice for evidence quality; it is near-real-time for investigation, not boom-gate control."* Consider amending the pilot criterion to "< 5 s from confirmed read to operator". |
 | 2 | **Analysis capacity vs ~50 cameras.** Measured edge on the M2 is ~16 analysed fps in total ([tier capacity](../evidence/TIER-CAPACITY.md)). Fifty cameras at 4 fps would need 200 fps. | If the designated vehicle passes an un-analysed camera, the route has a hole we cannot explain away. | Plate-yield triage on arrival (§6.2), then start analysis immediately and keep it running all day. |
 | 3 | **Cross-camera has only ever been shown with one camera's sightings.** | It is the headline capability. | Own-car, three-camera drill before Monday (§0 item 2, §6.5). Record it as the fallback video. |
-| 4 | **ANPR accuracy is 78% after the vote**, below the 85% gate. | "Is it good enough for evidence?" | Own it: the holdout, the method, the 8.6% → 78% story, and that every hop carries a snapshot an officer confirms. Never claim a higher number. |
+| 4 | **ANPR accuracy is 80.5% after the vote**, below the 85% gate. | "Is it good enough for evidence?" | Own it: the holdout, the method, the 8.6% → 80.5% story, and that every hop carries a snapshot an officer confirms. Never claim a higher number. |
 | 5 | **The L4 300 fps/GPU figure is a vendor-benchmark estimate**, not measured. | The whole GPU count (≈560 L4) rests on it. | Say "estimated, and re-derivable": show the formula in [04 §9](./04-SCALE-PLAN.md) and offer a pilot-phase benchmark as Phase 0's first exit criterion. |
 | 6 | ~~README screenshots predate the UI redesign.~~ | Slides must show the product they are about to see. | **Done (12 Oct):** pitch deck rebuilt around the live trace and recaptured (`npm run screenshots:pitch`, `make pitch`); README set (`npm run screenshots`) recaptured from the gate-board console on the mirror. The submission deck (`make deck`) still shows the earlier screens. |
 | 7 | ~~Uncommitted mirror work~~ (`scripts/gov_mirror.py`, `SOURCE=mirror`). | The sandbox grid is being taken down; the mirror is our only copy of real government footage. | **Done:** committed 10 Oct (`7f01c44`); all 30 cameras recorded to `data/gov-mirror/` (gitignored — copy it to the M4 by hand). |
@@ -238,7 +238,7 @@ explains why the result can be trusted and scaled.
   *"the clock is read off the frame and accepted only when a second reading agrees; when it can't be
   read we say time unknown."* Say the numbers we did not reach before they ask (slide 11).
 - **Grounded numbers only.** Every number on a slide is either from the brief (80,000 cameras, 26
-  departments, 7–15 days), measured by us (78%, 97.7%, 4 × 4 fps, 27–40 s, 5.7 s), or labelled as
+  departments, 7–15 days), measured by us (80.5%, 97.7%, 4 × 4 fps, 27–40 s, 5.7 s), or labelled as
   planning arithmetic (bandwidth, storage, cost). Do not add a number on stage that is not on a slide
   or in the cheat card — in particular, never put an hour figure on today's manual trace.
 
@@ -353,7 +353,7 @@ you: every number we show today, we measured, and we'll tell you where we fell s
 
 **11:00 — Measured, not promised** (slide 11). Read each row as *"we measured that"*, then read the
 stated-plainly panel aloud:
-> "Plate accuracy is 78%, below our own 85% target. It is near-real-time, for investigation, not for
+> "Plate accuracy is 80.5%, below our own 85% target. It is near-real-time, for investigation, not for
 > lifting a boom gate. The grid's footage could not show a multi-camera route; today's trace does. The
 > statewide sizing is arithmetic, not a load test. The government connectors run against mocks until
 > access is granted. And matching a vehicle whose plate is never read is designed, not built."
@@ -608,7 +608,7 @@ work). Additional likely questions:
 | Question | Short answer |
 |---|---|
 | "Is this real-time?" | §2 item 1, word for word. |
-| "Why is accuracy 78%?" | Measured on 81 hand-labelled real government plates, legible ones only; it was 8.6% before the measurement drove the fixes. Every hop shows the snapshot for confirmation. Fine-tuning on Gujarat plates is the Phase 0 work item. |
+| "Why is accuracy 80.5%?" | Measured on 81 hand-labelled real government plates, legible ones only; it was 8.6% before the measurement drove the fixes. Every hop shows the snapshot for confirmation. Fine-tuning on Gujarat plates is the Phase 0 work item. |
 | "What happens with 80,000 cameras when the WAN goes down?" | District edge keeps analysing and alerting locally; 72-hour queue drains on reconnect, alerts first. |
 | "Cloned plates?" | Feasibility gate: the same plate at two places at an impossible speed is flagged as an anomaly, not drawn as a route. |
 | "How do you onboard a new vendor?" | A driver against one interface, verified by the conformance suite — [07 — Driver SDK](./07-DRIVER-SDK.md). |
@@ -665,7 +665,7 @@ Use the highest rung that works, and **say which rung you are on.**
 | Capex / opex / 5-yr TCO | ≈ ₹80 cr / ≈ ₹24 cr/yr / ≈ ₹200 cr |
 | Per camera | ≈ ₹10,000 capex, ≈ ₹3,000/yr opex |
 | Model 4 comparison | ₹400 cr+ capex |
-| ANPR accuracy (measured) | 78% exact after vote (41 vehicles), 88% per character, 81 legible crops |
+| ANPR accuracy (measured) | 80.5% exact after vote (33 of 41 vehicles, 12 Oct), 88.6% per character, 81 legible crops |
 | Camera clock (measured) | 97.7% exact on 87 legible clocks, none wrong; 37% of grid stream-seconds timed |
 | Footage → stored sighting (measured) | median 27–40 s, p90 67–87 s (two evidence runs) |
 | Laptop edge (measured, M2) | ≈ 16 analysed fps total; 4 cameras × 4 fps kept up |

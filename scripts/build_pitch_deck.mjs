@@ -546,7 +546,7 @@ async function readSlide() {
     notes: [
       'Backup for live step 2, and the slide for the professors. One real frame from the government grid, the four things the edge does to it.',
       '1 Detect and track the vehicle (YOLO11n, a Kalman tracker stepped by the video’s own timestamps, not arrival time). 2 Find the plate (YOLOv9-t) and read it (CCT-XS OCR) on several frames, then vote: a plate is committed only when the frames agree and it fits the Indian registration grammar. 3 Read the date and time burned into the frame (PP-OCRv6), accepted only when a second reading agrees. 4 Store one sighting: camera, printed time, plate, frame.',
-      'The numbers are measured on hand-labelled government footage, blind to the OCR’s output. Say the accuracy plainly: 78% of vehicles read exactly after the vote — below our own 85% target. It was 8.6% before we measured; the measurement drove the fixes. Half the plate crops on these wide-angle cameras were unreadable even to a person; no model reads a 20-pixel plate. On-site, that is why we pick cameras by plate yield.',
+      'The numbers are measured on hand-labelled government footage, blind to the OCR’s output. Say the accuracy plainly: 80.5% of vehicles (33 of 41) read exactly after the vote — below our own 85% target. It was 8.6% before we measured; the measurement drove the fixes. If asked about RapidOCR: that reads the camera’s clock (the 97.7%), not plates. Half the plate crops on these wide-angle cameras were unreadable even to a person; no model reads a 20-pixel plate. On-site, that is why we pick cameras by plate yield.',
       'All five models run on ONNX Runtime on this laptop’s CPU, with no internet.',
     ].join('\n\n'),
   })
@@ -595,8 +595,8 @@ async function readSlide() {
     x += col.w + gap
   }
   const stats = [
-    ['78%', 'plates read exactly', '41 vehicles, after the vote'],
-    ['88%', 'plate characters correct', '81 legible plate crops'],
+    ['80.5%', 'plates read exactly', '33 of 41 vehicles, after the vote'],
+    ['88.6%', 'plate characters correct', '81 legible plate crops'],
     ['97.7%', 'camera clocks read exactly', '87 legible clocks · none wrong'],
     ['49 ms', 'to find and read a plate', 'per crop, on a laptop CPU'],
   ]
@@ -608,7 +608,7 @@ async function readSlide() {
     text(s, label, { x: sx + 0.25, y: 5.47, w: sw - 0.5, h: 0.34, fontFace: BB, fontSize: 13 })
     text(s, sub, { x: sx + 0.25, y: 5.82, w: sw - 0.5, h: 0.36, fontSize: 11.5, color: MUTED })
   }
-  source(s, 'Measured on hand-labelled government-grid footage, blind to the OCR. 79 of 160 plate crops were unreadable even to a person and are excluded. 78% is below our own 85% target. evidence/ANPR-ACCURACY.md · evidence/CLOCK-READER-ACCURACY.md', { y: 6.45, w: CW })
+  source(s, 'Measured on hand-labelled government-grid footage, blind to the OCR. 79 of 160 plate crops were unreadable even to a person and are excluded. 80.5% is below our own 85% target. evidence/ANPR-ACCURACY.md · evidence/CLOCK-READER-ACCURACY.md', { y: 6.45, w: CW })
 }
 
 async function traceSlide() {
@@ -740,12 +740,12 @@ async function proofSlide() {
     title: 'Measured, not promised',
     notes: [
       '[11:00–12:30] Say “we measured that” for each row, and read the right-hand panel aloud — the professors will respect it, and the officers will trust the rest more for it.',
-      'Plate accuracy: 78% of 41 vehicles read exactly, on hand-labelled government footage; it started at 8.6% and the measurement drove the fixes. Clock reading: 97.7% exact on 87 frames with a legible clock, with no wrong times. Capacity: on one base M2 laptop, four cameras analysed at 4 frames a second kept up; eight cameras’ worth did not. Latency: median 27–40 s from the moment in the footage to the stored sighting, p90 67–87 s, across two evidence runs — mostly the multi-frame vote, bought on purpose. DR: a million detections restored in 5.7 s, and a tampered audit row caught. 698 backend and 65 browser tests.',
-      'If asked “why 78%?”: the cameras are wide-angle; half of all plate crops were unreadable even to a person. Fine-tuning on Gujarat plates and choosing cameras by plate yield are the pilot’s first work items.',
+      'Plate accuracy: 80.5% of 41 vehicles (33) read exactly, re-measured 12 October, on hand-labelled government footage; it started at 8.6% and the measurement drove the fixes. Clock reading: 97.7% exact on 87 frames with a legible clock, with no wrong times. Capacity: on one base M2 laptop, four cameras analysed at 4 frames a second kept up; eight cameras’ worth did not. Latency: median 27–40 s from the moment in the footage to the stored sighting, p90 67–87 s, across two evidence runs — mostly the multi-frame vote, bought on purpose. DR: a million detections restored in 5.7 s, and a tampered audit row caught. 698 backend and 65 browser tests.',
+      'If asked “why 80.5%?”: the cameras are wide-angle; half of all plate crops were unreadable even to a person. Fine-tuning on Gujarat plates and choosing cameras by plate yield are the pilot’s first work items.',
     ].join('\n\n'),
   })
   const rows = [
-    ['Plates read exactly', '78%', '41 vehicles, hand-labelled government footage, after the vote'],
+    ['Plates read exactly', '80.5%', '33 of 41 vehicles, hand-labelled government footage, after the vote'],
     ['Camera clocks read exactly', '97.7%', '87 frames with a legible clock; no wrong times'],
     ['Analysis on one laptop', '4 × 4 fps', 'Four cameras at 4 frames a second kept up (base M2, CPU)'],
     ['Footage to stored sighting', '27–40 s', 'Median over two evidence runs; p90 67–87 s'],

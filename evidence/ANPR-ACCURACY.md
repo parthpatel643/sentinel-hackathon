@@ -1,6 +1,8 @@
 # ANPR accuracy on a hand-labelled Gujarat holdout
 
-**Measured: 1 October 2026, on the base M2.** Reproduce with:
+**Measured: 1 October 2026, on the base M2; re-measured 12 October 2026 on the
+same holdout after the plate-format change in `aec10b7`** (see
+[Re-measured 12 October](#re-measured-12-october)). Reproduce with:
 
 ```bash
 uv run --package edge-agent python scripts/build_anpr_holdout.py   # crops (not committed)
@@ -13,11 +15,11 @@ uv run --package edge-agent python scripts/eval_anpr.py evidence/anpr-holdout-la
 |---|---|
 | Exact plate, single crop | **65.4%** (53 of 81) |
 | Exact plate, single crop, averaged per vehicle | **73.9%** (42 vehicles) |
-| Exact plate after the pipeline's multi-frame vote | **78.0%** (32 of 41 vehicles) |
+| Exact plate after the pipeline's multi-frame vote | **80.5%** (33 of 41 vehicles) |
 | Found by the search ladder's exact or OCR-ambiguity rung | **66.7%** |
-| Character-level accuracy | **88.0%** |
+| Character-level accuracy | **88.6%** |
 | A plate was read at all | 98.8% |
-| Mean detector + OCR latency per crop, CPU | 49 ms |
+| Mean detector + OCR latency per crop, CPU | 49 ms (1 Oct, idle machine) |
 
 That is below the ~85% fine-tuning gate in `docs/05-DELIVERY-PLAN.md` M2, and
 we say so. Before this measurement the configured model read **8.6%**; the
@@ -68,6 +70,33 @@ so a change counts only if it helps vehicles it was not tuned on.
   missing character, and never changes the plate's ambiguity key, so a
   corrected read lands on the same matching rung as before. It is applied to
   each read before the vote, so `GJQ3…` and `GJ03…` from two frames agree.
+
+## Re-measured 12 October
+
+The same 81 legible crops, read again with the code at `aec10b7`. The OCR's
+raw read is identical on every crop; what changed is what happens after it.
+That commit widened the valid plate format to numbers of one to four digits
+(older plates print `GJ 5 CD 12`), restricted grammar correction to the
+four-digit layout, and made the voter prefer a full four-digit read over a
+shorter one that could be a truncation.
+
+| Measure | 1 Oct | 12 Oct |
+|---|---|---|
+| Exact, single crop | 65.4% | 65.4% |
+| Exact, averaged per vehicle | 73.9% | 73.9% |
+| Exact after the vote | 78.0% (32 of 41) | **80.5% (33 of 41)** |
+| Character-level accuracy | 88.0% | **88.6%** |
+
+Three crops changed, all by no longer being "corrected" into the wrong
+layout: `GJ3ZAG288` had been forced to `GJ3ZA6288`, `GJ25AA43` to
+`GJ2S4443`, `GJ11CD119` to `GJ11C0119`. None became exact; their characters
+did, and the vote gained one vehicle. The gain is one vehicle in 41: real,
+but small, and still below the 85% gate.
+
+`evidence/anpr-accuracy.csv` is the 12 October run. It was taken while an
+edge worker was analysing cameras on the same machine, so its per-crop
+latencies (about 100 ms) measure contention, not the reader; the 49 ms in
+the headline is the 1 October run on an idle machine.
 
 ## What still goes wrong (28 misread crops)
 

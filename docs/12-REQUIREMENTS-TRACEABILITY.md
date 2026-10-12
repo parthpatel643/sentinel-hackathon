@@ -17,7 +17,7 @@ a measured run, never only at a design document.
 | 02 | Solution presentation | **Met** | `make deck` → `docs/Sentinel-Platform-Deck.pptx` | [Submission playbook](./06-SUBMISSION-PLAYBOOK.md) |
 | 03 | Solution architecture (HLD, diagrams, security, interoperability) | **Met** | `docs/Sentinel-Platform-HLD.pdf`, [01-ARCHITECTURE](./01-ARCHITECTURE.md), [08-SECURITY](./08-SECURITY-HARDENING.md) | Workflow diagram PDF in `docs/` |
 | 04 | Working platform on own feed and government feed | **Met** | Operator console, field PWA, edge worker | [M15 fresh-clone test](../evidence/M15-FRESH-CLONE-TEST.md), [chaos drills](../evidence/M15-CHAOS-DRILLS.md) |
-| 05 | ANPR | **Met, accuracy stated** | Detect → track → plate → OCR → grammar correction → vote | [ANPR accuracy](../evidence/ANPR-ACCURACY.md): 65% exact per crop, 78% after voting |
+| 05 | ANPR | **Met, accuracy stated** | Detect → track → plate → OCR → grammar correction → vote | [ANPR accuracy](../evidence/ANPR-ACCURACY.md): 65% exact per crop, 80.5% after voting |
 | 05 | Vehicle detection and classification | **Met** | YOLO11n, car / motorcycle / bus / truck, colour | `edge_agent/analytics/vehicle_detector.py` |
 | 05 | Person detection | **Met** | Same inference as vehicles; people counted per camera and held to intrusion/loitering zones; never identified | [09-SECONDARY-ANALYTICS §3a](./09-SECONDARY-ANALYTICS.md) |
 | 05 | Intrusion detection | **Met** | Zone rules: intrusion, loitering, wrong-way, stopped vehicle; triaged as alerts | `edge_agent/analytics/zone_rules.py`, Zone event queue |
@@ -56,7 +56,7 @@ a measured run, never only at a design document.
 | Analytics per laptop, dense traffic (a plated vehicle in every frame) | Base M2: about 16 analysed fps in total is the edge (2 cameras at 8 fps marginal, 4 at 4 fps keep up) ([tier capacity](../evidence/TIER-CAPACITY.md)) | Sized per GPU in [04 §3](./04-SCALE-PLAN.md); tiering means only 12% of cameras run continuous ANPR |
 | Plate-read ceiling | ~30 reads/s on M2 CPU | GPU inference in production |
 | Restore of 1 M detections | 5.7 s ([DR drill](../evidence/DR-RESTORE-DRILL.md)) | RTO via replica failover, not dump/restore |
-| ANPR exact match | 65% per crop, 78% voted, one camera ([accuracy](../evidence/ANPR-ACCURACY.md)) | Fine-tuning on Indian plates first |
+| ANPR exact match | 65% per crop, 80.5% voted, one camera ([accuracy](../evidence/ANPR-ACCURACY.md)) | Fine-tuning on Indian plates first |
 | 80,000 cameras deployed | Not deployed | Arithmetic in [04-SCALE-PLAN](./04-SCALE-PLAN.md) |
 
 ## 5. Government database integration readiness

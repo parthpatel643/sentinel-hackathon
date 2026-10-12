@@ -157,7 +157,7 @@ Reviewers should not have to guess which parts are load-bearing.
 |---|---|
 | Capture, reconnect/backoff, PTS timing | Real. Verified against the live government grid and by [chaos drills](evidence/M15-CHAOS-DRILLS.md). |
 | ANPR (detect → track → plate → OCR → vote) | Real open-source models, no mocks. Benchmarked on Apple Silicon. |
-| **ANPR accuracy number** | **Measured, and below target.** 65% exact per crop, 78% after the multi-frame vote, on 81 hand-labelled legible plates from one camera. 79 more were unreadable to a person. See [`evidence/ANPR-ACCURACY.md`](evidence/ANPR-ACCURACY.md). |
+| **ANPR accuracy number** | **Measured, and below target.** 65% exact per crop, 80.5% after the multi-frame vote (re-measured 12 Oct), on 81 hand-labelled legible plates from one camera. 79 more were unreadable to a person. See [`evidence/ANPR-ACCURACY.md`](evidence/ANPR-ACCURACY.md). |
 | **Sighting times (camera's burned-in clock)** | **Measured.** PP-OCRv6 reads the exact timestamp on 97.7% of 87 hand-labelled frames with a legible clock (Tesseract: 69.0%), with no wrong times; replayed across all 30 grid cameras, 37.4% of stream-seconds get a verified time (Tesseract: 12.8%). The rest are *time unknown*, mostly streams with no legible clock. See [`evidence/CLOCK-READER-ACCURACY.md`](evidence/CLOCK-READER-ACCURACY.md). |
 | Camera registry, search, alerts, evidence clips | Real, PostGIS-backed, tested against a real database. |
 | Watchlist correlation (both rungs) | Real. Exercised end-to-end on live government reads. |
