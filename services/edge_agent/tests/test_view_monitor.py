@@ -122,7 +122,7 @@ def test_a_camera_put_back_reports_restored() -> None:
 def test_a_camera_turned_to_another_scene_is_reported_only_when_sustained() -> None:
     """A different scene matches nothing. Weather or a parked lorry can do
     that for a while too, so it is reported only after it has held."""
-    monitor, _ = _learned(ViewMonitor(unrecognised_checks=6))
+    monitor, _ = _learned(ViewMonitor(unrecognised_s=10))
     elsewhere = _scene(seed=99)
     assert _run(monitor, [elsewhere] * 5, start_s=8) == []
     events = _run(monitor, [elsewhere] * 2, start_s=18)
@@ -134,7 +134,7 @@ def test_a_camera_turned_to_another_scene_is_reported_only_when_sustained() -> N
 def test_a_blank_frame_is_skipped_not_counted() -> None:
     """A covered lens or black night frame has nothing to compare; that is
     TamperDetector's to report, and must not count toward a move."""
-    monitor, scene = _learned(ViewMonitor(unrecognised_checks=3))
+    monitor, scene = _learned(ViewMonitor(unrecognised_s=4))
     black = np.zeros_like(scene)
     assert _run(monitor, [black] * 10, start_s=8) == []
     assert monitor.status == "ok"
@@ -162,7 +162,7 @@ def test_a_long_held_new_view_is_adopted_so_it_stops_reporting() -> None:
 def test_the_remembered_view_follows_gradual_light_change() -> None:
     """Dusk, shadows: refreshed while in place, so a slow fade is followed
     rather than mistaken for a move."""
-    monitor, scene = _learned(ViewMonitor(refresh_s=4, unrecognised_checks=5))
+    monitor, scene = _learned(ViewMonitor(refresh_s=4, unrecognised_s=8))
     frames = [cv2.convertScaleAbs(scene, alpha=1 - 0.012 * i, beta=0) for i in range(60)]
     assert _run(monitor, frames, start_s=8) == []
     assert monitor.status == "ok"
@@ -173,3 +173,60 @@ def test_a_stream_restart_keeps_the_remembered_view() -> None:
     monitor.reset_timing()
     assert monitor.observe(scene, pts_ms=0.0) is None
     assert monitor.status == "ok"
+
+
+def _first_report_s(monitor: ViewMonitor, frames: list[tuple[float, np.ndarray]]) -> float | None:
+    for pts_s, frame in frames:
+        if monitor.observe(frame, pts_ms=pts_s * 1000) is not None:
+            return pts_s
+    return None
+
+
+def test_a_fast_burst_of_frames_does_not_confirm_a_move_early() -> None:
+    """On connect the gateway replays its buffered GOP faster than real time.
+    Three seconds of footage is three seconds, however many frames and
+    however quickly they arrive."""
+    monitor, scene = _learned()
+    moved = _shift(scene, 0.12, 0.05)
+    assert _first_report_s(monitor, [(8 + i * 0.01, moved) for i in range(300)]) is None
+    assert monitor.status == "ok"
+
+
+def test_windows_are_footage_time_whatever_the_check_cadence() -> None:
+    """The same knock, checked every half second or every two: reported at
+    the same point in the footage, four seconds after it is first seen."""
+    scene = _scene()
+    moved = _shift(scene, 0.12, 0.05)
+    reported = []
+    for interval_s in (0.5, 1.0, 2.0):
+        monitor = ViewMonitor(check_interval_s=interval_s)
+        frames = [(i * 0.25, scene) for i in range(32)] + [(8 + i * 0.25, moved) for i in range(40)]
+        reported.append(_first_report_s(monitor, frames))
+    assert reported == [12.0, 12.0, 12.0]
+
+
+def test_a_check_skipped_for_lack_of_detail_adds_no_footage() -> None:
+    """Night or a covered lens leaves nothing to compare: those checks do not
+    break a run, but nothing was watched across them either."""
+    monitor, scene = _learned()
+    moved, black = _shift(scene, 0.12, 0.05), np.zeros_like(scene)
+    frames = [(8.0, moved), (10.0, black), (12.0, black), (14.0, moved), (16.0, moved)]
+    assert _first_report_s(monitor, frames) == 16.0
+
+
+def test_pts_going_back_starts_runs_again_on_the_new_timeline() -> None:
+    """A reconnect restarts PTS at zero. Checks resume at once (rather than
+    waiting for PTS to pass where the old timeline was), the remembered view
+    is kept, and a run in progress is not carried across."""
+    monitor, scene = _learned()
+    moved = _shift(scene, 0.12, 0.05)
+    assert _first_report_s(monitor, [(60.0, moved), (62.0, moved)]) is None
+    assert _first_report_s(monitor, [(0.0, moved), (2.0, moved), (4.0, moved)]) == 4.0
+    assert monitor.status == "moved"
+
+
+def test_a_repeated_pts_is_not_another_check() -> None:
+    monitor, scene = _learned()
+    moved = _shift(scene, 0.12, 0.05)
+    assert _first_report_s(monitor, [(8.0, moved)] * 5 + [(10.0, moved)] * 5) is None
+    assert _first_report_s(monitor, [(12.0, moved)]) == 12.0

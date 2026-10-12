@@ -56,12 +56,14 @@ classifier.
 
 - `edge_agent/analytics/tamper.py`'s `TamperDetector` flags:
   - **covered** — near-uniform pixel intensity (low overall variance)
-    sustained across consecutive frames.
+    sustained over half a second of footage.
   - **blurred** — sustained low Laplacian variance (the standard
     focus-measure operator; a sharp frame has high-frequency edges, a
     defocused one doesn't).
-  - Each mode requires *sustained* evidence across several frames before
-    flagging, so a single dark frame or a momentary glare does not count.
+  - Each mode requires *sustained* evidence before flagging: 0.5 s of
+    footage by PTS (five frames at the 8 fps analysis rate) and at least
+    three frames, so a single dark frame, a momentary glare, or a reconnect's
+    GOP replayed faster than real time does not count.
 - Runs inside the existing per-camera health-reporting loop in
   `worker.py`'s `_report_health`/`_run_camera` — no separate polling path,
   no extra model download.
@@ -86,11 +88,13 @@ alert. It is replaced by a view monitor that compares *where things are*.
   view per camera and every 2 s matches ORB features (480-px greyscale,
   contrast-equalised) against it, then fits a rotation + shift + scale with
   RANSAC. Moving vehicles and people are outliers; the fixed scene decides.
-- States `learning → ok → moved | view_lost`. It learns from three
-  agreeing checks, raises **view shifted** after three consecutive
-  checks (≈6 s) with the measured shift and rotation, and **view not
-  recognised** after ≈60 s with no match (turned to face somewhere else,
-  or sprayed). Three aligned checks close the alert as **restored**.
+- States `learning → ok → moved | view_lost`. Every window is seconds of
+  footage by PTS (and at least three checks), never a count of frames or
+  checks. It learns from 4 s of agreeing checks, raises **view shifted**
+  once a shift has held 4 s (≈6 s after the knock) with the measured shift
+  and rotation, and **view not recognised** after 58 s with no match
+  (turned to face somewhere else, or sprayed). 4 s aligned again closes the
+  alert as **restored**.
 - It re-anchors every 2 min while aligned, so day-to-night light changes
   do not drift into false alarms, and after 15 min in a new position the
   new view is adopted (someone re-aimed it on purpose and nobody reset it).
@@ -125,7 +129,7 @@ alongside it (2 fps; at 8 fps a second worker on a laptop falls behind live
 and the alert arrives a minute late); `make angle-demo-stop` ends it.
 Measured live: alert 6 s after the knock, closed 6 s after the restore.
 
-Tests: `test_tamper.py`, `test_view_monitor.py` (13),
+Tests: `test_tamper.py` (11), `test_view_monitor.py` (18),
 `test_worker_view_change.py` (10), `test_camera_events_api.py` (8),
 `apps/web/tests/camera-view.spec.ts` (2).
 

@@ -203,6 +203,56 @@ def test_tracked_velocity_does_not_depend_on_how_frames_were_spaced() -> None:
     assert speed(125.0) == pytest.approx(200.0, rel=0.1)
 
 
+def test_the_view_monitor_times_its_streaks_by_pts() -> None:
+    """The camera-condition checks wait for a reading to hold before raising
+    "moved", "covered" or "blurred". That wait is footage time from each
+    frame's PTS, never a count of frames or checks: a reconnect's GOP replay
+    packs many frames into little footage, and the analysed rate varies by
+    tier and camera. So the PTS is required, and the same footage gives the
+    same answer however densely it was sampled or checked."""
+    import inspect
+
+    import cv2
+    import numpy as np
+
+    from edge_agent.analytics.tamper import TamperDetector
+    from edge_agent.analytics.view_monitor import ViewMonitor
+
+    for method in (ViewMonitor.observe, TamperDetector.update):
+        pts = inspect.signature(method).parameters["pts_ms"]
+        assert pts.kind is inspect.Parameter.KEYWORD_ONLY
+        assert pts.default is inspect.Parameter.empty
+
+    def covered_after_s(step_ms: float) -> float | None:
+        detector, dark = TamperDetector(), np.zeros((120, 160, 3), dtype=np.uint8)
+        for i in range(100):
+            if detector.update(dark, pts_ms=i * step_ms) == "covered":
+                return i * step_ms / 1000
+        return None
+
+    assert covered_after_s(20.0) == covered_after_s(125.0) == pytest.approx(0.5)
+
+    rng = np.random.default_rng(7)
+    scene = np.full((540, 960, 3), 90, dtype=np.uint8)
+    for _ in range(140):
+        x, y = int(rng.integers(0, 920)), int(rng.integers(0, 500))
+        w, h = int(rng.integers(10, 90)), int(rng.integers(10, 90))
+        colour = tuple(int(c) for c in rng.integers(0, 255, 3))
+        cv2.rectangle(scene, (x, y), (x + w, y + h), colour, -1)
+    knock = np.array([[1, 0, 115], [0, 1, 27]], dtype=np.float32)  # 12% across, 5% down
+    knocked = cv2.warpAffine(scene, knock, (960, 540), borderMode=cv2.BORDER_REPLICATE)
+
+    def moved_after_s(check_interval_s: float) -> float | None:
+        monitor = ViewMonitor(check_interval_s=check_interval_s)
+        for i in range(80):
+            frame = scene if i < 32 else knocked  # knocked 8 s in, frames 0.25 s apart
+            if monitor.observe(frame, pts_ms=i * 250.0) is not None:
+                return i * 0.25 - 8.0
+        return None
+
+    assert moved_after_s(0.5) == moved_after_s(2.0) == pytest.approx(4.0)
+
+
 # --- DO: reconnect with exponential backoff ---------------------------------
 
 

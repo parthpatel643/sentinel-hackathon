@@ -14,7 +14,8 @@ keypoints and fall out as outliers, so they never look like a camera move;
 CLAHE before detection keeps matching steady through haze, rain and changing
 light.
 
-Three outcomes are reported, each only after it has held for several checks:
+Three outcomes are reported, each only after it has held for a stretch of
+footage (and for more than one check):
 
 - **shifted** — the view still matches, but displaced, rotated or zoomed: the
   camera physically moved. Confirmed in seconds.
@@ -43,6 +44,9 @@ from typing import Literal, cast
 
 import cv2
 import numpy as np
+
+from edge_agent.analytics.pts_streak import PtsStreak
+from sentinel_core.clock import REORDER_TOLERANCE_MS
 
 __all__ = ["ViewChange", "ViewMonitor", "ViewStatus"]
 
@@ -89,7 +93,12 @@ class _Alignment:
 class ViewMonitor:
     """One per camera. Call `observe()` with every decoded frame; it checks
     at most once per `check_interval_s` of stream time and returns a
-    `ViewChange` when a change is confirmed or the view returns."""
+    `ViewChange` when a change is confirmed or the view returns.
+
+    Every window below is seconds of footage by PTS, not a count of checks
+    or frames, so it means the same whatever the check cadence or frame rate,
+    and a GOP replayed faster than real time cannot hurry it. Each also needs
+    `min_checks` agreeing checks, so one check never decides anything."""
 
     check_interval_s: float = 2.0
     work_width: int = 480
@@ -103,12 +112,19 @@ class ViewMonitor:
     moved_shift: float = 0.06
     moved_rotation_deg: float = 4.0
     moved_scale: float = 0.10
-    learn_checks: int = 3
-    confirm_checks: int = 3
-    """Consecutive shifted checks before reporting (≈6 s at 2 s a check)."""
-    unrecognised_checks: int = 30
-    """Consecutive unmatched checks before reporting (≈60 s)."""
-    restore_checks: int = 3
+    learn_s: float = 4.0
+    """A candidate view must agree with itself this long to be remembered
+    (three checks 2 s apart)."""
+    confirm_s: float = 4.0
+    """A shift must hold this long before it is reported: three checks 2 s
+    apart, so the alert comes ≈4-6 s after the knock."""
+    unrecognised_s: float = 58.0
+    """No match at all must hold this long before it is reported (thirty
+    checks 2 s apart, ≈60 s): rain or a parked bus can hide a scene a while."""
+    restore_s: float = 4.0
+    """The remembered view must line up again this long to close the alert."""
+    min_checks: int = 3
+    """Agreeing checks every window also needs, however long they span."""
     refresh_s: float = 120.0
     """While aligned, re-anchor the remembered view this often."""
     adopt_after_s: float = 900.0
@@ -116,14 +132,16 @@ class ViewMonitor:
 
     _reference: _Snapshot | None = field(default=None, init=False)
     _candidate: _Snapshot | None = field(default=None, init=False)
-    _candidate_agreements: int = field(default=0, init=False)
+    _learn_streak: PtsStreak = field(init=False)
     _next_check_ms: float | None = field(default=None, init=False)
     _status: ViewStatus = field(default="learning", init=False)
-    _shifted_streak: int = field(default=0, init=False)
-    _unrecognised_streak: int = field(default=0, init=False)
-    _restore_streak: int = field(default=0, init=False)
+    _shifted_streak: PtsStreak = field(init=False)
+    _unrecognised_streak: PtsStreak = field(init=False)
+    _restore_streak: PtsStreak = field(init=False)
     _last_refresh_ms: float = field(default=0.0, init=False)
     _changed_at_ms: float | None = field(default=None, init=False)
+    _latest_pts_ms: float | None = field(default=None, init=False)
+    _rebase_pending: bool = field(default=False, init=False)
     features: int = 1500
     """ORB keypoints per check. More finds more of the fixed structure at
     night, when moving headlights take a large share of the strongest points."""
@@ -137,6 +155,13 @@ class ViewMonitor:
 
     def __post_init__(self) -> None:
         self._orb = cv2.ORB.create(nfeatures=self.features)
+        # A check vouches for at most one interval of footage. Checks skipped
+        # for lack of detail (night, a covered lens) neither count nor break a
+        # run, but nothing was watched across them, so they add no time.
+        self._learn_streak = PtsStreak(max_step_s=self.check_interval_s)
+        self._shifted_streak = PtsStreak(max_step_s=self.check_interval_s)
+        self._unrecognised_streak = PtsStreak(max_step_s=self.check_interval_s)
+        self._restore_streak = PtsStreak(max_step_s=self.check_interval_s)
 
     @property
     def status(self) -> ViewStatus:
@@ -144,14 +169,32 @@ class ViewMonitor:
 
     def reset_timing(self) -> None:
         """The stream's PTS origin moved (reconnect, loop point). The
-        remembered view is kept — the camera did not move — only the check
-        clock restarts."""
+        remembered view is kept — the camera did not move — but the check
+        clock restarts, runs in progress start again on the new timeline,
+        and the refresh and adopt clocks restart at the next check."""
         self._next_check_ms = None
+        self._latest_pts_ms = None
+        self._rebase_pending = True
+        self._candidate = None
+        self._learn_streak.reset()
+        self._shifted_streak.reset()
+        self._unrecognised_streak.reset()
+        self._restore_streak.reset()
 
     def observe(self, frame: np.ndarray, *, pts_ms: float) -> ViewChange | None:
+        if self._latest_pts_ms is not None and pts_ms < self._latest_pts_ms - REORDER_TOLERANCE_MS:
+            # PTS went back without the caller saying so (a reconnect).
+            self.reset_timing()
+        if self._latest_pts_ms is None or pts_ms > self._latest_pts_ms:
+            self._latest_pts_ms = pts_ms
         if self._next_check_ms is not None and pts_ms < self._next_check_ms:
             return None
         self._next_check_ms = pts_ms + self.check_interval_s * 1000.0
+        if self._rebase_pending:
+            self._rebase_pending = False
+            self._last_refresh_ms = pts_ms
+            if self._changed_at_ms is not None:
+                self._changed_at_ms = pts_ms
         snapshot = self._describe(frame, pts_ms)
         if snapshot is None:
             return None
@@ -167,40 +210,44 @@ class ViewMonitor:
 
     def _learn(self, snapshot: _Snapshot) -> None:
         if self._candidate is None:
-            self._candidate = snapshot
-            self._candidate_agreements = 0
+            self._new_candidate(snapshot)
             return
         alignment = self._align(self._candidate, snapshot)
         if alignment is not None and self._is_aligned(alignment):
-            self._candidate_agreements += 1
-            if self._candidate_agreements >= self.learn_checks - 1:
+            self._learn_streak.extend(snapshot.pts_ms)
+            if self._learn_streak.held(self.learn_s, self.min_checks):
                 self._reference = self._candidate
                 self._last_refresh_ms = snapshot.pts_ms
                 self._status = "ok"
                 self._candidate = None
+                self._learn_streak.reset()
         else:
-            self._candidate = snapshot
-            self._candidate_agreements = 0
+            self._new_candidate(snapshot)
+
+    def _new_candidate(self, snapshot: _Snapshot) -> None:
+        self._candidate = snapshot
+        self._learn_streak.reset()
+        self._learn_streak.extend(snapshot.pts_ms)
 
     def _while_ok(self, snapshot: _Snapshot, alignment: _Alignment | None) -> ViewChange | None:
         assert self._reference is not None
         if alignment is not None and self._is_aligned(alignment):
-            self._shifted_streak = 0
-            self._unrecognised_streak = 0
+            self._shifted_streak.reset()
+            self._unrecognised_streak.reset()
             if snapshot.pts_ms - self._last_refresh_ms >= self.refresh_s * 1000.0:
                 self._reference = snapshot
                 self._last_refresh_ms = snapshot.pts_ms
             return None
         if alignment is not None and self._is_moved(alignment):
-            self._shifted_streak += 1
-            self._unrecognised_streak = 0
-            if self._shifted_streak >= self.confirm_checks:
+            self._shifted_streak.extend(snapshot.pts_ms)
+            self._unrecognised_streak.reset()
+            if self._shifted_streak.held(self.confirm_s, self.min_checks):
                 return self._change("shifted", "moved", snapshot, alignment)
             return None
         if alignment is None:
-            self._unrecognised_streak += 1
-            self._shifted_streak = 0
-            if self._unrecognised_streak >= self.unrecognised_checks:
+            self._unrecognised_streak.extend(snapshot.pts_ms)
+            self._shifted_streak.reset()
+            if self._unrecognised_streak.held(self.unrecognised_s, self.min_checks):
                 return self._change("unrecognised", "view_lost", snapshot, None)
             return None
         # Matched, but between "in place" and "moved": not evidence either way.
@@ -211,22 +258,21 @@ class ViewMonitor:
     ) -> ViewChange | None:
         assert self._reference is not None and self._changed_at_ms is not None
         if alignment is not None and self._is_aligned(alignment):
-            self._restore_streak += 1
-            if self._restore_streak >= self.restore_checks:
+            self._restore_streak.extend(snapshot.pts_ms)
+            if self._restore_streak.held(self.restore_s, self.min_checks):
                 change = self._event("restored", snapshot, alignment)
                 self._status = "ok"
                 self._changed_at_ms = None
-                self._restore_streak = 0
+                self._restore_streak.reset()
                 self._last_refresh_ms = snapshot.pts_ms
                 return change
             return None
-        self._restore_streak = 0
+        self._restore_streak.reset()
         if snapshot.pts_ms - self._changed_at_ms >= self.adopt_after_s * 1000.0:
             # Held long enough to be the camera's new normal: stop reporting it.
             # The alert raised at the time stays open for an operator.
             self._reference = None
-            self._candidate = snapshot
-            self._candidate_agreements = 0
+            self._new_candidate(snapshot)
             self._status = "learning"
             self._changed_at_ms = None
         return None
@@ -241,9 +287,9 @@ class ViewMonitor:
         change = self._event(kind, snapshot, alignment)
         self._status = status
         self._changed_at_ms = snapshot.pts_ms
-        self._shifted_streak = 0
-        self._unrecognised_streak = 0
-        self._restore_streak = 0
+        self._shifted_streak.reset()
+        self._unrecognised_streak.reset()
+        self._restore_streak.reset()
         return change
 
     def _event(

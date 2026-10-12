@@ -727,7 +727,9 @@ async def _run_camera(
             load.saw(frame.timing)
             # M13: cheap (grayscale + Laplacian + a mean), so it runs on every
             # frame the scheduler decodes — no second inference engine.
-            await asyncio.to_thread(tamper_detector.update, frame.image)
+            if frame.timing.is_discontinuity:
+                tamper_detector.reset_timing()
+            await asyncio.to_thread(tamper_detector.update, frame.image, pts_ms=frame.timing.pts_ms)
             if view_monitor is not None:
                 if frame.timing.is_discontinuity:
                     view_monitor.reset_timing()
