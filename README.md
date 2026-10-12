@@ -229,8 +229,10 @@ Background research: [sentinel-hackathon-research.md](sentinel-hackathon-researc
 
 - **Time is PTS, never arrival.** The gateway replays a buffered GOP on connect,
   so arrival-time logic computes impossible velocities after every reconnect.
-  Enforced by [`StreamClock`](packages/sentinel_core/src/sentinel_core/clock.py)
-  and asserted in [`tests/test_compliance.py`](tests/test_compliance.py).
+  Enforced by [`StreamClock`](packages/sentinel_core/src/sentinel_core/clock.py);
+  the vehicle and people trackers' Kalman filters step by each frame's PTS
+  delta (velocity in px/s, track lifetime in seconds of footage), and both
+  are asserted in [`tests/test_compliance.py`](tests/test_compliance.py).
 - **Consume only.** The relay grants no publish permission outside our own
   `dev/*` test fixture, and RTMP/SRT are disabled — asserted in the compliance
   suite, not merely documented.

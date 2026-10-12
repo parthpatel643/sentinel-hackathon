@@ -146,9 +146,9 @@ class AnprPipeline:
         detections = self._vehicle_detector.detect(frame.image)
         vehicle_detections = [d for d in detections if d.vehicle_class != PERSON]
         people = [d for d in detections if d.vehicle_class == PERSON]
-        tracked_vehicles = self._tracker.update(vehicle_detections)
+        tracked_vehicles = self._tracker.update(vehicle_detections, pts_ms=frame.timing.pts_ms)
         self.last_tracked_vehicles = tracked_vehicles
-        self.last_tracked_people = self._people_tracker.update(people)
+        self.last_tracked_people = self._people_tracker.update(people, pts_ms=frame.timing.pts_ms)
         self._remember_clock_frame(frame, tracked_vehicles)
 
         events = [

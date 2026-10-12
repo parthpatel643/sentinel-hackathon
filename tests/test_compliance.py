@@ -170,6 +170,39 @@ def test_frame_timing_exposes_pts_not_arrival() -> None:
     assert not any("arriv" in field for field in fields)
 
 
+def test_the_tracker_must_be_given_each_frames_pts() -> None:
+    """Kalman filters and multi-object trackers must be fed PTS deltas. Not
+    reading the wall clock is not enough: a tracker that steps once per frame
+    also ignores time. The PTS is a required argument, with no default to
+    fall back to."""
+    import inspect
+
+    from edge_agent.analytics.tracker import SimpleTracker
+
+    pts = inspect.signature(SimpleTracker.update).parameters["pts_ms"]
+    assert pts.kind is inspect.Parameter.KEYWORD_ONLY
+    assert pts.default is inspect.Parameter.empty
+
+
+def test_tracked_velocity_does_not_depend_on_how_frames_were_spaced() -> None:
+    """The same 200 px/s car seen through a reconnect's fast-delivered GOP
+    (frames 40 ms apart) and at a steady 8 fps: the tracker infers the same
+    speed from both, because only PTS deltas enter its motion model."""
+    from edge_agent.analytics.tracker import SimpleTracker
+    from edge_agent.analytics.vehicle_detector import VehicleDetection
+
+    def speed(step_ms: float) -> float:
+        tracker = SimpleTracker()
+        for i in range(12):
+            x = 100.0 + 0.2 * step_ms * i
+            box = (x, 200.0, x + 100.0, 300.0)
+            tracker.update([VehicleDetection(box, "car", 0.9)], pts_ms=i * step_ms)
+        return float(tracker._tracks[0].kf.statePost[4, 0])
+
+    assert speed(40.0) == pytest.approx(200.0, rel=0.1)
+    assert speed(125.0) == pytest.approx(200.0, rel=0.1)
+
+
 # --- DO: reconnect with exponential backoff ---------------------------------
 
 

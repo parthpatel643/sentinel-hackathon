@@ -190,7 +190,7 @@ def test_two_simultaneous_vehicles_are_voted_independently() -> None:
 def test_stale_voter_state_is_pruned_after_a_track_ages_out() -> None:
     from edge_agent.analytics.tracker import SimpleTracker, TrackerConfig
 
-    tracker = SimpleTracker(TrackerConfig(max_age=1))
+    tracker = SimpleTracker(TrackerConfig(max_age_s=0.06))
     detector = FakeVehicleDetector([[_car()], [], [], []])
     reader = FakePlateReader([[_plate("GJ01AB1234")], [], [], []])
     pipeline = AnprPipeline(detector, reader, node_id="n", model_versions={}, tracker=tracker)
@@ -199,7 +199,7 @@ def test_stale_voter_state_is_pruned_after_a_track_ages_out() -> None:
     assert len(pipeline._voters) == 1  # accessing internals directly is the point of this test
 
     pipeline.process_frame(_frame(80.0))
-    pipeline.process_frame(_frame(120.0))  # exceeds max_age=1 with no re-match
+    pipeline.process_frame(_frame(120.0))  # 80 ms of footage unmatched: past max_age_s
 
     assert len(pipeline._voters) == 0
 
