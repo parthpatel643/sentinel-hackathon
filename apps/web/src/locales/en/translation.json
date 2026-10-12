@@ -1,4 +1,15 @@
 {
+  "shell": {
+    "jurisdiction": "Jurisdiction",
+    "allDistricts": "Gujarat · all districts",
+    "districtOption": "{{name}} · {{count}} cameras",
+    "scaleNote": "{{count}} cameras today · plan: 80,000 across 34 districts",
+    "more": "More",
+    "moreTitle": "More pages",
+    "amberNote": "Amber stays lit on anything you have not acknowledged",
+    "waitingVehicles": "{{count}} vehicles waiting",
+    "find": "Find"
+  },
   "workspace": {
     "summary": "Operations summary",
     "registeredCameras": "Registered cameras",

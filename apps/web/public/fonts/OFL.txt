@@ -1,4 +1,14 @@
-Copyright 2015 The Public Sans Project Authors (https://github.com/uswds/public-sans)
+Fonts in this folder, each by its own authors and each licensed under the
+SIL Open Font License 1.1 (full text below):
+
+  Atkinson Hyperlegible Next  https://fonts.google.com/specimen/Atkinson+Hyperlegible+Next
+  Sofia Sans Condensed        https://fonts.google.com/specimen/Sofia+Sans+Condensed
+  Red Hat Mono                https://fonts.google.com/specimen/Red+Hat+Mono
+  Hind (Devanagari)           https://fonts.google.com/specimen/Hind
+  Hind Vadodara (Gujarati)    https://fonts.google.com/specimen/Hind+Vadodara
+
+They are self-hosted as woff2 subsets so the console and the Field PWA render
+offline. Copyright notices for each family are on the pages above.
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

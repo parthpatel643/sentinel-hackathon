@@ -33,7 +33,7 @@ export default defineConfig({
         // itself decides what to do when a fetch fails offline (its own
         // IndexedDB outbox, not a service-worker cache lie).
         navigateFallback: '/field',
-        globPatterns: ['**/*.{js,css,html,svg,png,ttf}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ttf,woff2}'],
         // The single app bundle now carries three languages' worth of
         // strings (i18next resources) plus maplibre/hls.js/radix — past
         // workbox's 2 MiB default precache ceiling. Raised, not split,
@@ -51,6 +51,10 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+    // Opt-in for a second console beside the main one (e.g. a git worktree):
+    // the API's CORS list names only :5173, so another port proxies /api
+    // through its own origin. Set VITE_API_BASE_URL= (empty) alongside it.
+    proxy: process.env.SENTINEL_API_PROXY ? { '/api': { target: process.env.SENTINEL_API_PROXY, changeOrigin: true } } : undefined,
   },
   // maplibre-gl loads its tile-decoding work via an internal Web Worker
   // chunk (maplibre-gl-worker.mjs); Vite's esbuild-based dep optimizer

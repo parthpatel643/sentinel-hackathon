@@ -102,7 +102,7 @@ test('investigation and triage workspaces fit a phone without horizontal scrolli
   await page.setViewportSize({ width: 390, height: 844 })
   for (const path of ['/find-a-vehicle', '/find-a-vehicle?plate=GJ01AB1234', '/alerts']) {
     await page.goto(path)
-    await expect(page.locator('.investigation-workspace')).toBeVisible()
+    await expect(page.locator('main h1')).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), path).toBe(true)
   }
 })
@@ -208,8 +208,8 @@ test('localized workspaces retain content and fit both themes on a phone', async
       for (const path of ['/find-a-vehicle?plate=GJ01AB1234', '/alerts']) {
         await page.goto(path, { waitUntil: 'domcontentloaded' })
         await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
-        const heading = path === '/alerts' ? investigationCopy[language].selectedAlert : investigationCopy[language].movementMap
-        await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible()
+        if (path === '/alerts') await expect(page.getByRole('region', { name: investigationCopy[language].selectedAlert, exact: true })).toBeVisible()
+        else await expect(page.getByRole('heading', { name: investigationCopy[language].movementMap, exact: true })).toBeVisible()
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
         expect(await page.locator('main').innerText()).not.toMatch(/investigation:|workspace\./)
       }
@@ -234,8 +234,8 @@ test('a sighting whose camera clock was unreadable is listed off the timeline as
 test('alert times are the camera clock, or unknown', async ({ page }) => {
   await page.route('**/api/v1/alerts**', (route) => route.fulfill({ json: [alertFixture('a1', 'GJ01AB1234', .9)] }))
   await page.goto('/alerts')
-  await expect(page.getByText('Time unknown — camera clock unreadable')).toBeVisible()
-  await expect(page.getByText(/Jun 13|13 Jun/)).toBeVisible()
+  await expect(page.getByText('Time unknown — camera clock unreadable', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText(/Jun 13|13 Jun/).first()).toBeVisible()
 })
 
 test('repeat sightings at one camera share a pin, and the route marks its start and latest stop', async ({ page }) => {

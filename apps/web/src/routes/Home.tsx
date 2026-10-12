@@ -1,184 +1,194 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
-import { Activity, ArrowRight, Bell, Camera as CameraIcon, CheckCircle2, ChevronRight, List, Map, Radio, RefreshCw, ScanLine, Search } from 'lucide-react'
-import { alertsApi, camerasApi, detectionsApi } from '../lib/api'
-import { cameraLabel, cameraLabelWithLocality, cameraStatusColor } from '../lib/cameraStatusColor'
+import { ArrowRight, RefreshCw, Search } from 'lucide-react'
+import { alertsApi, detectionsApi } from '../lib/api'
+import { useJurisdiction } from '../lib/jurisdiction'
 import { usePolling } from '../lib/usePolling'
-import { navigateTabs } from '../lib/tabs'
-import { MapView, type MapMarker } from '../components/MapView'
+import { useLiveEvents } from '../lib/liveEvents'
+import { groupAlertsByVehicle } from '../lib/vehicles'
+import { DISTRICT_COUNT, rollupByDistrict } from '../lib/districts'
+import { formatIst, formatIstTime } from '../lib/time'
+import { cameraLabel } from '../lib/cameraStatusColor'
 import { TopBar } from '../components/layout/TopBar'
-import { SeverityBadge, statusToSeverity } from '../components/ui/SeverityBadge'
-import { CameraDetailModal } from '../components/CameraDetailModal'
 import { RequestError } from '../components/ui/RequestError'
-import { Button } from '../components/ui/Button'
-import type { Alert, Camera, CameraStatus, Detection } from '../lib/types'
+import { SealedClipModal } from '../components/SealedClipModal'
+import { VehicleBoardHead, VehicleBoardRows } from '../components/gate/VehicleBoard'
+import { SightingPass } from '../components/gate/SightingPass'
+import { DistrictBoard } from '../components/gate/DistrictBoard'
+import type { EvidenceClip } from '../lib/types'
 import './command-overview.css'
-import { formatIst } from '../lib/time'
 
-const STATUSES: CameraStatus[] = ['live', 'degraded', 'down', 'stale', 'connecting', 'unknown']
+const HOUR_MS = 60 * 60 * 1000
+const READ_SAMPLE = 200
 
-function ActivityEntry({ item, cameraName }: { item: Alert | Detection; cameraName?: string }) {
-  const { t, i18n } = useTranslation()
-  const isAlert = 'last_seen_at' in item
-  // The camera's burned-in clock — the only time a sighting is shown with.
-  const cameraTime = isAlert ? item.last_seen_camera_time : item.camera_time
-  return (
-    <Link className="command-event" to={isAlert ? `/alerts?alert=${encodeURIComponent(item.id)}` : `/find-a-vehicle?plate=${encodeURIComponent(item.plate_text)}`}>
-      <span className={`command-event-icon ${isAlert ? 'is-alert' : ''}`} aria-hidden="true">{isAlert ? <Bell size={18} /> : <ScanLine size={18} />}</span>
-      <div className="command-event-body">
-        <div className="command-event-title"><strong className="plate-mono">{item.plate_text}</strong>{cameraTime
-          ? <time dateTime={cameraTime} title={formatIst(cameraTime, i18n.language, { year: 'numeric', second: '2-digit' })}>{formatIst(cameraTime, i18n.language)}</time>
-          : <span title={t('common.timeUnknown')}>{t('common.timeUnknownShort')}</span>}</div>
-        <p>{cameraName ?? item.camera_id}</p>
-        <div className="command-event-meta">
-          <span>{isAlert ? t('home.watchlistHit') : t('command:recentDetections')}</span>
-          <span>{isAlert ? t('home.sighting', { count: item.sighting_count }) : `${Math.round(item.plate_confidence * 100)}%`}</span>
-        </div>
-      </div>
-      <ChevronRight size={14} className="shrink-0 text-text-tertiary" aria-hidden="true" />
-    </Link>
-  )
+/** Wall-clock time, refreshed each minute, so render stays pure. */
+function useNow(): [number] {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60000)
+    return () => clearInterval(id)
+  }, [])
+  return [now]
 }
+const DISTRICT_PREVIEW = 6
+const DISTRICT_COLUMNS = 'minmax(0, 1fr) 46px minmax(64px, 96px) minmax(104px, auto)'
 
 export function Home() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const { data: cameras, error: camerasError, refetch: refreshCameras } = usePolling(() => camerasApi.list(), 8000)
-  const { data: alerts, error: alertsError, refetch: refreshAlerts } = usePolling(() => alertsApi.list('new'), 6000)
-  const { data: detections, error: detectionsError, refetch: refreshDetections } = usePolling(() => detectionsApi.search({ limit: 12 }), 8000)
-  const [selected, setSelected] = useState<Camera | null>(null)
-  const [fleetView, setFleetView] = useState<'map' | 'list'>('map')
-  const [activityView, setActivityView] = useState<'alerts' | 'detections'>('alerts')
-  const [status, setStatus] = useState<CameraStatus | 'all'>('all')
-  const [cameraQuery, setCameraQuery] = useState('')
+  const { cameras, camerasError, refreshCameras, inScope } = useJurisdiction()
+  const { data: alerts, error: alertsError, refetch: refreshAlerts } = usePolling(() => alertsApi.list('new'), 20000)
+  const { data: detections, error: detectionsError, refetch: refreshDetections } = usePolling(() => detectionsApi.search({ limit: READ_SAMPLE }), 15000)
+  useLiveEvents((kind) => { if (kind === 'alert') refreshAlerts() })
+  const [selectedPlate, setSelectedPlate] = useState<string | null>(null)
+  const [viewingClip, setViewingClip] = useState<EvidenceClip | null>(null)
   const [plate, setPlate] = useState('')
-  const filteredCameras = useMemo(() => {
-    const query = cameraQuery.trim().toLowerCase()
-    return (cameras ?? []).filter(camera =>
-      (status === 'all' || camera.status === status) &&
-      (!query || `${camera.name} ${camera.display_name ?? ''} ${camera.camera_id}`.toLowerCase().includes(query)),
-    )
-  }, [cameras, cameraQuery, status])
-  const markers = useMemo<MapMarker[]>(() => filteredCameras.flatMap(camera => camera.location ? [{
-    id: camera.camera_id, lat: camera.location.lat, lon: camera.location.lon,
-    color: cameraStatusColor(camera.status), label: `${cameraLabelWithLocality(camera)} · ${t(`cameraStatus.${camera.status}`)}`,
-    onClick: () => setSelected(camera),
-  }] : []), [filteredCameras, t])
-  const counts = Object.fromEntries(STATUSES.map(state => [state, cameras?.filter(camera => camera.status === state).length]))
-  const metrics = [
-    { key: 'registeredCameras', value: cameras?.length, error: camerasError, icon: CameraIcon, to: '/cameras', detail: 'registeredDetail' },
-    { key: 'liveCameras', value: counts.live, error: camerasError, icon: Radio, to: '/live-wall', detail: 'liveDetail' },
-    { key: 'interruptedCameras', value: cameras ? (counts.down ?? 0) + (counts.degraded ?? 0) : undefined, error: camerasError, icon: Activity, to: '/cameras', detail: 'interruptedDetail' },
-    { key: 'queuedAlerts', value: alerts?.length, error: alertsError, icon: Bell, to: '/alerts', detail: 'queueDetail' },
-  ]
+
+  const scopedCameras = useMemo(() => (cameras ?? []).filter((c) => inScope(c.camera_id)), [cameras, inScope])
+  const scopedAlerts = useMemo(() => (alerts ?? []).filter((a) => inScope(a.camera_id)), [alerts, inScope])
+  const groups = useMemo(() => groupAlertsByVehicle(scopedAlerts), [scopedAlerts])
+  const scopedReads = useMemo(() => (detections ?? []).filter((d) => inScope(d.camera_id)), [detections, inScope])
+  // Recency is judged by when Sentinel recorded the read: camera clocks on
+  // replayed government feeds can be months behind.
+  const [now] = useNow()
+  const readsLastHour = scopedReads.filter((d) => now - Date.parse(d.ingested_at) < HOUR_MS).length
+  const latestRead = scopedReads[0]
+  const districts = useMemo(() => rollupByDistrict(scopedCameras), [scopedCameras])
+  const counts = {
+    live: scopedCameras.filter((c) => c.status === 'live').length,
+    down: scopedCameras.filter((c) => c.status === 'down').length,
+    degraded: scopedCameras.filter((c) => c.status === 'degraded').length,
+    unknown: scopedCameras.filter((c) => c.status === 'unknown').length,
+    stale: scopedCameras.filter((c) => c.status === 'stale').length,
+    connecting: scopedCameras.filter((c) => c.status === 'connecting').length,
+  }
+  const selected = groups.find((g) => g.plate === selectedPlate) ?? groups[0]
+  const watchlisted = new Set(groups.map((g) => g.plate))
+  const cameraName = (id: string) => {
+    const camera = cameras?.find((c) => c.camera_id === id)
+    return camera ? cameraLabel(camera) : id
+  }
 
   function investigate(event: FormEvent) {
     event.preventDefault()
     if (plate.trim()) navigate(`/find-a-vehicle?plate=${encodeURIComponent(plate.trim())}`)
   }
+  const refreshAll = () => { refreshCameras(); refreshAlerts(); refreshDetections() }
+  const summaryValue = (value: number) => (camerasError ? t('common.notAvailable') : cameras ? value : t('common.loading'))
 
   return (
-    <div className="command-overview">
-      <TopBar title={t('workspace.overviewTitle')} subtitle={t('workspace.overviewDescription')} actions={
-        <Button variant="secondary" aria-label={t('workspace.refreshOverview')} onClick={() => { refreshCameras(); refreshAlerts(); refreshDetections() }}>
-          <RefreshCw size={15} aria-hidden="true" />{t('workspace.refresh')}
-        </Button>
+    <div className="gb-overview">
+      <TopBar title={t('workspace.overviewTitle')} titleKey="workspace.overviewTitle" subtitle={t('gate:pageNote')} actions={
+        <button type="button" className="gb-btn" aria-label={t('workspace.refreshOverview')} onClick={refreshAll}>
+          <RefreshCw className="gb-ico" aria-hidden="true" />{t('workspace.refresh')}
+        </button>
       } />
-      <div className="command-overview-body">
-        <section aria-label={t('workspace.summary')} className="command-summary">
-          {metrics.map(({ key, value, error, icon: Icon, to, detail }) => (
-            <Link key={key} to={to} aria-label={t(`workspace.${key}`)} aria-describedby={`metric-${key}`}>
-              <Icon size={20} aria-hidden="true" />
-              <div><span>{t(`workspace.${key}`)}</span><strong id={`metric-${key}`} className={value === undefined || error ? 'is-unavailable' : ''}>
-                {error ? t('common.notAvailable') : value === undefined ? t('common.loading') : value}
-              </strong></div>
-              <span className="summary-detail">{t(`workspace.${detail}`)}</span>
-              <ArrowRight size={14} aria-hidden="true" />
-            </Link>
-          ))}
+      <div className="gb-page">
+        <section className="gb-netline gb-overview-net" aria-label={t('workspace.summary')}>
+          <span>{t('gate:summaryCameras')}</span>
+          <Link to="/cameras" aria-label={t('workspace.registeredCameras')}><b>{summaryValue(scopedCameras.length)}</b>{t('workspace.registeredCameras').toLowerCase()}</Link>
+          <Link to="/live-wall" aria-label={t('workspace.liveCameras')}>{counts.live > 0 && <span className="gb-glyph gb-live" aria-hidden="true" />}<b>{summaryValue(counts.live)}</b>{t('cameraStatus.live').toLowerCase()}</Link>
+          <Link to="/cameras" aria-label={t('workspace.interruptedCameras')}>{counts.down + counts.degraded > 0 && <span className="gb-glyph gb-down" aria-hidden="true" />}<b>{summaryValue(counts.down + counts.degraded)}</b>{t('workspace.interruptedCameras').toLowerCase()}</Link>
+          <Link to="/cameras" aria-label={t('cameraStatus.unknown')}>{counts.unknown > 0 && <span className="gb-glyph gb-unknown" aria-hidden="true" />}<b>{summaryValue(counts.unknown)}</b>{t('cameraStatus.unknown').toLowerCase()}</Link>
+          {counts.stale + counts.connecting > 0 && <span className="gb-quiet">{t('gate:notReporting', { stale: counts.stale, connecting: counts.connecting })}</span>}
+          <Link to="/alerts" aria-label={t('workspace.queuedAlerts')}><b>{alertsError ? t('common.notAvailable') : alerts ? scopedAlerts.length : t('common.loading')}</b>{t('gate:hitNoun', { count: scopedAlerts.length })} · {t('gate:vehicles', { count: groups.length })}</Link>
         </section>
-
-        <form className="command-investigate" onSubmit={investigate} aria-label={t('command:quickInvestigation')}>
-          <div><Search size={21} aria-hidden="true" /><div><h2>{t('workspace.startInvestigation')}</h2><p>{t('command:searchHint')}</p></div></div>
-          <label className="sr-only" htmlFor="overview-plate">{t('workspace.plate')}</label>
-          <input id="overview-plate" value={plate} onChange={event => setPlate(event.target.value)} placeholder="GJ 01 AB 1234" className="plate-mono" autoComplete="off" />
-          <Button type="submit" disabled={!plate.trim()}>{t('command:traceVehicle')}<ArrowRight size={16} /></Button>
-        </form>
-
         {Boolean(camerasError) && <RequestError onRetry={refreshCameras} />}
-        <div className="command-workbench">
-          <section className="command-network" aria-labelledby="network-heading">
-            <header className="command-panel-header">
-              <div><h2 id="network-heading"><CameraIcon size={17} aria-hidden="true" />{t('workspace.cameraNetwork')}</h2><p>{t('command:fleetDescription')}</p></div>
-              <div className="command-segments segmented" role="tablist" aria-label={t('workspace.cameraNetwork')} onKeyDown={navigateTabs}>
-                <button id="fleet-map-tab" type="button" role="tab" tabIndex={fleetView === 'map' ? 0 : -1} aria-selected={fleetView === 'map'} aria-controls="fleet-panel" onClick={() => setFleetView('map')}><Map size={15} />{t('command:mapView')}</button>
-                <button id="fleet-list-tab" type="button" role="tab" tabIndex={fleetView === 'list' ? 0 : -1} aria-selected={fleetView === 'list'} aria-controls="fleet-panel" onClick={() => setFleetView('list')}><List size={15} />{t('command:cameraList')}</button>
+        {cameras?.length === 0 && !camerasError && (
+          <div className="gb-empty"><b>{t('workspace.noCameras')}</b><Link to="/cameras" className="gb-btn gb-sm">{t('cameras.addCamera')}<ArrowRight className="gb-ico gb-s" aria-hidden="true" /></Link></div>
+        )}
+
+        <div className="gb-split">
+          <div className="gb-stack">
+            <section className="gb-board gb-order-board" aria-labelledby="watchlist-board">
+              <div className="gb-board-top">
+                <h2 id="watchlist-board" className="gb-board-title">{t('gate:watchlistBoard')}</h2>
+                <span className="gb-tally"><b>{scopedAlerts.length}</b>{t('gate:hitNoun', { count: scopedAlerts.length })}<span className="gb-sep">·</span><b>{groups.length}</b>{t('gate:vehicleNoun', { count: groups.length })}</span>
+                <span className="gb-board-note">{t('gate:onePerVehicle')}</span>
+                <span className="gb-spacer" />
+                <span className="gb-key-new">{t('gate:litKey')}</span>
               </div>
-            </header>
-            <div className="network-search-row">
-              <div className="network-search"><Search size={15} aria-hidden="true" /><input type="search" aria-label={t('command:networkSearch')} placeholder={t('command:networkSearch')} value={cameraQuery} onChange={event => setCameraQuery(event.target.value)} /></div>
-              <Link to="/cameras" className="text-link">{t('workspace.manageCameras')}<ArrowRight size={14} /></Link>
-            </div>
-            <div id="fleet-panel" role="tabpanel" aria-labelledby={fleetView === 'map' ? 'fleet-map-tab' : 'fleet-list-tab'} className={`command-fleet-panel ${fleetView === 'list' ? 'is-list' : ''}`}>
-              {fleetView === 'map' ? <MapView markers={markers} className="absolute inset-0" fitToMarkers={Boolean(cameraQuery.trim()) || status !== 'all'} /> : (
-                <div className="command-camera-list">
-                  {filteredCameras.map(camera => (
-                    <button type="button" key={camera.camera_id} onClick={() => setSelected(camera)}>
-                      <span className="camera-list-icon"><CameraIcon size={20} aria-hidden="true" /></span>
-                      <span className="camera-list-name"><strong>{cameraLabel(camera)}</strong><span>{camera.department_name ?? camera.camera_id}{!camera.location && ` · ${t('command:noLocation')}`}</span></span>
-                      <SeverityBadge severity={statusToSeverity(camera.status)} label={t(`cameraStatus.${camera.status}`)} />
-                      <ChevronRight size={16} aria-hidden="true" />
-                    </button>
-                  ))}
-                </div>
-              )}
-              {cameras?.length === 0 && !camerasError ? <div className="network-message"><CameraIcon size={24} /><p>{t('workspace.noCameras')}</p><Link to="/cameras" className="text-link">{t('cameras.addCamera')}<ArrowRight size={14} /></Link></div> :
-                cameras && filteredCameras.length === 0 && <div className="network-message"><p>{t('workspace.noMatchingCameras')}</p><button type="button" className="text-link" onClick={() => { setStatus('all'); setCameraQuery('') }}>{t('command:resetFilters')}</button></div>}
-              {!cameras && !camerasError && <div className="network-message"><p>{t('common.loading')}</p></div>}
-            </div>
-            <div className="command-network-footer">
-              <span>{camerasError ? t('workspace.statusUnavailable') : cameras ? t('command:showingCameras', { shown: filteredCameras.length, total: cameras.length }) : t('common.loading')}</span>
-              {cameras && !camerasError && <span>{t('command:mapLocations', { count: markers.length })}</span>}
-            </div>
-          </section>
-
-          <section className="command-activity" aria-labelledby="activity-heading">
-            <header className="command-panel-header"><h2 id="activity-heading"><Activity size={17} />{t('command:activity')}</h2></header>
-            <div className="command-activity-tabs" role="tablist" aria-label={t('command:activity')} onKeyDown={navigateTabs}>
-              <button id="activity-alerts-tab" type="button" role="tab" tabIndex={activityView === 'alerts' ? 0 : -1} aria-selected={activityView === 'alerts'} aria-controls="activity-panel" onClick={() => setActivityView('alerts')}>{t('command:watchlistMatches')}{alerts && !alertsError && <span>{alerts.length}</span>}</button>
-              <button id="activity-detections-tab" type="button" role="tab" tabIndex={activityView === 'detections' ? 0 : -1} aria-selected={activityView === 'detections'} aria-controls="activity-panel" onClick={() => setActivityView('detections')}>{t('command:recentDetections')}</button>
-            </div>
-            <div id="activity-panel" role="tabpanel" aria-labelledby={activityView === 'alerts' ? 'activity-alerts-tab' : 'activity-detections-tab'} className="command-activity-content">
-              {activityView === 'alerts' ? <>
-                {Boolean(alertsError) && <RequestError onRetry={refreshAlerts} />}
-                {!alerts && !alertsError && <p className="command-activity-empty">{t('common.loading')}</p>}
-                {alerts?.length === 0 && !alertsError && <div className="command-activity-empty"><CheckCircle2 size={30} /><h3>{t('home.nothingNeedsYou')}</h3><p>{t('workspace.queueDescription')}</p></div>}
-                {alerts?.slice(0, 8).map(alert => <ActivityEntry key={alert.id} item={alert} cameraName={(() => { const c = cameras?.find(camera => camera.camera_id === alert.camera_id); return c && cameraLabel(c) })()} />)}
-              </> : <>
-                {Boolean(detectionsError) && <RequestError onRetry={refreshDetections} />}
-                {!detections && !detectionsError && <p className="command-activity-empty">{t('common.loading')}</p>}
-                {detections?.length === 0 && !detectionsError && <div className="command-activity-empty"><ScanLine size={30} /><p>{t('command:noDetections')}</p></div>}
-                {detections?.map(detection => <ActivityEntry key={detection.event_id} item={detection} cameraName={(() => { const c = cameras?.find(camera => camera.camera_id === detection.camera_id); return c && cameraLabel(c) })()} />)}
+              {Boolean(alertsError) && <div className="px-4 pb-3"><RequestError onRetry={refreshAlerts} /></div>}
+              {!alerts && !alertsError && <p className="gb-board-foot">{t('common.loading')}</p>}
+              {alerts && groups.length === 0 && !alertsError && <div className="gb-empty"><b>{t('gate:nothingWaiting')}</b><span>{t('gate:nothingWaitingHelp')}</span></div>}
+              {groups.length > 0 && <>
+                <VehicleBoardHead />
+                <VehicleBoardRows groups={groups.slice(0, 6)} cameras={cameras} selectedPlate={selected?.plate} onSelect={setSelectedPlate} onChanged={refreshAlerts} />
               </>}
-            </div>
-            <footer>{activityView === 'alerts' ? <Link to="/alerts" className="text-link">{t('command:reviewAlerts')}<ArrowRight size={15} /></Link> : <span>{t('command:recentDescription')}</span>}</footer>
-          </section>
-        </div>
+              <div className="gb-board-foot">
+                <span>{t('gate:showing', { shown: Math.min(groups.length, 6), total: groups.length, hits: scopedAlerts.length })}</span>
+                <Link to="/alerts"><span>{t('gate:openQueue')}</span><ArrowRight className="gb-ico gb-s" aria-hidden="true" /></Link>
+              </div>
+            </section>
 
-        <section className="command-health" aria-labelledby="fleet-health-heading">
-          <div><h2 id="fleet-health-heading"><Activity size={17} />{t('workspace.cameraHealth')}</h2><p>{t('workspace.cameraRefresh')}</p></div>
-          <div className="command-health-filters">
-            <button type="button" aria-pressed={status === 'all'} onClick={() => setStatus('all')}>{t('command:allCameras')}<strong>{cameras && !camerasError ? cameras.length : '—'}</strong></button>
-            {STATUSES.map(state => (
-              <button key={state} type="button" aria-label={t(`command:${state}Filter`)} aria-pressed={status === state} onClick={() => setStatus(state)}>
-                <span className={`status-dot status-${state}`} aria-hidden="true" />{t(`cameraStatus.${state}`)}<strong>{cameras && !camerasError ? counts[state] : '—'}</strong>
-              </button>
-            ))}
+            <div className="gb-row-2 gb-order-lower">
+              <section className="gb-board" aria-labelledby="detections-heading">
+                <div className="gb-board-top">
+                  <h2 id="detections-heading" className="gb-board-title gb-s">{t('gate:detections')}</h2>
+                  <span className="gb-tally"><b>{detections ? (readsLastHour >= READ_SAMPLE ? `${READ_SAMPLE}+` : readsLastHour) : '—'}</b>{t('gate:readsLastHour')}</span>
+                </div>
+                {Boolean(detectionsError) && <div className="px-4 pb-3"><RequestError onRetry={refreshDetections} /></div>}
+                {detections && !detectionsError && (
+                  <p className="gb-detect-note">{latestRead?.ingested_at ? t('gate:lastRead', { when: formatIst(latestRead.ingested_at, i18n.language) }) : latestRead ? null : t('gate:noReadsYet')}</p>
+                )}
+                {scopedReads.length > 0 && <>
+                  <div className="gb-board-grid gb-board-head" style={{ ['--cols' as string]: '128px minmax(0, 1fr) 56px' }} aria-hidden="true">
+                    <div>{t('gate:colTime')}</div><div>{t('gate:colPlate')}</div><div className="gb-num">{t('gate:colConfidence')}</div>
+                  </div>
+                  <ul aria-label={t('gate:latestReads')}>
+                    {scopedReads.slice(0, 5).map((read) => (
+                      <li key={read.event_id}>
+                        <Link className="gb-board-grid gb-board-row gb-read-row" style={{ ['--cols' as string]: '128px minmax(0, 1fr) 56px' }} to={`/find-a-vehicle?plate=${encodeURIComponent(read.plate_text)}`} aria-label={`${read.plate_text} · ${cameraName(read.camera_id)}`}>
+                          <div className={read.camera_time ? 'gb-data gb-nowrap' : 'gb-nowrap gb-muted'}>{read.camera_time ? formatIstTime(read.camera_time, i18n.language, { second: '2-digit' }) : t('gate:timeUnknown')}</div>
+                          <div className="gap-2"><span className="gb-plate">{read.plate_text}</span>{watchlisted.has(read.plate_text) && <span className="gb-tag">{t('gate:onWatchlist')}</span>}</div>
+                          <div className="gb-num gb-data">{Math.round(read.plate_confidence * 100)}%</div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </>}
+              </section>
+
+              <section className="gb-board" aria-labelledby="district-heading">
+                <div className="gb-board-top">
+                  <h2 id="district-heading" className="gb-board-title gb-s">{t('gate:camerasByDistrict')}</h2>
+                  <span className="gb-spacer" />
+                  <span className="gb-board-note">{t('gate:districtsWithCameras', { count: districts.filter((d) => d.district).length, total: DISTRICT_COUNT })}</span>
+                </div>
+                <div className="gb-board-grid gb-board-head" style={{ ['--cols' as string]: DISTRICT_COLUMNS }} aria-hidden="true">
+                  <div>{t('gate:colDistrict')}</div><div className="gb-num">{t('gate:colCams')}</div><div>{t('gate:colMix')}</div><div>{t('gate:colProblem')}</div>
+                </div>
+                <DistrictBoard rows={districts.slice(0, DISTRICT_PREVIEW)} columns={DISTRICT_COLUMNS} compact />
+                {districts.length > DISTRICT_PREVIEW && <p className="gb-board-foot gb-quiet">{t('gate:moreDistricts', { count: districts.length - DISTRICT_PREVIEW })}</p>}
+                <div className="gb-board-foot">
+                  <span>{t('gate:totals', { total: scopedCameras.length, live: counts.live, down: counts.down, unknown: counts.unknown })}</span>
+                  <Link to="/cameras"><span>{t('gate:openCameras')}</span><ArrowRight className="gb-ico gb-s" aria-hidden="true" /></Link>
+                </div>
+              </section>
+            </div>
           </div>
-        </section>
+
+          <div className="gb-stack gb-sticky">
+            <form className="gb-board gb-trace gb-order-trace" onSubmit={investigate} aria-label={t('command:quickInvestigation')}>
+              <h2 className="gb-board-title gb-s">{t('workspace.startInvestigation')}</h2>
+              <p className="gb-sub">{t('gate:searchHelp')}</p>
+              <div className="gb-field-row">
+                <label className="gb-field gb-plate-field">
+                  <Search className="gb-ico" aria-hidden="true" />
+                  <span className="gb-sr">{t('workspace.plate')}</span>
+                  <input id="overview-plate" value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="GJ 01 AB 1234" autoComplete="off" spellCheck={false} required />
+                </label>
+                <button type="submit" className="gb-btn gb-primary">{t('command:traceVehicle')}</button>
+              </div>
+            </form>
+            {selected
+              ? <div className="gb-order-pass"><SightingPass group={selected} cameras={cameras} onChanged={refreshAlerts} onViewClip={setViewingClip} /></div>
+              : alerts && <div className="gb-empty gb-pass-empty gb-order-pass"><b>{t('gate:pass')}</b><span>{t('gate:selectVehicle')}</span></div>}
+          </div>
+        </div>
       </div>
-      <CameraDetailModal camera={selected} onClose={() => setSelected(null)} />
+      <SealedClipModal clip={viewingClip} onClose={() => setViewingClip(null)} />
     </div>
   )
 }

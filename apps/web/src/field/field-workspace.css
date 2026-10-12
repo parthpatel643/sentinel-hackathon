@@ -1,11 +1,11 @@
 .field-workspace { display: flex; flex-direction: column; width: 100%; height: 100dvh; overflow: hidden; background: var(--color-bg-base); color: var(--color-text-primary); }
 .field-header { flex-shrink: 0; padding-top: env(safe-area-inset-top); background: var(--color-bg-raised); border-bottom: 1px solid var(--color-border-subtle); }
-.field-brand-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #112746; color: #fff; padding: 15px max(20px, calc((100% - 1040px) / 2)); }
+.field-brand-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #111417; color: #f3f4f0; padding: 15px max(20px, calc((100% - 1040px) / 2)); }
 .field-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.field-brand strong { display: block; font-size: 1rem; letter-spacing: -.01em; }
-.field-brand span { display: block; font-size: .6875rem; margin-top: 3px; color: #c5d5ee; }
+.field-brand strong { display: block; font: 800 1.375rem/1 var(--font-display); }
+.field-brand span { display: block; font-size: .6875rem; margin-top: 3px; color: #b9bec4; }
 .field-signout { flex-shrink: 0; min-height: 44px; font-size: .8125rem; padding: 8px 12px; border-radius: 6px; }
-.field-signout:hover { background: #203f65; }
+.field-signout:hover { background: rgb(243 244 240 / .1); }
 .field-preferences { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 20px; max-width: 1080px; margin: auto; }
 .field-bandwidth { min-height: 44px; }
 .field-sync-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px max(20px, calc((100% - 1040px) / 2)); background: var(--color-bg-inset); color: var(--color-text-secondary); font-size: .6875rem; }
@@ -22,7 +22,7 @@
 .field-workspace ::selection { color: var(--color-on-accent); background: var(--color-accent); }
 .field-page { padding: 32px; }
 .field-page-heading { margin-bottom: 28px; }
-.field-page-heading h1, .field-nearby-heading h1 { font-size: 1.75rem; font-weight: 650; line-height: 1.3; letter-spacing: -.025em; }
+.field-page-heading h1, .field-nearby-heading h1 { font: 800 2.125rem/1.05 var(--font-display); }
 .field-page-heading > p, .field-nearby-heading p { margin-top: 8px; max-width: 65ch; font-size: .875rem; line-height: 1.6; color: var(--color-text-secondary); }
 .field-task-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(220px, 1fr); gap: 32px; align-items: start; }
 .field-plate-task { border: 1px solid var(--color-border-subtle); background: var(--color-bg-raised); border-radius: 14px; padding: 28px; }

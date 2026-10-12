@@ -1,3 +1,4 @@
+import '../styles/gate.css'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/AuthContext'
@@ -34,8 +35,8 @@ export function Login() {
     <div className="login-page">
       <header className="login-header">
         <div className="flex items-center gap-2.5 text-sm font-semibold">
-          <span className="brand-symbol"><ShieldCheck size={22} aria-hidden="true" /></span>
-          {t('login.title')}
+          <span className="gb-brand-mark login-brand-mark" aria-hidden="true"><i /></span>
+          <span className="login-wordmark">{t('login.title')}</span>
         </div>
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
@@ -64,7 +65,7 @@ export function Login() {
         <section className="login-form-panel">
         <form onSubmit={handleSubmit} aria-labelledby="login-heading" aria-busy={busy}>
           <div className="mb-8">
-            <h2 id="login-heading" className="text-2xl font-semibold tracking-tight">{t('command:signInTitle')}</h2>
+            <h2 id="login-heading" className="login-form-title">{t('command:signInTitle')}</h2>
             <p className="mt-2 text-sm leading-relaxed text-text-secondary">{t('command:signInDescription')}</p>
           </div>
           <div className="space-y-5">

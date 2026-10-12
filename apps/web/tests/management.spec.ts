@@ -28,7 +28,7 @@ test.beforeEach(async ({ page }) => {
 
 test('administration is a navigable management hub with list-first access management', async ({ page }) => {
   await page.goto('/admin')
-  await expect(page.getByRole('heading', { name: 'Access & accountability' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Admin' })).toBeVisible()
   const nav = page.getByRole('navigation', { name: 'Administration sections' })
   await expect(nav.getByRole('button')).toHaveCount(5)
   await expect(page.getByText('River Officer', { exact: true })).toBeVisible()
@@ -43,7 +43,7 @@ test('administration is a navigable management hub with list-first access manage
 
 test('compliance workbench groups checks and filters attention without inventing health', async ({ page }) => {
   await page.goto('/health')
-  await expect(page.getByRole('heading', { name: 'Compliance workbench' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Health' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Compliance summary' })).toContainText('5')
   await expect(page.getByRole('heading', { name: 'Transport & timing' })).toBeVisible()
   await page.getByRole('button', { name: 'Needs attention', exact: true }).click()

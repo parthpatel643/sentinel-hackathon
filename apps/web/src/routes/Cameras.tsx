@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Activity, Camera as CameraIcon, FileUp, List, Map, Plus, RefreshCw, Search, Server } from 'lucide-react'
+import { Activity, Camera as CameraIcon, FileUp, LayoutList, List, Map, Plus, RefreshCw, Search, Server } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { camerasApi, coverageApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
@@ -18,6 +18,12 @@ import { cameraLabel, cameraLabelWithLocality, cameraStatusColor, hasCurrentFram
 import type { Camera } from '../lib/types'
 import './monitoring-workspace.css'
 import { useAuth } from '../lib/AuthContext'
+import { DISTRICT_COUNT, rollupByDistrict } from '../lib/districts'
+import { DistrictBoard } from '../components/gate/DistrictBoard'
+import { StatusWord } from '../components/gate/StatusWord'
+
+const DISTRICT_COLUMNS = '150px minmax(160px, 1.1fr) 64px 56px 56px 80px minmax(120px, 1.6fr) 40px'
+const CAMERA_COLUMNS = 'minmax(96px, .8fr) minmax(160px, 2fr) minmax(120px, 1fr) 64px'
 
 /** Analysis this far behind live means the machine cannot keep up with this
  * camera's tier: lower the sampled rate or move the camera to another worker. */
@@ -37,7 +43,8 @@ export function Cameras() {
   // offered actions that would be refused.
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
-  const [view, setView] = useState<'table' | 'map' | 'insights'>('table')
+  const [view, setView] = useState<'districts' | 'table' | 'map' | 'insights'>('districts')
+  const [openDistrict, setOpenDistrict] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
   const [department, setDepartment] = useState('all')
@@ -78,11 +85,11 @@ export function Cameras() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameras, searchParams])
 
-  const filteredCameras = cameras?.filter((camera) =>
+  const filteredCameras = useMemo(() => cameras?.filter((camera) =>
     (status === 'all' || camera.status === status) &&
     (department === 'all' || camera.department_name === department) &&
     `${camera.name} ${camera.display_name ?? ''} ${camera.camera_id}`.toLowerCase().includes(query.trim().toLowerCase()),
-  )
+  ), [cameras, status, department, query])
   const markers: MapMarker[] =
     filteredCameras
       ?.filter((c): c is Camera & { location: NonNullable<Camera['location']> } => c.location != null)
@@ -95,6 +102,8 @@ export function Cameras() {
         onClick: () => setSelected(c),
       })) ?? []
 
+  const districts = useMemo(() => rollupByDistrict(filteredCameras ?? []), [filteredCameras])
+
   function openOnboarding(path: typeof onboardingPath) {
     setOnboardingPath(path)
     setWizardOpen(true)
@@ -104,18 +113,17 @@ export function Cameras() {
     <div className="monitoring-workspace flex min-h-0 flex-1 flex-col">
       <TopBar
         title={t('nav.cameras')}
-        subtitle={cameras ? t('cameras.registered', { count: cameras.length }) : undefined}
+        titleKey="nav.cameras"
+        subtitle={cameras ? `${t('cameras.registered', { count: cameras.length })} · ${t('monitoring:registryHelp')}` : t('monitoring:registryHelp')}
+        actions={isAdmin && <button type="button" className="gb-btn gb-primary" onClick={() => openOnboarding('location')}><Plus className="gb-ico" aria-hidden="true" />{t('cameras.addCamera')}</button>}
       />
       <div className="registry-workspace">
-      <div className="registry-heading">
-        <div><h2>{t('monitoring:registry')}</h2><p>{t('monitoring:registryHelp')}</p></div>
-        {isAdmin && <Button onClick={() => openOnboarding('location')}><Plus size={16} />{t('cameras.addCamera')}</Button>}
-      </div>
-      <div className="registry-health" role="group" aria-label={t('workspace.allStatuses')}>
-        {['all', 'live', 'degraded', 'down', 'stale', 'connecting', 'unknown'].map((value) => (
-          <button key={value} aria-label={t(`monitoring:${value === 'all' ? 'all' : value}Cameras`)} aria-pressed={status === value} onClick={() => setStatus(value)}>
+      <div className="registry-health gb-seg" role="group" aria-label={t('workspace.allStatuses')}>
+        {['all', 'down', 'degraded', 'stale', 'unknown', 'connecting', 'live'].map((value) => (
+          <button key={value} type="button" aria-label={t(`monitoring:${value === 'all' ? 'all' : value}Cameras`)} aria-pressed={status === value} onClick={() => setStatus(value)}>
+            {value !== 'all' && <span className={`gb-glyph gb-${value === 'connecting' ? 'idle' : value}`} aria-hidden="true" />}
             <span>{value === 'all' ? t('monitoring:allCameras') : t(`cameraStatus.${value}`)}</span>
-            <strong>{cameras ? (value === 'all' ? cameras.length : cameras.filter((camera) => camera.status === value).length) : '—'}</strong>
+            <span className="gb-n">{cameras ? (value === 'all' ? cameras.length : cameras.filter((camera) => camera.status === value).length) : '—'}</span>
           </button>
         ))}
       </div>
@@ -132,6 +140,7 @@ export function Cameras() {
         </select>
         <div className="registry-view-switch">
           <div className="segmented" role="group" aria-label={t('cameras.view')}>
+            <Button aria-pressed={view === 'districts'} size="sm" variant="ghost" onClick={() => setView('districts')}><LayoutList size={15} />{t('gate:colDistrict')}</Button>
             <Button aria-pressed={view === 'table'} size="sm" variant="ghost" onClick={() => setView('table')}><List size={15} />{t('cameras.table')}</Button>
             <Button aria-pressed={view === 'map'} size="sm" variant="ghost" onClick={() => setView('map')}><Map size={15} />{t('cameras.map')}</Button>
             <Button aria-pressed={view === 'insights'} size="sm" variant="ghost" onClick={() => setView('insights')}><Activity size={15} />{tr('insights')}</Button>
@@ -142,7 +151,33 @@ export function Cameras() {
       <div className="registry-results"><span>{cameras ? t('monitoring:results', { count: filteredCameras?.length ?? 0 }) : t('cameras.loading')}</span>{(query || status !== 'all' || department !== 'all') && <button onClick={() => { setQuery(''); setStatus('all'); setDepartment('all') }}>{t('monitoring:resetFilters')}</button>}</div>
       {Boolean(error) && <div className="p-4"><RequestError onRetry={refetch} /></div>}
 
-      {view === 'insights' ? (
+      {view === 'districts' ? (
+        <div className="registry-districts">
+          {loading && !cameras && <p className="gb-board-foot">{t('cameras.loading')}</p>}
+          {cameras && filteredCameras?.length === 0 && <div className="gb-empty"><b>{t(cameras.length === 0 ? 'monitoring:noCameras' : 'workspace.noMatchingCameras')}</b></div>}
+          {filteredCameras && filteredCameras.length > 0 && <>
+            <div className="gb-board-top">
+              <h2 className="gb-board-title gb-s">{t('gate:camerasByDistrict')}</h2>
+              <span className="gb-board-note">{t('gate:districtsWithCameras', { count: districts.filter((d) => d.district).length, total: DISTRICT_COUNT })} · {t('gate:districtEstimated')}</span>
+            </div>
+            <div className="gb-board-grid gb-board-head" style={{ ['--cols' as string]: DISTRICT_COLUMNS }} aria-hidden="true">
+              <div>{t('gate:colProblem')}</div><div>{t('gate:colDistrict')}</div><div className="gb-num">{t('gate:colCams')}</div><div className="gb-num">{t('cameraStatus.live')}</div><div className="gb-num">{t('cameraStatus.down')}</div><div className="gb-num">{t('cameraStatus.unknown')}</div><div>{t('gate:colMix')}</div><div />
+            </div>
+            <DistrictBoard rows={districts} columns={DISTRICT_COLUMNS} openDistrict={openDistrict} expandAll={Boolean(query.trim()) || status !== 'all' || department !== 'all'} onToggle={setOpenDistrict} renderDrill={(row) => (
+              <div className="gb-drill" role="list" aria-label={row.district ?? t('gate:noDistrict')}>
+                {row.cameras.map((camera) => (
+                  <div role="listitem" key={camera.camera_id} className="gb-board-grid gb-board-row gb-child" style={{ ['--cols' as string]: CAMERA_COLUMNS }}>
+                    <div><StatusWord status={camera.status} /></div>
+                    <div className="gb-c-cam"><button type="button" className="gb-row-link gb-nm" onClick={() => setSelected(camera)}>{cameraLabel(camera)}</button><span className="gb-id">{camera.camera_id}</span></div>
+                    <div className="gb-data gb-muted">{camera.location ? `${camera.location.lat.toFixed(4)}, ${camera.location.lon.toFixed(4)}` : t('monitoring:locationMissing')}</div>
+                    <div className="gb-data gb-num">{fpsLabel(camera)}</div>
+                  </div>
+                ))}
+              </div>
+            )} />
+          </>}
+        </div>
+      ) : view === 'insights' ? (
         <CoverageLifecyclePanel department={department === 'all' ? undefined : department} />
       ) : view === 'map' ? (
         <div className="registry-map-layout">

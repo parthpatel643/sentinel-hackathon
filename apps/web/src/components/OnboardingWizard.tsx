@@ -96,7 +96,7 @@ export function OnboardingWizard({ open, onClose, onOnboarded, initialStep = 'lo
   }
 
   const markers: MapMarker[] = pin
-    ? [{ id: 'pin', lat: pin.lat, lon: pin.lon, color: 'oklch(0.68 0.16 245)' }]
+    ? [{ id: 'pin', lat: pin.lat, lon: pin.lon, color: '#ffb000' }]
     : []
 
   async function submitLinkCamera() {

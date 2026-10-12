@@ -1,4 +1,15 @@
 {
+  "shell": {
+    "jurisdiction": "क्षेत्राधिकार",
+    "allDistricts": "गुजरात · सभी ज़िले",
+    "districtOption": "{{name}} · {{count}} कैमरे",
+    "scaleNote": "आज {{count}} कैमरे · योजना: 34 ज़िलों में 80,000",
+    "more": "और",
+    "moreTitle": "और पेज",
+    "amberNote": "जो आपने स्वीकार नहीं किया, वह पीले रंग में जलता रहता है",
+    "waitingVehicles": "{{count}} वाहन प्रतीक्षा में",
+    "find": "खोजें"
+  },
   "workspace": {
     "summary": "संचालन सारांश",
     "registeredCameras": "पंजीकृत कैमरे",
