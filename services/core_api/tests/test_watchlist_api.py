@@ -147,10 +147,18 @@ async def test_arming_a_watched_plate_again_never_duplicates_its_alerts(
     assert second.json()["already_armed"] is True
     assert second.json()["retro_alerts_created"] == 0
     assert second.json()["retro_sightings_found"] == 1, "the sighting already on file"
-    alerts = (await client.get("/api/v1/alerts")).json()
+    # Only this test's plate: the dev database is shared with real use, so a
+    # watchlist armed for a demonstration must not fail this test.
+    alerts = [
+        a for a in (await client.get("/api/v1/alerts")).json() if a["plate_text"] == "GJ18AB4321"
+    ]
     assert len(alerts) == 1
     assert alerts[0]["sighting_count"] == 1
-    entries = (await client.get("/api/v1/watchlist")).json()
+    entries = [
+        e
+        for e in (await client.get("/api/v1/watchlist")).json()
+        if e["plate_normalised"] == "GJ18AB4321"
+    ]
     assert len(entries) == 1
 
 
