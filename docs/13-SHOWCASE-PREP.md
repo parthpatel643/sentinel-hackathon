@@ -196,7 +196,7 @@ Ordered by how badly each could hurt in front of the jury.
 | 3 | **Cross-camera has only ever been shown with one camera's sightings.** | It is the headline capability. | Own-car, three-camera drill before Monday (§0 item 2, §6.5). Record it as the fallback video. |
 | 4 | **ANPR accuracy is 78% after the vote**, below the 85% gate. | "Is it good enough for evidence?" | Own it: the holdout, the method, the 8.6% → 78% story, and that every hop carries a snapshot an officer confirms. Never claim a higher number. |
 | 5 | **The L4 300 fps/GPU figure is a vendor-benchmark estimate**, not measured. | The whole GPU count (≈560 L4) rests on it. | Say "estimated, and re-derivable": show the formula in [04 §9](./04-SCALE-PLAN.md) and offer a pilot-phase benchmark as Phase 0's first exit criterion. |
-| 6 | **README screenshots predate the UI redesign** (README says so). | Slides must show the product they are about to see. | **Pitch deck done (11 Oct):** light-theme screenshots of the current console via `npm run screenshots:pitch`. The README set and the submission deck (`make deck`) are still the old screens. |
+| 6 | ~~README screenshots predate the UI redesign.~~ | Slides must show the product they are about to see. | **Done (12 Oct):** pitch deck (`npm run screenshots:pitch`, `make pitch`) and README set (`npm run screenshots`) recaptured from the gate-board console on the mirror. The submission deck (`make deck`) still shows the earlier screens. |
 | 7 | ~~Uncommitted mirror work~~ (`scripts/gov_mirror.py`, `SOURCE=mirror`). | The sandbox grid is being taken down; the mirror is our only copy of real government footage. | **Done:** committed 10 Oct (`7f01c44`); all 30 cameras recorded to `data/gov-mirror/` (gitignored — copy it to the M4 by hand). |
 
 ---
@@ -596,22 +596,27 @@ Use the highest rung that works, and **say which rung you are on.**
 2. Organisers' feeds on whichever laptop survives; fewer cameras, higher tier.
 3. Phone hotspot + own RTSP cameras: re-run the own-car drill live.
 4. Local gov mirror (`make mirror-start`, `make worker SOURCE=mirror`) — real
-   government footage, offline. **Tested 8 Oct on the M2:** the drill works end
-   to end (search, map, timeline, evidence, BOLO retro-hit, a live forward alert
-   on every clip loop, Movement Report with matching hashes), but **only cam06
-   yields valid plates**, so the route is single-camera. The same car reappears
-   each time the clip loops (~16.5 min).
-   **Times (10 Oct, after the camera-clock change):** a sighting's time is only
-   ever the clock burned into its own evidence frame. cam06's frames are too
-   damaged for that clock to be read (6–12% of seconds, 0 of 8 reads timed in a
-   13-minute run), so **its plates show as "time unknown — camera clock
-   unreadable"**, listed under the timeline and in the report's "Also seen"
-   section. cam30 shows the clock working: 65 of 115 reads timed, e.g.
-   `GJ39C8018` at 08 Aug 2026 21:10:33 — the time visible in its snapshot.
-   Say plainly why cam06 is untimed before a juror asks.
-   Good demo plates: `GJ11CD8389` (one-character twin `GJ11CD8889`, same white
-   car), `GJ11S7924`, `GJ03MH7800` (search `GJO3MH78OO` for the ambiguity rung);
-   `GJ39C8018` on cam30 for a timed sighting.
+   government footage, offline. **Tested 8 Oct on the M2, re-run 12 Oct on the
+   gate-board console:** the drill works end to end (search, map, timeline,
+   evidence, BOLO retro-hit, forward alerts, Movement Report with matching
+   hashes), but **valid plates come almost only from cam06** (7 of 15 reads;
+   cam30 gives 8 valid of 209), so the route is single-camera. The same car
+   reappears each time a clip loops (cam06 ~16.5 min, cam30 ~11 min).
+   **Times (12 Oct, PP-OCRv6 clock reader):** a sighting's time is only ever
+   the clock burned into its own evidence frame, accepted when a reading on
+   another frame agrees. cam06's clock now reads on most sightings (5 of its 7
+   valid reads timed in a 20-minute run): `GJ11S7924` at 17 Jun 2026 18:01:21
+   and `GJ03MH7800` at 18:02:49 — the times visible in their snapshots.
+   `GJ11CD8389` (cam06) and `GJ39C8018` (cam30) still show as **"time unknown —
+   camera clock unreadable"**: at `GJ39C8018`'s moment the recording itself
+   freezes (the same clock second on frames 3.8 s apart, then a 5 s jump), so
+   no second reading can confirm it. Say so before a juror asks.
+   **Alerts on a loop:** a timed pass replayed by the loop is recognised by its
+   camera clock and does not alert again; an untimed one cannot be, so it
+   re-alerts each loop (the board groups them into one row with a hit count).
+   Good demo plates: `GJ11S7924` (stolen, timed), `GJ03MH7800` (wanted, timed;
+   search `GJO3MH78OO` for the ambiguity rung), `GJ11CD8389` (one-character
+   twin `GJ11CD8889`, same white car; untimed), `GJ39C8018` on cam30 (untimed).
 5. Recorded own-car video (§6.5) and the demo videos from local disk.
 
 ---

@@ -232,7 +232,7 @@ async function titleSlide() {
   s.background = { color: WHITE }
   // Right half: the product, on the console's own tint.
   s.addShape(pres.shapes.RECTANGLE, { x: 6.75, y: 0, w: W - 6.75, h: SLIDE_H, fill: { color: TINT }, line: { color: TINT } })
-  const shot = await crop('find-a-vehicle', { x: 80, y: 180, w: 1520, h: 820 })
+  const shot = await crop('find-a-vehicle', { x: 0, y: 182, w: 1600, h: 782 })
   const sw = 5.75
   const sh = sw / shot.ratio
   const sy = (SLIDE_H - sh) / 2
@@ -467,7 +467,7 @@ async function connectSlide() {
     title: 'Works with the cameras you already have',
     notes: 'Nothing is replaced and nothing is installed on a department’s system. A camera list, a device on the network or a department’s catalogue — each is onboarded in minutes and appears on the map and the live wall. For the technical jury: RTSP, ONVIF, Hikvision and Dahua drivers; one connection per camera however many people watch; credentials never reach a browser.',
   })
-  const shot = await crop('live-wall', { x: 400, y: 290, w: 1190, h: 710 })
+  const shot = await crop('live-wall', { x: 302, y: 244, w: 1278, h: 702 })
   screenshot(s, shot, M + 0.07, 1.9, 6.9)
   const x = M + 7.45
   const w = CW - 7.45
@@ -488,7 +488,7 @@ async function traceSlide() {
     title: 'Type a plate. See where it went.',
     notes: 'Type the number — spacing and case do not matter. Every sighting appears on the map and the timeline, in the order the cameras’ own clocks give. Open a stop: the camera, the time printed on the frame, the plate as read, the snapshot with faces blurred. Arm a watch for future sightings. Then export the Movement Report and hand it over.',
   })
-  const shot = await crop('find-a-vehicle', { x: 80, y: 180, w: 1520, h: 820 })
+  const shot = await crop('find-a-vehicle', { x: 0, y: 182, w: 1600, h: 782 })
   const h = screenshot(s, shot, M + 0.07, 1.8, 7.5)
   const x = M + 8.1
   const w = CW - 8.1
@@ -500,7 +500,7 @@ async function traceSlide() {
   for (const [i, [ic, title, body]] of rows.entries()) {
     await iconRow(s, { icon: ic, title, body, x, y: 1.9 + i * 1.3, w })
   }
-  text(s, 'The real console on recorded government footage: GJ39C8018 at Gandhidham, 8 Aug 2026, 21:10 — the time printed on the frame.', {
+  text(s, 'The real console on recorded government footage: GJ11S7924 at Timbavadi Gate, Junagadh, 17 Jun 2026, 18:01 — the time printed on the frame.', {
     x: M, y: 1.8 + h + 0.22, w: 7.6, h: 0.45, fontSize: 11, color: MUTED, italic: true,
   })
 }
@@ -511,7 +511,7 @@ async function alertSlide() {
     title: 'Flagged the moment it is seen',
     notes: 'Every plate any camera reads is checked against the watchlist — stolen, wanted, missing — automatically. A match raises a prioritised alert on every open console and on officers’ phones, with a sound, and repeat sightings at a red light do not flood anyone. It also catches the misreads cameras make: a zero read as an O, a one as an I. Anything less than an exact match is shown as probable, for an officer to confirm on the frame.',
   })
-  const shot = await crop('alerts', { x: 712, y: 262, w: 878, h: 600 })
+  const shot = await crop('alerts', { x: 600, y: 182, w: 980, h: 672 })
   screenshot(s, shot, M + 0.07, 1.85, 5.6)
   const x = M + 6.2
   const w = CW - 6.2
@@ -540,9 +540,9 @@ async function trustSlide() {
   const s = frame({
     eyebrow: 'Evidence and privacy',
     title: 'Evidence that holds up. Privacy by default.',
-    notes: 'This is the slide for both halves of the room. For the officers: the time in the report is the time printed on the camera’s own frame, and if it cannot be read we say “time unknown” rather than guess — a record that holds up under cross-examination. Every search, export and reveal is logged in a hash chain; change one entry and verification fails. For the professors: the clock reading is accepted only when a second reading agrees, and exports carry a SHA-256 manifest. And we do no face recognition at all — faces are detected only to be blurred. If time allows, show Admin, then Audit, then Verify chain.',
+    notes: 'This is the slide for both halves of the room. For the officers: the time in the report is the time printed on the camera’s own frame, and if it cannot be read we say “time unknown” rather than guess — a record that holds up under cross-examination. Every search, export and reveal is logged in a hash chain; change one entry and verification fails. For the professors: the clock reading is accepted only when a second reading agrees, and exports carry a SHA-256 manifest. And we do no face recognition at all — faces are detected only to be blurred. If time allows, show Admin, then Audit, then Verify integrity.',
   })
-  const shot = await crop('time-unknown', { x: 818, y: 422, w: 765, h: 520 })
+  const shot = await crop('time-unknown', { x: 753, y: 418, w: 827, h: 480 })
   screenshot(s, shot, M + 6.95, 1.9, CW - 7.0)
   const items = [
     ['LuClock', 'The time on the frame is the time in the report', 'Read from the camera’s own clock. If it cannot be read, we say “time unknown” — never a guess.'],

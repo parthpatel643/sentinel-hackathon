@@ -8,7 +8,7 @@
  *
  * Usage (from apps/web, against a running stack with the gov mirror analysed):
  *   npm run screenshots:pitch
- *   PITCH_PLATE=GJ39C8018 PITCH_UNTIMED_PLATE=GJ11CD8389 npm run screenshots:pitch
+ *   PITCH_PLATE=GJ11S7924 PITCH_UNTIMED_PLATE=GJ11CD8389 npm run screenshots:pitch
  */
 
 import { chromium } from '@playwright/test'
@@ -23,7 +23,7 @@ const WEB_URL = process.env.SHOT_WEB_URL ?? 'http://localhost:5173'
 const API_URL = process.env.SHOT_API_URL ?? 'http://localhost:18000'
 const EMAIL = process.env.SHOT_EMAIL ?? 'admin@sentinel-platform.com'
 const PASSWORD = process.env.SHOT_PASSWORD ?? 'sentinel-admin-2026'
-const PLATE = process.env.PITCH_PLATE ?? 'GJ39C8018'
+const PLATE = process.env.PITCH_PLATE ?? 'GJ11S7924'
 const UNTIMED_PLATE = process.env.PITCH_UNTIMED_PLATE ?? 'GJ11CD8389'
 // H.264 cameras with legible traffic; HLS in a browser cannot play H.265.
 const WALL_CAMERAS = (process.env.PITCH_WALL ?? 'cam01,cam30,cam02,cam05').split(',')

@@ -10,14 +10,11 @@ documented path to ~80,000 cameras.
 
 ![Operations overview](docs/images/01-operations-overview.png)
 
-> **UI update:** the current console has been structurally redesigned with a
-> compact navigation rail, interactive network workbench, selectable surveillance
-> wall, three-panel vehicle investigation, and master-detail alert triage. Admin,
-> health and field workflows have also been rebuilt. The screenshots in this README
-> document the earlier live-data run; see the
-> [implemented workspace specification](docs/03-UX-DESIGN.md#implemented-workspace)
-> for the current interaction design. Regenerate live-data screenshots with
-> `npm run screenshots` from `apps/web` using a working operator account.
+> **Screenshots** are the current console, a departures-style "gate board"
+> (see [DESIGN.md](DESIGN.md)), captured on 12 October 2026 from the recorded
+> government footage (`make worker SOURCE=mirror`). Times are each camera's own
+> clock; "time unknown" means that frame's clock could not be confirmed.
+> Regenerate with `npm run screenshots` from `apps/web`.
 
 > **Status:** M0–M15 complete. Running against the **real government camera
 > grid** — 30 cameras onboarded from the live catalogue, continuous ANPR,
