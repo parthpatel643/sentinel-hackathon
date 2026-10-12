@@ -155,6 +155,22 @@ test('arming a plate that is already watched says so instead of claiming a new w
   await expect(page.getByText('GJ01AB1234 is already being watched — no duplicate alerts were created')).toBeVisible()
 })
 
+test('a traced vehicle can be watched from its route without leaving the investigation', async ({ page }) => {
+  await page.route('**/api/v1/vehicles/*/route', (route) => route.fulfill({ json: vehicleRoute }))
+  let requestedPlate: string | undefined
+  await page.route('**/api/v1/bolo', (route) => {
+    requestedPlate = (route.request().postDataJSON() as { plate: string }).plate
+    return route.fulfill({ json: { retro_alerts_created: 1, retro_sightings_found: 2, watchlist_entry: {} } })
+  })
+  await page.goto('/find-a-vehicle?plate=GJ01AB1234')
+  const workbench = page.getByRole('region', { name: 'Movement workbench' })
+  await workbench.getByRole('button', { name: 'Watch for this vehicle', exact: true }).click()
+  await expect.poll(() => requestedPlate).toBe('GJ01AB1234')
+  await expect(workbench.getByRole('status')).toHaveText(
+    'Watch armed for GJ01AB1234. Found 2 past sightings already on file — check Alerts.',
+  )
+})
+
 test('loaded alert counts and selection respond to severity filters', async ({ page }) => {
   await page.route('**/api/v1/alerts**', (route) => route.fulfill(route.request().url().endsWith('/clip')
     ? { status: 404, json: {} }

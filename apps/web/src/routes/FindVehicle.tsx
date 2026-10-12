@@ -203,6 +203,48 @@ function ArmBoloPanel({ plate, windowHours, onArmed }: { plate: string; windowHo
   )
 }
 
+/** Arm a forward watch from the route itself: the drill's "and now we watch
+ * for it" step, without leaving the investigation. The retro-scan's alerts
+ * reach every open console as the banner. */
+function WatchVehicleButton({ plate }: { plate: string }) {
+  const { t } = useTranslation()
+  const [busy, setBusy] = useState(false)
+  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null)
+
+  async function arm() {
+    if (busy) return
+    setBusy(true)
+    setStatus(null)
+    try {
+      const result = await watchlistApi.bolo({ plate, entry_type: 'bolo', priority: 'high' })
+      const found =
+        result.retro_sightings_found > 0
+          ? t('findVehicle.foundPastSightings', { count: result.retro_sightings_found })
+          : t('findVehicle.noPastSightings')
+      const armed = t(result.already_armed ? 'findVehicle.watchAlreadyArmed' : 'findVehicle.watchArmed', { plate })
+      setStatus({ ok: true, text: result.already_armed ? armed : `${armed}. ${found}` })
+    } catch (err) {
+      setStatus({ ok: false, text: requestMessage(err, t('findVehicle.armError')) })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button size="sm" variant="secondary" onClick={arm} disabled={busy}>
+        <ShieldCheck size={14} />
+        {busy ? t('findVehicle.arming') : t('findVehicle.watchForVehicle')}
+      </Button>
+      {status && (
+        <p role="status" className={`max-w-xs text-right text-xs ${status.ok ? 'text-ok' : 'text-sev-critical'}`}>
+          {status.text}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function ExportReportButton({ plate, windowHours }: { plate: string; windowHours: SearchWindow }) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
@@ -526,7 +568,7 @@ export function FindVehicle() {
               <p className="gb-plate gb-lg iw-result-plate">{route.plate_normalised}</p>
               <p className="text-sm text-text-secondary">{t('investigation:loadedSightings', { count: route.total_sightings })} · {t('findVehicle.camera', { count: new Set(allSightings.map((p) => p.camera_id)).size })}</p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-start gap-2">
               <Button
                 size="sm"
                 variant="secondary"
@@ -544,6 +586,7 @@ export function FindVehicle() {
                 {replaying ? <Pause size={14} /> : <Play size={14} />}
                 {replaying ? t('findVehicle.stop') : t('findVehicle.replayRoute')}
               </Button>
+              <WatchVehicleButton plate={route.plate_normalised} />
               <ExportReportButton plate={route.plate_normalised} windowHours={windowHours} />
             </div>
           </div>
