@@ -99,9 +99,11 @@ make reset-db CONFIRM=yes            # backs up to var/backups/, then schema + a
 make reset-db CONFIRM=yes MIRROR=1   # the same, plus the 30 mirrored cameras on the map
 ```
 
-Then re-create the operator logins (above). **Do not run `make test` on the
-demo laptop afterwards:** the tests write test users and audit entries into
-the same database.
+Then re-create the operator logins (above). **Run the tests only against the
+test database** (`SENTINEL_DB_NAME=sentinel_test make test`): by default they
+write test users and audit entries into the database the API serves. Create
+`sentinel_test` once with the same extensions, `02-app-role.sql` granted on it,
+and `SENTINEL_DB_NAME=sentinel_test alembic upgrade head`.
 
 ---
 
