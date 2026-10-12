@@ -23,6 +23,7 @@ from sentinel_core.plates import ambiguity_key, normalise_plate
 
 __all__ = [
     "detection_exists",
+    "duplicate_of",
     "get_vehicle_route",
     "ingest_detection",
     "search_detections",
@@ -56,6 +57,29 @@ async def detection_exists(session: AsyncSession, event_id: str, observed_at: da
         )
     )
     return found is not None
+
+
+async def duplicate_of(session: AsyncSession, payload: DetectionIn) -> str | None:
+    """The event id of a stored read of this plate, on this camera, at the
+    same second on the camera's clock — or None.
+
+    That is the same sighting, whatever event id it arrives under: a stream
+    reconnect replaying its buffer, a recording on a loop, a worker restarted
+    mid-pass, two workers on one feed. Storing it again would add a hop to
+    the route that is not there and correlate it against the watchlist
+    twice. A read with no camera time has nothing to compare and is kept."""
+    if payload.camera_time is None:
+        return None
+    existing: str | None = await session.scalar(
+        select(Detection.event_id)
+        .where(
+            Detection.camera_id == payload.camera_id,
+            Detection.plate_normalised == normalise_plate(payload.plate_text),
+            Detection.camera_time == payload.camera_time,
+        )
+        .limit(1)
+    )
+    return existing
 
 
 async def ingest_detection(session: AsyncSession, payload: DetectionIn) -> Detection:

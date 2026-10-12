@@ -26,6 +26,7 @@ from core_api.db.base import get_session
 from core_api.detections.schemas import DetectionIn, DetectionOut, VehicleRoute
 from core_api.detections.service import (
     detection_exists,
+    duplicate_of,
     get_vehicle_route,
     ingest_detection,
     search_detections,
@@ -43,6 +44,7 @@ from core_api.security.signed_urls import sign_media_path
 from core_api.watchlist.schemas import AlertOut
 from core_api.watchlist.service import correlate_detection
 from sentinel_core.config import get_settings
+from sentinel_core.schemas import DUPLICATE_OF_HEADER
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +54,7 @@ router = APIRouter(prefix="/api/v1", tags=["detections"])
 @router.post("/detections", status_code=201, response_model=list[AlertOut])
 async def ingest_detection_endpoint(
     payload: DetectionIn,
+    response: Response,
     session: AsyncSession = Depends(get_session),
     _svc: None = Depends(require_service_token),
     edge_identity: str | None = Depends(edge_gateway_identity),
@@ -67,8 +70,17 @@ async def ingest_detection_endpoint(
 
     Idempotent per event: an edge worker replays detections it could not
     deliver (edge_agent/outbox.py), and one whose first post timed out after
-    it was stored must be accepted again, not fail and block the queue."""
+    it was stored must be accepted again, not fail and block the queue.
+
+    Idempotent per sighting too: a read of a plate this camera already
+    reported at the same second on its clock is not stored, correlated or
+    announced. It is answered 200 with `X-Sentinel-Duplicate-Of` naming the
+    stored event, so the worker can drop the snapshot it took."""
     if await detection_exists(session, payload.event_id, payload.observed_at):
+        return []
+    if (existing := await duplicate_of(session, payload)) is not None:
+        response.status_code = 200
+        response.headers[DUPLICATE_OF_HEADER] = existing
         return []
     detection = await ingest_detection(session, payload)
     alerts = await correlate_detection(session, detection)

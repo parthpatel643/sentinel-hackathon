@@ -18,6 +18,7 @@ from ulid import ULID
 from sentinel_core.schemas.camera import CameraStatus, GeoPoint
 
 __all__ = [
+    "DUPLICATE_OF_HEADER",
     "AnprPayload",
     "BoundingBox",
     "Event",
@@ -30,6 +31,10 @@ __all__ = [
 ]
 
 SCHEMA_VERSION: Literal["1.0"] = "1.0"
+
+# Set by the API on a detection it refused as a sighting already stored (same
+# camera, plate and camera-clock second), naming the stored event.
+DUPLICATE_OF_HEADER = "X-Sentinel-Duplicate-Of"
 
 
 def new_event_id() -> str:

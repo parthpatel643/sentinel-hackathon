@@ -282,7 +282,7 @@ Every rung is scored and the resulting alert shows *why* it matched, in plain la
 ### 6.2 Alert orchestrator
 
 - **Priority score** = watchlist priority × match confidence × recency × geographic relevance (distance to the requesting jurisdiction) × repeat-sighting boost.
-- **Deduplication:** same plate + same camera within a sliding window collapses into one alert with a sighting count, so an operator is never spammed by a car waiting at a red light.
+- **Deduplication:** same plate + same camera within a sliding window collapses into one alert with a sighting count, so an operator is never spammed by a car waiting at a red light. A pass the camera's clock places within a minute of one already alerted on is that pass delivered again (a loop, a reconnect's buffer) and raises nothing. Below the alerts, a read of the same plate on the same camera at the same printed second is one sighting: the edge pipeline drops the repeat before writing its snapshot, and ingest refuses whatever gets past (a restarted worker, the offline outbox, two workers on one feed), answering `X-Sentinel-Duplicate-Of`.
 - **Escalation:** unacknowledged high-priority alerts escalate by role and then by channel (console → PWA push → SMS/webhook hook point) on a configurable ladder.
 - **Lifecycle:** `new → acknowledged → assigned → in_progress → resolved | false_positive`, each transition audited with actor, time and optional note.
 - **False-positive feedback loop:** a dismissal is recorded as labelled training data and shown in a model-quality dashboard — closing the loop is a differentiator and directly answers the "false-match redressal" critique in the press.
@@ -385,7 +385,7 @@ what runs:
 | Group | Endpoints |
 |---|---|
 | Registry | `GET/POST /cameras` (POST admin-only), `GET /cameras/{id}`, `POST /cameras/bulk-import`, `POST /cameras/discover` (catalogue sync), `POST /cameras/discover-device` (ONVIF / Hikvision / Dahua), `GET /coverage/gaps`, `GET /coverage/lifecycle` (ageing, AMC, maintenance, private-camera consent; `?format=csv`), `GET /departments` |
-| Edge workers (service token) | `GET /edge/cameras` (manifest with credentials; lapsed-consent cameras left out), `PATCH /cameras/{id}/health` (status, analysed fps, stream position, people and vehicle counts), `POST /detections` (idempotent per event), `PUT /detections/{id}/snapshot` (evidence upload from a remote worker), `POST /zone-events` |
+| Edge workers (service token) | `GET /edge/cameras` (manifest with credentials; lapsed-consent cameras left out), `PATCH /cameras/{id}/health` (status, analysed fps, stream position, people and vehicle counts), `POST /detections` (idempotent per event, and per camera + plate + camera-clock second), `PUT /detections/{id}/snapshot` (evidence upload from a remote worker), `POST /zone-events` |
 | Viewing | `GET /cameras/{id}/stream` (a credential-free HLS URL via the relay, or the reason it is unavailable) |
 | Search and reports | `GET /detections`, `GET /vehicles/{plate}/route`, `GET /vehicles/{plate}/movement-report` (one ZIP: PDF, CSV, evidence frames and a SHA-256 manifest) |
 | Watchlist and alerts | `GET/POST /watchlist`, `PATCH /watchlist/{id}`, `POST /bolo` (arm + retro-scan), `GET /alerts`, `PATCH /alerts/{id}`, `POST /alerts/{id}/seal-clip` |

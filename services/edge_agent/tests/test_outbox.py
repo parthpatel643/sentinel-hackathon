@@ -12,6 +12,7 @@ import pytest
 from edge_agent import worker
 from edge_agent.outbox import DetectionOutbox
 from sentinel_core.config import Settings
+from sentinel_core.schemas import DUPLICATE_OF_HEADER
 
 
 def _body(event_id: str) -> dict[str, Any]:
@@ -107,3 +108,39 @@ async def test_the_drain_replays_once_the_api_is_back(
     assert remaining == 0
     assert ['"e1"' in r for r in received] == [True, False, False]
     assert len(received) == 3
+
+
+def _write_snapshots(settings: Settings, event_id: str) -> None:
+    for directory in (settings.snapshots_dir, settings.snapshot_originals_dir):
+        Path(directory).mkdir()
+        (Path(directory) / f"{event_id}.jpg").write_bytes(b"jpeg")
+
+
+def _jpegs(root: Path) -> list[Path]:
+    return list(root.rglob("*.jpg"))
+
+
+async def test_a_sighting_the_api_already_holds_drops_its_snapshot(tmp_path: Path) -> None:
+    """The API answers that this is a stored sighting under another event:
+    nothing is uploaded, and the snapshot taken for it is deleted rather
+    than left behind with no detection to belong to."""
+    settings = Settings(
+        snapshots_dir=str(tmp_path / "blurred"), snapshot_originals_dir=str(tmp_path / "original")
+    )
+    _write_snapshots(settings, "e2")
+    requests: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(f"{request.method} {request.url.path}")
+        return httpx.Response(200, json=[], headers={DUPLICATE_OF_HEADER: "e1"})
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler), base_url="http://api"
+    ) as client:
+        outcome = await worker._deliver(
+            client, "e2", _body("e2"), has_snapshot=True, settings=settings
+        )
+
+    assert outcome == "duplicate"
+    assert requests == ["POST /api/v1/detections"]
+    assert _jpegs(tmp_path) == []

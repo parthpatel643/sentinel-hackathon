@@ -16,7 +16,7 @@ import uuid
 from datetime import UTC, datetime
 
 from geoalchemy2 import Geometry
-from sqlalchemy import JSON, ForeignKey, Identity, UniqueConstraint, func
+from sqlalchemy import JSON, ForeignKey, Identity, Index, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core_api.db.base import Base
@@ -172,7 +172,14 @@ class Detection(Base):
     """
 
     __tablename__ = "detections"
-    __table_args__ = (UniqueConstraint("event_id", "observed_at", name="uq_detection_event"),)
+    __table_args__ = (
+        UniqueConstraint("event_id", "observed_at", name="uq_detection_event"),
+        # The duplicate check on ingest: one read per camera, plate and
+        # printed second (see detections/service.py, duplicate_of).
+        Index(
+            "ix_detections_camera_plate_camera_time", "camera_id", "plate_normalised", "camera_time"
+        ),
+    )
 
     # TimescaleDB requires the partitioning column (observed_at) to be part
     # of every unique/primary-key constraint on a hypertable — a composite

@@ -10,6 +10,7 @@ from sentinel_core.schemas.camera import (
     StreamProtocol,
 )
 from sentinel_core.schemas.events import (
+    DUPLICATE_OF_HEADER,
     SCHEMA_VERSION,
     AnprPayload,
     BoundingBox,
@@ -23,6 +24,7 @@ from sentinel_core.schemas.events import (
 )
 
 __all__ = [
+    "DUPLICATE_OF_HEADER",
     "SCHEMA_VERSION",
     "AnalyticsTier",
     "AnprPayload",

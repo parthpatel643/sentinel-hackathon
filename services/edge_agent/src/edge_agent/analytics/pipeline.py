@@ -10,7 +10,7 @@ factory throughout this codebase.
 from __future__ import annotations
 
 import logging
-from collections import deque
+from collections import OrderedDict, deque
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
@@ -45,6 +45,13 @@ MIN_REPORTABLE_PLATE_CHARS = 6
 # which the track was matched and the camera's clock was read. The newest
 # confirmed one wins, so a few is plenty; each holds a full-resolution image.
 CLOCK_FRAMES_PER_TRACK = 4
+
+# Plate reads already reported for this camera, keyed by the plate and the
+# camera's clock on its evidence frame. Kept across stream cuts on purpose:
+# a reconnect replays its buffer and a recorded feed loops, and both show the
+# same vehicle at the same printed second again. Bounded, so memory is too;
+# the API refuses the same (camera, plate, camera time) whatever slips past.
+REPORTED_READS_REMEMBERED = 4096
 
 __all__ = ["AnprPipeline", "PlateReaderPort", "SnapshotWriterPort", "VehicleDetectorPort"]
 
@@ -118,6 +125,7 @@ class AnprPipeline:
         self._clock_frames: dict[int, deque[_ClockFrame]] = {}
         self._voters: dict[int, PlateVoter] = {}
         self._last_emitted: dict[int, str] = {}
+        self._reported: OrderedDict[tuple[str, datetime], None] = OrderedDict()
         # M13: the most recent frame's tracked vehicles, exposed for a
         # caller (edge_agent.worker) to feed into a ZoneRuleEngine —
         # zone rules need every tracked vehicle's position, not just the
@@ -281,8 +289,20 @@ class AnprPipeline:
 
     def _build_event(
         self, frame: Frame[np.ndarray], tracked: TrackedVehicle, voted: VotedPlate
-    ) -> Event:
+    ) -> Event | None:
         evidence = self._evidence_for(frame, tracked)
+        if evidence.camera_time is not None:
+            # The same plate at the same printed second on this camera has
+            # been reported already: a second track on one vehicle, or the
+            # same footage delivered again. Dropped before its snapshot is
+            # written. A read with no camera time has nothing to compare.
+            key = (voted.plate_normalised, evidence.camera_time)
+            if key in self._reported:
+                self._reported.move_to_end(key)
+                return None
+            self._reported[key] = None
+            if len(self._reported) > REPORTED_READS_REMEMBERED:
+                self._reported.popitem(last=False)
         x1, y1, x2, y2 = evidence.bbox_xyxy
         event = Event(
             type=EventType.ANPR_PLATE_READ,

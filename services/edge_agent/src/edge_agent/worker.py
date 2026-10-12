@@ -80,6 +80,7 @@ from sentinel_core.relay import (
     release_relay_path,
 )
 from sentinel_core.schemas import (
+    DUPLICATE_OF_HEADER,
     AnalyticsTier,
     AnprPayload,
     CameraDescriptor,
@@ -477,10 +478,12 @@ async def _deliver(
     *,
     has_snapshot: bool,
     settings: Settings,
-) -> Literal["ok", "retry", "rejected"]:
+) -> Literal["ok", "duplicate", "retry", "rejected"]:
     """Post one detection (then its snapshot). `retry` when the API could not
     take it (unreachable, 5xx, rate-limited) so the caller queues it;
-    `rejected` when the API refused this payload, which replaying cannot fix."""
+    `rejected` when the API refused this payload, which replaying cannot fix;
+    `duplicate` when the API already holds this sighting under another event
+    (same camera, plate and camera-clock second), whose snapshot is dropped."""
     try:
         response = await client.post("/api/v1/detections", json=body)
     except httpx.TransportError as exc:
@@ -497,9 +500,18 @@ async def _deliver(
             response.text[:200],
         )
         return "rejected"
+    if existing := response.headers.get(DUPLICATE_OF_HEADER):
+        _discard_snapshot(event_id, settings)
+        logger.info("%s is a sighting already stored as %s; not kept", event_id, existing)
+        return "duplicate"
     if has_snapshot:
         await _upload_snapshot(client, event_id, settings)
     return "ok"
+
+
+def _discard_snapshot(event_id: str, settings: Settings) -> None:
+    for directory in (settings.snapshots_dir, settings.snapshot_originals_dir):
+        (Path(directory) / f"{event_id}.jpg").unlink(missing_ok=True)
 
 
 async def _drain_outbox(

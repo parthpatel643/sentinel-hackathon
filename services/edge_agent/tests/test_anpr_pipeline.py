@@ -13,7 +13,7 @@ from edge_agent.analytics.pipeline import AnprPipeline
 from edge_agent.analytics.plate_reader import PlateCandidate
 from edge_agent.analytics.vehicle_detector import VehicleDetection
 from sentinel_core.clock import Frame, FrameTiming
-from sentinel_core.schemas import AnprPayload, EventType
+from sentinel_core.schemas import AnprPayload, Event, EventType
 
 ANCHOR = datetime(2026, 9, 22, 9, 0, 0, tzinfo=UTC)
 
@@ -549,3 +549,45 @@ def test_camera_time_of_reads_a_frame_for_events_with_no_vehicle_evidence() -> N
         ).camera_time_of(_marked_frame(2000.0, 2))
         is None
     )
+
+
+def _replayed_pass(clock: FrameClockReader, writer: _RecordingSnapshotWriter) -> list[list[Event]]:
+    """The same footage twice, with a stream cut between: a recording on a
+    loop, or a reconnect replaying its buffer. Each pass shows the car at
+    the second printed on frame 2."""
+    pipeline = AnprPipeline(
+        FakeVehicleDetector([[], [_car()], [], [_car()]]),
+        FakePlateReader([[_plate("GJ01AB1234")], [_plate("GJ01AB1234")]]),
+        node_id="n",
+        model_versions={},
+        snapshot_writer=writer,
+        frame_clock=clock,
+    )
+    passes = []
+    for cut in (False, True):
+        pipeline.process_frame(_marked_frame(400.0, 1, discontinuity=cut))
+        passes.append(pipeline.process_frame(_marked_frame(1500.0, 2)))
+    return passes
+
+
+def test_the_same_plate_at_the_same_printed_second_is_reported_once() -> None:
+    """Dropped before its snapshot is written, and remembered across the cut
+    that a replay always comes with."""
+    writer = _RecordingSnapshotWriter()
+    clock = _clock_reader({1: "17-06-2026 18:04:41", 2: "17-06-2026 18:04:42"})
+
+    first, replay = _replayed_pass(clock, writer)
+
+    assert [e.camera_time for e in first] == [datetime(2026, 6, 17, 12, 34, 42, tzinfo=UTC)]
+    assert replay == []
+    assert len(writer.images) == 1
+
+
+def test_reads_with_no_camera_time_are_all_reported() -> None:
+    """Without a printed time there is nothing to say two reads are one moment."""
+    writer = _RecordingSnapshotWriter()
+
+    first, replay = _replayed_pass(_clock_reader({}), writer)
+
+    assert len(first) == len(replay) == 1
+    assert len(writer.images) == 2
