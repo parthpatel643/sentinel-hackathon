@@ -5,11 +5,11 @@ import { cn } from '../../lib/cn'
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'ok'
 
 const SEVERITY_META: Record<Severity, { labelKey: string; icon: typeof Info; className: string }> = {
-  critical: { labelKey: 'severity.critical', icon: AlertOctagon, className: 'text-sev-critical bg-sev-critical/12' },
-  high: { labelKey: 'severity.high', icon: AlertTriangle, className: 'text-sev-high bg-sev-high/12' },
-  medium: { labelKey: 'severity.medium', icon: Info, className: 'text-sev-medium bg-sev-medium/12' },
-  low: { labelKey: 'severity.low', icon: CircleDot, className: 'text-sev-low bg-sev-low/12' },
-  ok: { labelKey: 'severity.ok', icon: CheckCircle2, className: 'text-ok bg-ok/12' },
+  critical: { labelKey: 'severity.critical', icon: AlertOctagon, className: 'text-sev-critical' },
+  high: { labelKey: 'severity.high', icon: AlertTriangle, className: 'text-sev-high' },
+  medium: { labelKey: 'severity.medium', icon: Info, className: 'text-sev-medium' },
+  low: { labelKey: 'severity.low', icon: CircleDot, className: 'text-text-secondary' },
+  ok: { labelKey: 'severity.ok', icon: CheckCircle2, className: 'text-ok' },
 }
 
 interface SeverityBadgeProps {
@@ -27,12 +27,12 @@ export function SeverityBadge({ severity, label, className }: SeverityBadgeProps
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
+        'inline-flex items-center gap-1.5 whitespace-nowrap py-1 text-[13px] font-bold',
         meta.className,
         className,
       )}
     >
-      <Icon size={13} strokeWidth={2.25} />
+      <Icon size={14} strokeWidth={2.4} aria-hidden="true" />
       {label ?? t(meta.labelKey)}
     </span>
   )

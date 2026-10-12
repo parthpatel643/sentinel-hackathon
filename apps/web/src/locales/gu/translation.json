@@ -1,4 +1,15 @@
 {
+  "shell": {
+    "jurisdiction": "અધિકારક્ષેત્ર",
+    "allDistricts": "ગુજરાત · બધા જિલ્લા",
+    "districtOption": "{{name}} · {{count}} કેમેરા",
+    "scaleNote": "આજે {{count}} કેમેરા · યોજના: 34 જિલ્લામાં 80,000",
+    "more": "વધુ",
+    "moreTitle": "વધુ પેજ",
+    "amberNote": "તમે સ્વીકાર્યું ન હોય તે પીળા રંગમાં ઝળકતું રહે છે",
+    "waitingVehicles": "{{count}} વાહન રાહ જુએ છે",
+    "find": "શોધો"
+  },
   "workspace": {
     "summary": "કામગીરીનો સારાંશ",
     "registeredCameras": "નોંધાયેલા કેમેરા",

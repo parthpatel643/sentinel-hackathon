@@ -8,6 +8,7 @@ import { monitoringCopy } from '../locales/monitoring'
 import { managementCopy } from '../locales/management'
 import { commandCopy } from '../locales/command'
 import { readinessCopy } from '../locales/readiness'
+import { gateCopy } from '../locales/gate'
 
 export const SUPPORTED_LANGUAGES = ['en', 'hi', 'gu'] as const
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]
@@ -21,9 +22,9 @@ function readStoredLanguage(): SupportedLanguage {
 
 i18n.use(initReactI18next).init({
   resources: {
-    en: { translation: en, investigation: investigationCopy.en, monitoring: monitoringCopy.en, management: managementCopy.en, command: commandCopy.en, readiness: readinessCopy.en },
-    hi: { translation: hi, investigation: investigationCopy.hi, monitoring: monitoringCopy.hi, management: managementCopy.hi, command: commandCopy.hi, readiness: readinessCopy.hi },
-    gu: { translation: gu, investigation: investigationCopy.gu, monitoring: monitoringCopy.gu, management: managementCopy.gu, command: commandCopy.gu, readiness: readinessCopy.gu },
+    en: { translation: en, investigation: investigationCopy.en, monitoring: monitoringCopy.en, management: managementCopy.en, command: commandCopy.en, readiness: readinessCopy.en, gate: gateCopy.en },
+    hi: { translation: hi, investigation: investigationCopy.hi, monitoring: monitoringCopy.hi, management: managementCopy.hi, command: commandCopy.hi, readiness: readinessCopy.hi, gate: gateCopy.hi },
+    gu: { translation: gu, investigation: investigationCopy.gu, monitoring: monitoringCopy.gu, management: managementCopy.gu, command: commandCopy.gu, readiness: readinessCopy.gu, gate: gateCopy.gu },
   },
   lng: readStoredLanguage(),
   fallbackLng: 'en',

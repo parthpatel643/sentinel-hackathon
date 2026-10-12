@@ -19,13 +19,13 @@
 import type { CameraStatus } from './types'
 
 export const CAMERA_STATUS_COLOR: Record<CameraStatus, string> = {
-  live: 'oklch(0.76 0.18 155)',
-  connecting: 'oklch(0.74 0.14 230)',
-  degraded: 'oklch(0.79 0.17 70)',
-  down: 'oklch(0.68 0.20 25)',
-  unknown: 'oklch(0.72 0.03 250)',
+  live: '#1f7a4a',
+  connecting: '#6e757d',
+  degraded: '#b7791f',
+  down: '#c4282f',
+  unknown: '#8a8f95',
   // Reported live once, silent since: its worker stopped or lost the network.
-  stale: 'oklch(0.72 0.12 300)',
+  stale: '#b7791f',
 }
 
 export function cameraStatusColor(status: string): string {

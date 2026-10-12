@@ -16,6 +16,8 @@ import { TopBar } from '../components/layout/TopBar'
 import i18n from '../lib/i18n'
 import './investigation-workspace.css'
 import { formatIst } from '../lib/time'
+import { useJurisdiction } from '../lib/jurisdiction'
+import { cameraLabel } from '../lib/cameraStatusColor'
 
 function requestMessage(error: unknown, fallback: string): string {
   if (!(error instanceof ApiError)) return fallback
@@ -24,7 +26,7 @@ function requestMessage(error: unknown, fallback: string): string {
   return fallback
 }
 
-function SightingEvidence({ point }: { point: RoutePoint }) {
+function SightingEvidence({ point, cameraName }: { point: RoutePoint; cameraName: string }) {
   const { t } = useTranslation()
   const [imageFailed, setImageFailed] = useState(false)
   const [snapshotUrl, setSnapshotUrl] = useState<string | null>(null)
@@ -57,18 +59,19 @@ function SightingEvidence({ point }: { point: RoutePoint }) {
   }, [point.event_id, point.snapshot_uri])
 
   return (
-    <section aria-label={t('investigation:evidence')} className="iw-evidence">
-      <div className="iw-section-heading"><h2>{t('investigation:evidence')}</h2><Camera size={17} /></div>
+    <section aria-label={t('investigation:evidence')} className="iw-evidence gb-pass">
+      <div className="gb-pass-head"><h2>{t('investigation:evidence')}</h2><span className="gb-spacer" /><Camera className="gb-ico" aria-hidden="true" /></div>
       <div className="iw-snapshot">
         {snapshotUrl && !imageFailed
-          ? <img src={snapshotUrl} alt={t('investigation:snapshotAlt', { camera: point.camera_name })} onError={() => setImageFailed(true)} />
+          ? <img src={snapshotUrl} alt={t('investigation:snapshotAlt', { camera: cameraName })} onError={() => setImageFailed(true)} />
           : <><ScanLine size={32} strokeWidth={1.3} /><p>{t(imageFailed ? 'investigation:snapshotFailed' : 'investigation:noSnapshot')}</p></>}
       </div>
       <div className="iw-evidence-copy">
-        <h3>{point.camera_name}</h3>
+        <h3>{cameraName}</h3>
         <p>{sightingTime(point, t)}</p>
+        <div className="gb-perf" aria-hidden="true" />
         <dl className="iw-facts">
-          <div><dt>{t('investigation:observedPlate')}</dt><dd className="plate-mono">{point.plate_text}</dd></div>
+          <div><dt>{t('investigation:observedPlate')}</dt><dd className="gb-plate">{point.plate_text}</dd></div>
           <div><dt>{t('investigation:match')}</dt><dd>{t(point.match_rung === 'exact' ? 'findVehicle.exactMatch' : 'findVehicle.probableMatch')}</dd></div>
           <div><dt>{t('investigation:confidence')}</dt><dd>{Math.round(point.plate_confidence * 100)}%</dd></div>
           <div><dt>{t('investigation:location')}</dt><dd>{point.location ? `${point.location.lat.toFixed(5)}, ${point.location.lon.toFixed(5)}` : t('investigation:noLocation')}</dd></div>
@@ -112,7 +115,7 @@ function mixColour(a: string, b: string, t: number): string {
 }
 
 function formatTime(iso: string): string {
-  return formatIst(iso, i18n.language)
+  return formatIst(iso, i18n.language, { second: '2-digit' })
 }
 
 /** The camera's burned-in clock on the sighting's evidence frame — the only
@@ -329,6 +332,37 @@ export function FindVehicle() {
   // Timed sightings first (the route), then those whose camera clock was
   // unreadable. One selection index spans both; only timed ones are mapped.
   const allSightings = route ? [...route.points, ...route.untimed] : []
+  const { cameras } = useJurisdiction()
+  const nameFor = (point: RoutePoint) => {
+    const camera = cameras?.find((c) => c.camera_id === point.camera_id)
+    return camera ? cameraLabel(camera) : point.camera_name
+  }
+  // Back-to-back reads at one camera are one pass: one timeline stop that
+  // expands to its reads, rather than a list of identical lines.
+  const runs = useMemo(() => {
+    const out: { start: number; end: number }[] = []
+    route?.points.forEach((point, i) => {
+      const last = out[out.length - 1]
+      if (last && route.points[last.end].camera_id === point.camera_id) last.end = i
+      else out.push({ start: i, end: i })
+    })
+    return out
+  }, [route])
+  const [expandedRuns, setExpandedRuns] = useState<Set<number>>(() => new Set())
+  const toggleRun = (start: number) => setExpandedRuns((prev) => {
+    const next = new Set(prev)
+    if (next.has(start)) next.delete(start)
+    else next.add(start)
+    return next
+  })
+  const runSpan = (start: number, end: number) => {
+    const first = route?.points[start].camera_time
+    const last = route?.points[end].camera_time
+    if (!first || !last) return t('common.timeUnknown')
+    const a = formatIst(first, i18n.language, { second: '2-digit' })
+    const b = formatIst(last, i18n.language, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    return a === b ? a : `${a} – ${b}`
+  }
   const selectedIndex = activeHopIndex ?? 0
 
   function playReplay() {
@@ -409,7 +443,7 @@ export function FindVehicle() {
           text: hopLabel(stop.hops),
           size: 24,
           chip: stop.isLatest ? t('investigation:mapLatest') : stop.isStart ? t('investigation:mapStart') : undefined,
-          label: `${head.camera_name} — ${stop.points.map((p) => `${p.index + 1}: ${sightingTime(p, t)}`).join(', ')}`,
+          label: `${nameFor(head)} — ${stop.points.map((p) => `${p.index + 1}: ${sightingTime(p, t)}`).join(', ')}`,
           pulse: stop.hops.includes(active),
           onClick: () => {
             stopReplay()
@@ -420,7 +454,7 @@ export function FindVehicle() {
         }
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stops, activeHopIndex, t],
+    [stops, activeHopIndex, t, cameras],
   )
 
   const routeSegments: RouteSegment[] = useMemo(() => {
@@ -440,7 +474,7 @@ export function FindVehicle() {
 
   return (
     <div className="investigation-workspace">
-      <TopBar title={t('findVehicle.title')} subtitle={windowHours === 24 ? t('findVehicle.searchesLast24h') : t('readiness:searchesWindow', { window: windowLabel })} />
+      <TopBar title={t('findVehicle.title')} titleKey="findVehicle.title" subtitle={windowHours === 24 ? t('findVehicle.searchesLast24h') : t('readiness:searchesWindow', { window: windowLabel })} />
       <form role="search" aria-label={t('investigation:queryConsole')} onSubmit={(e) => { e.preventDefault(); handleSearch() }} className="iw-query-toolbar">
         <div className="iw-query-field">
           <label htmlFor="investigation-plate">{t('workspace.plate')}</label>
@@ -489,7 +523,7 @@ export function FindVehicle() {
         <section aria-label={t('investigation:workbench')} className="iw-workbench">
           <div className="iw-result-header">
             <div>
-              <p className="plate-mono text-xl font-semibold text-text-primary">{route.plate_normalised}</p>
+              <p className="gb-plate gb-lg iw-result-plate">{route.plate_normalised}</p>
               <p className="text-sm text-text-secondary">{t('investigation:loadedSightings', { count: route.total_sightings })} · {t('findVehicle.camera', { count: new Set(allSightings.map((p) => p.camera_id)).size })}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -543,28 +577,58 @@ export function FindVehicle() {
                 {t('findVehicle.timeline')}
               </h2><span>{t('investigation:selectSighting')}</span></div>
               <ol>
-                {route.points.map((point, i) => (
-                  <li
-                    key={`${point.camera_id}-${i}`}
-                  >
-                    <button type="button" aria-pressed={selectedIndex === i} className={cn('iw-timeline-row', selectedIndex === i && 'is-selected')} onClick={() => { stopReplay(); setActiveHopIndex(i) }}>
-                    <span className="iw-hop">{i + 1}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-sm font-medium text-text-primary">{sightingTime(point, t)}</span>
-                        <ConfidenceBar point={point} />
-                      </div>
-                      <p className="iw-camera-name">{point.camera_name}</p>
-                      {point.match_rung !== 'exact' && (
-                        <SeverityBadge severity="medium" label={t('findVehicle.probableMatch')} className="mt-1" />
+                {runs.map((run) => {
+                  const point = route.points[run.start]
+                  const size = run.end - run.start + 1
+                  const open = size > 1 && (expandedRuns.has(run.start) || (replaying && selectedIndex >= run.start && selectedIndex <= run.end))
+                  const indices = size > 1 && open ? Array.from({ length: size }, (_, k) => run.start + k) : [run.start]
+                  return (
+                    <li key={`${point.camera_id}-${run.start}`}>
+                      {size > 1 && (
+                        <div className={cn('iw-run', selectedIndex >= run.start && selectedIndex <= run.end && 'is-selected')}>
+                          <button type="button" className="iw-timeline-row" aria-pressed={selectedIndex >= run.start && selectedIndex <= run.end} onClick={() => { stopReplay(); setActiveHopIndex(run.start) }}>
+                            <span className="iw-hop iw-hop-run">{run.start + 1}–{run.end + 1}</span>
+                            <div className="min-w-0 flex-1">
+                              <span className="iw-run-time">{runSpan(run.start, run.end)}</span>
+                              <p className="iw-camera-name">{nameFor(point)}</p>
+                              <p className="iw-run-count">{t('investigation:runReads', { count: size })}</p>
+                            </div>
+                          </button>
+                          <button type="button" className="iw-run-toggle" aria-expanded={open} onClick={() => toggleRun(run.start)}>
+                            {open ? t('gate:hideHits') : t('investigation:showReads', { count: size })}
+                          </button>
+                        </div>
                       )}
-                      {point.infeasible && (
-                        <SeverityBadge severity="critical" label={t('readiness:impossibleTravel')} className="mt-1" />
+                      {(size === 1 || open) && (
+                        <ol className={size > 1 ? 'iw-run-reads' : undefined}>
+                          {indices.map((i) => {
+                            const p = route.points[i]
+                            return (
+                              <li key={`${p.camera_id}-${i}`}>
+                                <button type="button" aria-pressed={selectedIndex === i} className={cn('iw-timeline-row', selectedIndex === i && 'is-selected')} onClick={() => { stopReplay(); setActiveHopIndex(i) }}>
+                                  <span className="iw-hop">{i + 1}</span>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <span className="text-sm font-medium text-text-primary">{sightingTime(p, t)}</span>
+                                      <ConfidenceBar point={p} />
+                                    </div>
+                                    {size === 1 && <p className="iw-camera-name">{nameFor(p)}</p>}
+                                    {p.match_rung !== 'exact' && (
+                                      <SeverityBadge severity="medium" label={t('findVehicle.probableMatch')} className="mt-1" />
+                                    )}
+                                    {p.infeasible && (
+                                      <SeverityBadge severity="critical" label={t('readiness:impossibleTravel')} className="mt-1" />
+                                    )}
+                                  </div>
+                                </button>
+                              </li>
+                            )
+                          })}
+                        </ol>
                       )}
-                    </div>
-                    </button>
-                  </li>
-                ))}
+                    </li>
+                  )
+                })}
               </ol>
               {route.untimed.length > 0 && (
                 <section aria-label={t('investigation:untimedTitle')} className="mt-4">
@@ -582,7 +646,7 @@ export function FindVehicle() {
                                 <span className="text-sm font-medium text-text-secondary">{t('common.timeUnknown')}</span>
                                 <ConfidenceBar point={point} />
                               </div>
-                              <p className="iw-camera-name">{point.camera_name}</p>
+                              <p className="iw-camera-name">{nameFor(point)}</p>
                               {point.match_rung !== 'exact' && (
                                 <SeverityBadge severity="medium" label={t('findVehicle.probableMatch')} className="mt-1" />
                               )}
@@ -595,7 +659,7 @@ export function FindVehicle() {
                 </section>
               )}
             </aside>
-            {allSightings[selectedIndex] && <SightingEvidence key={`${plateParam}-${selectedIndex}`} point={allSightings[selectedIndex]} />}
+            {allSightings[selectedIndex] && <SightingEvidence key={`${plateParam}-${selectedIndex}`} point={allSightings[selectedIndex]} cameraName={nameFor(allSightings[selectedIndex])} />}
           </div>
         </section>
       )}

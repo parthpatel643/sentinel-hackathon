@@ -607,11 +607,8 @@ export function AdminPortal() {
 
   return (
     <div className="management-workspace flex min-h-0 flex-1 flex-col">
-      <TopBar title={t('nav.admin')} subtitle={t('admin.subtitle')} />
+      <TopBar title={t('nav.admin')} titleKey="nav.admin" subtitle={t('management:adminIntro')} />
       <div className="page-body management-body">
-        <div className="management-heading">
-          <div><h2>{t('management:adminTitle')}</h2><p>{t('management:adminIntro')}</p></div>
-        </div>
         <nav aria-label={t('workspace.adminNavigation')} className="management-navigation">
           {SECTIONS.map((id) => {
             const Icon = SECTION_ICONS[id]

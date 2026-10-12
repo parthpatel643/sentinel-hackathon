@@ -92,12 +92,10 @@ export function Health() {
 
   return (
     <div className="management-workspace flex min-h-0 flex-1 flex-col">
-      <TopBar title={t('nav.health')} subtitle={t('health.subtitle')} />
+      <TopBar title={t('nav.health')} titleKey="nav.health" subtitle={t('management:healthIntro')} actions={
+        <button type="button" className="gb-btn" onClick={refetch} disabled={loading}><RefreshCw className="gb-ico" aria-hidden="true" />{t('management:refreshChecks')}</button>
+      } />
       <div className="page-body management-body">
-        <div className="management-heading">
-          <div><h2>{t('management:healthTitle')}</h2><p>{t('management:healthIntro')}</p></div>
-          <button className="management-action" onClick={refetch} disabled={loading}><RefreshCw size={17} aria-hidden="true" />{t('management:refreshChecks')}</button>
-        </div>
         {Boolean(error) && <RequestError onRetry={refetch} />}
         <section className="compliance-summary" aria-label={t('management:healthSummary')}>
           <ShieldCheck size={30} aria-hidden="true" />

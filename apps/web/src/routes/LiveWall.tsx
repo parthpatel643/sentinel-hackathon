@@ -72,7 +72,7 @@ export function LiveWall() {
   return (
     <div className="monitoring-workspace flex min-h-0 flex-1 flex-col">
       <TopBar
-        title={t('nav.liveWall')}
+        title={t('nav.liveWall')} titleKey="nav.liveWall"
         subtitle={cameras ? t('liveWall.registered', { count: cameras.length }) : undefined}
       />
       <div className="monitoring-workbench">

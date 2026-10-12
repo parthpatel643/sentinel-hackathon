@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import en from '../src/locales/en/translation.json' with { type: 'json' }
 import hi from '../src/locales/hi/translation.json' with { type: 'json' }
 import gu from '../src/locales/gu/translation.json' with { type: 'json' }
+import { gateCopy } from '../src/locales/gate'
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -34,9 +35,8 @@ test('overview summarises actual fleet states without treating unknown cameras a
   await expect(summary.getByRole('link', { name: 'Live cameras' })).toContainText('1')
   await expect(summary.getByRole('link', { name: 'Down or degraded' })).toContainText('2')
   await expect(summary.getByRole('link', { name: 'Alerts in queue' })).toContainText('0')
-  const health = page.getByRole('region', { name: 'Camera health' })
-  await expect(health).toContainText('Unknown')
-  await expect(health).toContainText('Connecting')
+  await expect(summary.getByRole('link', { name: 'Unknown' })).toContainText('1')
+  await expect(summary).toContainText('1 connecting')
 })
 
 test('overview replaces failed summary values with unavailable and supports recovery', async ({ page }) => {
@@ -184,11 +184,24 @@ test('field nearby presents switchable map and list tabs inside the mobile task 
 })
 
 test('map controls follow language changes without a reload', async ({ page }) => {
-    await page.goto('/')
+    await page.goto('/cameras')
+    await page.getByRole('button', { name: 'Map', exact: true }).click()
     await expect(page.getByRole('button', { name: en.map.zoomIn, exact: true })).toBeVisible()
     await page.getByRole('combobox', { name: 'Language' }).selectOption('hi')
     await expect(page.getByRole('button', { name: hi.map.zoomIn, exact: true })).toBeVisible()
-    await expect(page.getByRole('region', { name: hi.map.title })).toBeVisible()
+    await expect(page.getByRole('region', { name: hi.map.title, exact: true })).toBeVisible()
+  })
+
+  test('gate console copy keeps every key and interpolation in each language', () => {
+    for (const language of ['hi', 'gu'] as const) {
+      const base = gateCopy.en as Record<string, string>
+      const translated = gateCopy[language] as Record<string, string>
+      expect(Object.keys(translated).sort()).toEqual(Object.keys(base).sort())
+      for (const key of Object.keys(base)) {
+        expect(translated[key].trim(), key).not.toBe('')
+        expect(translated[key].match(/{{[^}]+}}/g)?.sort() ?? [], key).toEqual(base[key].match(/{{[^}]+}}/g)?.sort() ?? [])
+      }
+    }
   })
 
   test('translated dictionaries retain every key and interpolation', () => {

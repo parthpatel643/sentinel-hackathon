@@ -21,55 +21,58 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
-test('compact navigation expands without hiding destination labels', async ({ page }) => {
+const alert = (id: string, plate: string, camera: string) => ({
+  id, plate_text: plate, camera_id: camera, watchlist_entry_id: 'watch-1', detection_event_id: `det-${id}`,
+  match_rung: 'exact', match_confidence: .96, priority_score: .9, status: 'new', sighting_count: 1,
+  first_seen_at: '2026-09-23T09:00:00Z', last_seen_at: '2026-09-23T09:10:00Z',
+  first_seen_camera_time: '2026-09-23T09:00:00Z', last_seen_camera_time: '2026-09-23T09:10:00Z',
+  resolved_by: null, resolution_note: null, created_at: '2026-09-23T09:00:00Z',
+})
+
+test('navigation names every destination and counts waiting vehicles, not raw hits', async ({ page }) => {
+  await page.route('**/api/v1/alerts**', route => route.fulfill({ json: [alert('a', 'GJ01AB1234', 'cam-1'), alert('b', 'GJ01AB1234', 'cam-1'), alert('c', 'GJ05CD5678', 'cam-1')] }))
   await page.goto('/')
   const nav = page.getByRole('navigation', { name: 'Workspace', exact: true })
-  await expect(nav.getByRole('link', { name: 'Cameras', exact: true })).toBeVisible()
-  expect(await page.locator('.workspace-sidebar').evaluate(el => el.getBoundingClientRect().width)).toBeLessThanOrEqual(104)
-  await page.getByRole('button', { name: 'Expand navigation' }).click()
-  expect(await page.locator('.workspace-sidebar').evaluate(el => el.getBoundingClientRect().width)).toBeGreaterThan(200)
-  await page.reload()
-  await expect(page.getByRole('button', { name: 'Collapse navigation' })).toBeVisible()
+  for (const name of ['Overview', 'Live Wall', 'Find a Vehicle', 'Cameras', 'Health', 'Admin']) {
+    await expect(nav.getByRole('link', { name, exact: true })).toBeVisible()
+  }
+  await expect(nav.getByRole('link', { name: /Alerts/ })).toContainText('2')
 })
 
-test('overview fleet workbench switches to a searchable camera list', async ({ page }) => {
+test('watchlist board shows one row per vehicle and opens its sighting pass', async ({ page }) => {
+  await page.route('**/api/v1/alerts**', route => route.request().url().endsWith('/clip')
+    ? route.fulfill({ status: 404, json: {} })
+    : route.fulfill({ json: [alert('a', 'GJ01AB1234', 'cam-1'), alert('b', 'GJ01AB1234', 'cam-1'), alert('c', 'GJ05CD5678', 'cam-1')] }))
   await page.goto('/')
-  await page.getByRole('tab', { name: 'Camera list', exact: true }).click()
-  const fleet = page.getByRole('region', { name: 'Camera network', exact: true })
-  await expect(fleet.getByRole('button', { name: /Riverfront/ })).toBeVisible()
-  await page.getByRole('searchbox', { name: 'Search the camera network' }).fill('east')
-  await expect(fleet.getByRole('button', { name: /Riverfront/ })).toHaveCount(0)
-  await expect(fleet.getByRole('button', { name: /East Gate/ })).toBeVisible()
-  await page.getByRole('searchbox', { name: 'Search the camera network' }).clear()
-  await page.getByRole('button', { name: 'Unknown cameras', exact: true }).click()
-  await expect(fleet.getByRole('button', { name: /Riverfront/ })).toHaveCount(0)
-  await expect(fleet.getByRole('button', { name: /East Gate/ })).toBeVisible()
+  const board = page.getByRole('region', { name: 'Watchlist board', exact: true })
+  await expect(board).toContainText('3hits')
+  await expect(board).toContainText('2vehicles')
+  await expect(board.getByRole('button', { name: /GJ01AB1234/ })).toHaveCount(1)
+  await board.getByRole('button', { name: /GJ05CD5678/ }).click()
+  await expect(page.getByRole('region', { name: 'Selected alert' })).toContainText('GJ05CD5678')
 })
 
-test('recent detections lead directly into vehicle investigation', async ({ page }) => {
+test('cameras roll up by district with problems first and unlocated cameras kept', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('tab', { name: 'Recent detections', exact: true }).click()
-  const activity = page.getByRole('region', { name: 'Operational activity', exact: true })
-  await activity.getByRole('link', { name: /GJ01AB1234/ }).click()
+  const districts = page.getByRole('region', { name: 'Cameras by district', exact: true })
+  await expect(districts).toContainText('Ahmedabad')
+  await expect(districts).toContainText('No location recorded')
+  await expect(districts).toContainText('1 unknown')
+})
+
+test('latest reads lead directly into vehicle investigation', async ({ page }) => {
+  await page.goto('/')
+  const detections = page.getByRole('region', { name: 'Detections', exact: true })
+  await detections.getByRole('link', { name: /GJ01AB1234/ }).click()
   await expect(page).toHaveURL(/find-a-vehicle\?plate=GJ01AB1234/)
 })
 
 test('failed detection refresh is not shown as an empty healthy stream', async ({ page }) => {
   await page.route('**/api/v1/detections**', route => route.fulfill({ status: 503, json: { detail: 'Unavailable' } }))
   await page.goto('/')
-  await page.getByRole('tab', { name: 'Recent detections', exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Operational activity', exact: true }).getByRole('alert')).toBeVisible()
-})
-
-test('overview view tabs support arrow-key navigation', async ({ page }) => {
-  await page.goto('/')
-  const mapTab = page.getByRole('tab', { name: 'Map', exact: true })
-  await mapTab.focus()
-  await page.keyboard.press('ArrowRight')
-  await expect(page.getByRole('tab', { name: 'Camera list', exact: true })).toHaveAttribute('aria-selected', 'true')
-  await page.getByRole('tab', { name: /Watchlist matches/ }).focus()
-  await page.keyboard.press('ArrowRight')
-  await expect(page.getByRole('tab', { name: 'Recent detections', exact: true })).toHaveAttribute('aria-selected', 'true')
+  const detections = page.getByRole('region', { name: 'Detections', exact: true })
+  await expect(detections.getByRole('alert')).toBeVisible()
+  await expect(detections).not.toContainText('No camera has reported a read yet.')
 })
 
 test('login allows inspecting the password without changing its value', async ({ page }) => {

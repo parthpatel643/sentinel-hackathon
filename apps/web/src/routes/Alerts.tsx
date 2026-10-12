@@ -1,296 +1,192 @@
-import { useEffect, useState } from 'react'
-import { ArrowRight, Bell, Film, RefreshCw, Search, ShieldCheck } from 'lucide-react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { ChevronDown, ChevronUp, RefreshCw, Search } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import type { TFunction } from 'i18next'
 import { alertsApi } from '../lib/api'
 import { usePolling } from '../lib/usePolling'
-import { TopBar } from '../components/layout/TopBar'
-import { Button } from '../components/ui/Button'
-import { SeverityBadge, type Severity } from '../components/ui/SeverityBadge'
-import { SealedClipModal } from '../components/SealedClipModal'
-import type { Alert, AlertStatus, EvidenceClip } from '../lib/types'
-import { RequestError } from '../components/ui/RequestError'
-import { Input } from '../components/ui/Input'
-import './investigation-workspace.css'
+import { useLiveEvents } from '../lib/liveEvents'
+import { useJurisdiction } from '../lib/jurisdiction'
+import { CLOSED_STATUSES, WORKING_STATUSES, groupAlertsByVehicle, severityForAlert, type VehicleGroup } from '../lib/vehicles'
 import { formatIst } from '../lib/time'
+import { TopBar } from '../components/layout/TopBar'
+import { SealedClipModal } from '../components/SealedClipModal'
+import { RequestError } from '../components/ui/RequestError'
 import { ZoneEventQueue } from '../components/ZoneEventQueue'
 import { CameraViewQueue } from '../components/CameraViewQueue'
-import { useLiveEvents } from '../lib/liveEvents'
+import { VehicleBoardHead, VehicleBoardRows } from '../components/gate/VehicleBoard'
+import { SightingPass } from '../components/gate/SightingPass'
+import type { Alert, AlertStatus, EvidenceClip } from '../lib/types'
+import './investigation-workspace.css'
 
-const FILTERS: { key: string; status?: AlertStatus }[] = [
-  { key: 'unacknowledged', status: 'new' },
-  { key: 'acknowledged', status: 'acknowledged' },
-  { key: 'resolved', status: 'resolved' },
-  { key: 'assigned', status: 'assigned' },
-  { key: 'in_progress', status: 'in_progress' },
-  { key: 'false_positive', status: 'false_positive' },
-  { key: 'all', status: undefined },
+type Board = 'new' | 'working' | 'closed' | 'all'
+const BOARDS: { key: Board; statuses?: AlertStatus[]; labelKey: string }[] = [
+  { key: 'new', statuses: ['new'], labelKey: 'gate:unacknowledged' },
+  { key: 'working', statuses: WORKING_STATUSES, labelKey: 'gate:working' },
+  { key: 'closed', statuses: CLOSED_STATUSES, labelKey: 'gate:closedToday' },
+  { key: 'all', labelKey: 'alerts.filters.all' },
 ]
+const HISTORY_LIMIT = 60
 
-function formatTime(iso: string, language: string): string {
-  return formatIst(iso, language)
+function cameraClock(iso: string | null, language: string, unknown: string) {
+  return iso ? formatIst(iso, language, { second: '2-digit' }) : unknown
 }
 
-/** A sighting's time is the camera's burned-in clock; nothing stands in for it. */
-function cameraTime(iso: string | null, language: string, t: TFunction): string {
-  return iso ? formatTime(iso, language) : t('common.timeUnknown')
-}
-
-function severityForAlert(alert: Alert): Severity {
-  // priority isn't on Alert directly — priority_score already folds it in,
-  // so a simple threshold stands in for it here; see watchlist/service.py.
-  if (alert.priority_score >= 0.75) return 'critical'
-  if (alert.priority_score >= 0.5) return 'high'
-  if (alert.priority_score >= 0.25) return 'medium'
-  return 'low'
-}
-
-function ClipAction({ alert, onView }: { alert: Alert; onView: (clip: EvidenceClip) => void }) {
-  const { t } = useTranslation()
-  const [clip, setClip] = useState<EvidenceClip | null>(null)
-  const [loaded, setLoaded] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    alertsApi
-      .getClip(alert.id)
-      .then((c) => !cancelled && setClip(c))
-      // A 404 just means no clip has been requested yet, which is already
-      // this component's initial state — nothing to do either way, so any
-      // other fetch error just leaves the "Seal clip" action available for
-      // the operator to retry rather than getting stuck.
-      .catch(() => {})
-      .finally(() => !cancelled && setLoaded(true))
-    return () => {
-      cancelled = true
-    }
-  }, [alert.id])
-
-  // While a seal is in flight, poll until it resolves — sealing runs a real
-  // ~10s recording window in the background (evidence/service.py), so this
-  // can't just be a one-shot fetch.
-  useEffect(() => {
-    if (clip?.status !== 'pending') return
-    let cancelled = false
-    const id = setInterval(() => {
-      alertsApi.getClip(alert.id).then((result) => { if (!cancelled) setClip(result) }).catch(() => {})
-    }, 2000)
-    return () => { cancelled = true; clearInterval(id) }
-  }, [alert.id, clip?.status])
-
-  async function requestSeal() {
-    setBusy(true)
-    setError(false)
-    try {
-      setClip(await alertsApi.sealClip(alert.id))
-    } catch {
-      setError(true)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  if (!loaded) return null
-
-  if (!clip || clip.status === 'failed') {
-    return (
-      <div className="flex flex-col items-end gap-1">
-        <Button size="sm" variant="secondary" onClick={requestSeal} disabled={busy}>
-          <Film size={14} />
-          {t(busy ? 'alerts.sealingClip' : 'alerts.sealClip')}
-        </Button>
-        {clip?.status === 'failed' && <p className="text-[11px] text-sev-critical">{t('alerts.sealingFailed')}</p>}
-        {error && <p role="alert" className="text-xs text-sev-critical">{t('alerts.sealingFailed')}</p>}
-      </div>
-    )
-  }
-
-  if (clip.status === 'pending') {
-    return (
-      <Button size="sm" variant="ghost" disabled>
-        <Film size={14} />
-        {t('alerts.sealingClip')}
-      </Button>
-    )
-  }
-
-  return (
-    <Button size="sm" variant="ghost" onClick={() => onView(clip)}>
-      <Film size={14} />
-      {t('alerts.watchSealedClip')}
-    </Button>
-  )
-}
-
-function AlertDetail({
-  alert,
-  onUpdated,
-  onViewClip,
-}: {
-  alert: Alert
-  onUpdated: () => void
-  onViewClip: (clip: EvidenceClip) => void
-}) {
+/** Every hit folded into the selected vehicle. Repeat reads of one pass are
+ * one event for the operator, so they show as one line until expanded. */
+function HitHistory({ group }: { group: VehicleGroup }) {
   const { t, i18n } = useTranslation()
-  const [busy, setBusy] = useState<AlertStatus | null>(null)
-  const [error, setError] = useState(false)
-
-  async function act(status: AlertStatus) {
-    setBusy(status)
-    setError(false)
-    try {
-      await alertsApi.update(alert.id, { status })
-      onUpdated()
-    } catch {
-      setError(true)
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  const isOpen = !['resolved', 'false_positive'].includes(alert.status)
-
+  const [open, setOpen] = useState(false)
+  const first = group.alerts.reduce((a, b) => (Date.parse(a.first_seen_at) <= Date.parse(b.first_seen_at) ? a : b))
+  const unknown = t('common.timeUnknown')
+  const span = `${cameraClock(first.first_seen_camera_time, i18n.language, unknown)} → ${cameraClock(group.lastCameraTime, i18n.language, unknown)}`
+  const sorted = [...group.alerts].sort((a, b) => Date.parse(b.last_seen_at) - Date.parse(a.last_seen_at))
   return (
-    <section className="iw-alert-detail" aria-label={t('investigation:selectedAlert')}>
-      <div className="iw-section-heading"><h2>{t('investigation:selectedAlert')}</h2><span>{t(`investigation:status_${alert.status}`)}</span></div>
-      <div className="iw-alert-identity">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <SeverityBadge severity={severityForAlert(alert)} />
-            <span className="text-xs text-text-secondary">{t(alert.match_rung === 'exact' ? 'alerts.exactMatch' : 'alerts.probableMatch')}</span>
-          </div>
-          <h3 className="plate-mono">{alert.plate_text}</h3>
-          <p className="mt-2 text-sm text-text-secondary">
-            {t('alerts.onWatchlistLine', {
-              match: alert.match_rung === 'exact' ? t('alerts.exactMatch') : t('alerts.probableMatch'),
-              camera: alert.camera_id,
-            })}
-            {alert.sighting_count > 1 && ` · ${t('alerts.sighting', { count: alert.sighting_count })}`}
-          </p>
-          <Link className="iw-investigate-link" to={`/find-a-vehicle?plate=${encodeURIComponent(alert.plate_text)}`}>{t('investigation:investigateVehicle')}<ArrowRight size={16} /></Link>
+    <div className="gb-history">
+      <div className="gb-history-head">
+        <div className="gb-lbl">{t('gate:hitHistory')}</div>
+        {group.hits > 1 && (
+          <button type="button" className="gb-btn gb-sm gb-ghost" aria-expanded={open} onClick={() => setOpen(!open)}>
+            {open ? <ChevronUp className="gb-ico gb-s" aria-hidden="true" /> : <ChevronDown className="gb-ico gb-s" aria-hidden="true" />}
+            {open ? t('gate:hideHits') : t('gate:showAllHits', { count: group.hits })}
+          </button>
+        )}
       </div>
-      <dl className="iw-facts iw-alert-facts">
-        <div><dt>{t('investigation:camera')}</dt><dd>{alert.camera_id}</dd></div>
-        <div><dt>{t('investigation:confidence')}</dt><dd>{Math.round(alert.match_confidence * 100)}%</dd></div>
-        <div><dt>{t('investigation:firstSeen')}</dt><dd>{cameraTime(alert.first_seen_camera_time, i18n.language, t)}</dd></div>
-        <div><dt>{t('investigation:lastSeen')}</dt><dd>{cameraTime(alert.last_seen_camera_time, i18n.language, t)}</dd></div>
-        <div><dt>{t('investigation:watchlistReference')}</dt><dd>{alert.watchlist_entry_id}</dd></div>
-        {alert.resolution_note && <div><dt>{t('investigation:resolutionNote')}</dt><dd>{alert.resolution_note}</dd></div>}
+      <p className="gb-history-line">{t('gate:hitHistorySummary', { count: group.hits, camera: group.cameraIds.join(', '), span })}</p>
+      <dl className="gb-history-times">
+        <div><dt>{t('investigation:firstSeen')}</dt><dd>{cameraClock(first.first_seen_camera_time, i18n.language, unknown)}</dd></div>
+        <div><dt>{t('investigation:lastSeen')}</dt><dd>{cameraClock(group.lastCameraTime, i18n.language, unknown)}</dd></div>
       </dl>
-      <div className="iw-alert-evidence">
-        <div><h3><Film size={17} />{t('investigation:sealedEvidence')}</h3><p>{t('investigation:sealDescription')}</p></div>
-        <ClipAction alert={alert} onView={onViewClip} />
-      </div>
-      <div className="iw-alert-actions">
-        <h3>{t('investigation:reviewDecision')}</h3>
-        <p>{t('investigation:decisionHelp')}</p>
-        {isOpen && (
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary" disabled={busy !== null || alert.status !== 'new'} onClick={() => act('acknowledged')}>
-              {busy === 'acknowledged' ? t('alerts.acknowledging') : t('alerts.acknowledge')}
-            </Button>
-            <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => act('false_positive')}>
-              {t('alerts.notThisVehicle')}
-            </Button>
-            <Button size="sm" disabled={busy !== null} onClick={() => act('resolved')}>
-              {busy === 'resolved' ? t('alerts.resolving') : t('alerts.resolve')}
-            </Button>
-          </div>
-        )}
-        {!isOpen && (
-          <SeverityBadge
-            severity={alert.status === 'false_positive' ? 'low' : 'ok'}
-            label={alert.status === 'false_positive' ? t('alerts.notThisVehicle') : t('alerts.resolved')}
-          />
-        )}
-        {error && <p role="alert" className="text-sm text-sev-critical">{t('investigation:updateFailed')}</p>}
-      </div>
-    </section>
+      {group.hits > 1 && group.cameraIds.length === 1 && <p className="gb-history-note">{t('gate:repeatPass')}</p>}
+      {open && (
+        <ol className="gb-history-list">
+          {sorted.slice(0, HISTORY_LIMIT).map((alert) => (
+            <li key={alert.id}>
+              <span className="gb-data">{cameraClock(alert.last_seen_camera_time, i18n.language, t('common.timeUnknownShort'))}</span>
+              <span className="gb-data">{alert.camera_id}</span>
+              <span>{t(`investigation:status_${alert.status}`)}</span>
+              <span className="gb-data">{Math.round(alert.match_confidence * 100)}%</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   )
+}
+
+function inBoard(alert: Alert, board: Board) {
+  const statuses = BOARDS.find((b) => b.key === board)?.statuses
+  return !statuses || statuses.includes(alert.status)
 }
 
 export function Alerts() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedId = searchParams.get('alert')
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]>(FILTERS[0])
+  const { cameras, inScope } = useJurisdiction()
+  const [board, setBoard] = useState<Board>('new')
   const [viewingClip, setViewingClip] = useState<EvidenceClip | null>(null)
   const [query, setQuery] = useState('')
   const [severity, setSeverity] = useState('all')
   const [sort, setSort] = useState('priority')
-  function selectAlert(id: string) {
+  // One request for every state, so each board tab shows its real count.
+  const { data: alerts, error, refetch } = usePolling(() => alertsApi.list(), 20000)
+  useLiveEvents((kind) => { if (kind === 'alert') refetch() })
+  const zoneHighlight = searchParams.get('zone')
+
+  const scoped = useMemo(() => (alerts ?? []).filter((a) => inScope(a.camera_id)), [alerts, inScope])
+  const boardAlerts = useMemo(() => scoped.filter((a) => inBoard(a, board)), [scoped, board])
+  const loadedGroups = useMemo(() => groupAlertsByVehicle(boardAlerts), [boardAlerts])
+  const groups = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    const list = loadedGroups.filter((g) =>
+      (!q || `${g.plate} ${g.cameraIds.join(' ')}`.toLowerCase().includes(q)) &&
+      (severity === 'all' || severityForAlert({ priority_score: g.priorityScore }) === severity))
+    return sort === 'latest' ? [...list].sort((a, b) => Date.parse(b.lead.last_seen_at) - Date.parse(a.lead.last_seen_at)) : list
+  }, [loadedGroups, query, severity, sort])
+  const selected = groups.find((g) => g.alerts.some((a) => a.id === selectedId)) ?? groups[0]
+  const counts = Object.fromEntries(BOARDS.map((b) => [b.key, new Set(scoped.filter((a) => inBoard(a, b.key)).map((a) => a.plate_text)).size]))
+
+  function select(plate: string) {
+    const group = groups.find((g) => g.plate === plate)
+    if (!group) return
     setSearchParams((params) => {
       const next = new URLSearchParams(params)
-      next.set('alert', id)
+      next.set('alert', group.lead.id)
       return next
     }, { replace: true })
   }
-  // Live events refresh the queue the moment an alert lands; the poll is the
-  // fallback for a dropped stream.
-  const { data: alerts, error, refetch } = usePolling(() => alertsApi.list(filter.status), 20000, [filter.status])
-  useLiveEvents((kind) => { if (kind === 'alert') refetch() })
-  const zoneHighlight = searchParams.get('zone')
-  const loadedAlerts = alerts?.filter((alert) => !filter.status || alert.status === filter.status)
-  const filteredAlerts = loadedAlerts?.filter((alert) =>
-    `${alert.plate_text} ${alert.camera_id}`.toLowerCase().includes(query.trim().toLowerCase()) &&
-    (severity === 'all' || severityForAlert(alert) === severity),
-  ).sort((a, b) => sort === 'priority' ? b.priority_score - a.priority_score : Date.parse(b.last_seen_at) - Date.parse(a.last_seen_at)) ?? []
-  const selected = filteredAlerts.find((alert) => alert.id === selectedId) ?? filteredAlerts[0]
 
   return (
-    <div className="investigation-workspace">
-      <TopBar title={t('nav.alerts')} subtitle={t('investigation:triageDescription')} />
-      <div className="iw-triage-toolbar">
-        <div className="iw-status-filters segmented" role="group" aria-label={t('investigation:statusFilter')}>
-        {FILTERS.map((f) => (
-          <Button
-            key={f.key}
-            size="sm"
-            variant={filter.key === f.key ? 'primary' : 'secondary'}
-            onClick={() => setFilter(f)}
-            aria-pressed={filter.key === f.key}
-          >
-            {t(['assigned', 'in_progress', 'false_positive'].includes(f.key) ? `investigation:status_${f.key}` : `alerts.filters.${f.key}`)}
-          </Button>
-        ))}
-        </div>
-        <Button size="sm" variant="ghost" onClick={refetch} aria-label={t('investigation:refreshQueue')}><RefreshCw size={16} />{t('investigation:refreshQueue')}</Button>
-      </div>
-      <div className="iw-triage-content">
+    <div className="gb-alerts">
+      <TopBar title={t('nav.alerts')} titleKey="nav.alerts" subtitle={t('gate:pageNote')} actions={
+        <button type="button" className="gb-btn" onClick={refetch} aria-label={t('investigation:refreshQueue')}><RefreshCw className="gb-ico" aria-hidden="true" />{t('investigation:refreshQueue')}</button>
+      } />
+      <div className="gb-page">
         {Boolean(error) && <RequestError onRetry={refetch} />}
-        <div className="iw-triage-grid">
-          <section className="iw-alert-queue" aria-label={t('investigation:alertQueue')}>
-            <div className="iw-section-heading"><h2>{t('investigation:alertQueue')}</h2><span>{alerts ? t('investigation:loadedAlerts', { visible: filteredAlerts.length, total: loadedAlerts?.length ?? 0 }) : t('common.loading')}</span></div>
-            <div className="iw-queue-controls">
-              <label className="iw-filter-search"><Search size={16} /><Input aria-label={t('investigation:filterQuery')} placeholder={t('investigation:filterQuery')} value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-              <div>
-                <label><span>{t('investigation:severity')}</span><select value={severity} onChange={(event) => setSeverity(event.target.value)}>
+        <div className="gb-split">
+          <section className="gb-board" aria-label={t('investigation:alertQueue')}>
+            <div className="gb-board-top">
+              <h2 className="gb-board-title">{t('gate:watchlistBoard')}</h2>
+              <span className="gb-tally"><b>{boardAlerts.length}</b>{t('gate:hitNoun', { count: boardAlerts.length })}<span className="gb-sep">·</span><b>{loadedGroups.length}</b>{t('gate:vehicleNoun', { count: loadedGroups.length })}</span>
+              <span className="gb-spacer" />
+              <span className="gb-key-new">{t('gate:litKey')}</span>
+            </div>
+            <div className="gb-board-tools">
+              <div className="gb-seg" role="group" aria-label={t('investigation:statusFilter')}>
+                {BOARDS.map((b) => (
+                  <button key={b.key} type="button" aria-pressed={board === b.key} onClick={() => setBoard(b.key)}>
+                    {t(b.labelKey)}{alerts && <span className="gb-n">{counts[b.key]}</span>}
+                  </button>
+                ))}
+              </div>
+              <label className="gb-field gb-sm gb-grow">
+                <Search className="gb-ico" aria-hidden="true" />
+                <input aria-label={t('investigation:filterQuery')} placeholder={t('investigation:filterQuery')} value={query} onChange={(e) => setQuery(e.target.value)} />
+              </label>
+              <label className="gb-inline-select"><span>{t('investigation:severity')}</span>
+                <select value={severity} onChange={(e) => setSeverity(e.target.value)}>
                   <option value="all">{t('investigation:allSeverities')}</option>
                   {(['critical', 'high', 'medium', 'low'] as const).map((value) => <option key={value} value={value}>{t(`severity.${value}`)}</option>)}
-                </select></label>
-                <label><span>{t('investigation:sort')}</span><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="priority">{t('investigation:highestPriority')}</option><option value="latest">{t('investigation:latestFirst')}</option></select></label>
-              </div>
+                </select>
+              </label>
+              <label className="gb-inline-select"><span>{t('investigation:sort')}</span>
+                <select value={sort} onChange={(e) => setSort(e.target.value)}>
+                  <option value="priority">{t('investigation:highestPriority')}</option>
+                  <option value="latest">{t('investigation:latestFirst')}</option>
+                </select>
+              </label>
             </div>
-            {!alerts && !error && <div className="iw-loading" role="status"><p>{t('common.loading')}</p><div /><div /><div /></div>}
-            {alerts && !error && !filteredAlerts.length && <div className="iw-queue-empty"><ShieldCheck size={28} /><h3>{t(loadedAlerts?.length ? 'investigation:noFilterMatches' : 'alerts.noAlerts')}</h3><p>{t(loadedAlerts?.length ? 'investigation:adjustFilters' : 'workspace.queueDescription')}</p>{(query || severity !== 'all') && <Button variant="secondary" onClick={() => { setQuery(''); setSeverity('all') }}>{t('investigation:clearFilters')}</Button>}</div>}
-            <ol className="iw-queue-list">
-              {filteredAlerts.map((alert) => <li key={alert.id}><button className={`iw-queue-row ${selected?.id === alert.id ? 'is-selected' : ''}`} aria-pressed={selected?.id === alert.id} onClick={() => selectAlert(alert.id)}>
-                <span className="iw-queue-row-top"><SeverityBadge severity={severityForAlert(alert)} />{alert.last_seen_camera_time
-                  ? <time dateTime={alert.last_seen_camera_time}>{formatTime(alert.last_seen_camera_time, i18n.language)}</time>
-                  : <span title={t('common.timeUnknown')}>{t('common.timeUnknownShort')}</span>}</span>
-                <span className="iw-queue-plate plate-mono">{alert.plate_text}<ArrowRight size={16} /></span>
-                <span className="iw-queue-camera">{alert.camera_id} · {t('alerts.sighting', { count: alert.sighting_count })}</span>
-                <span className="iw-queue-status">{t(`investigation:status_${alert.status}`)} · {t(alert.match_rung === 'exact' ? 'alerts.exactMatch' : 'findVehicle.probableMatch')}</span>
-              </button></li>)}
-            </ol>
+            {!alerts && !error && <p className="gb-board-foot" role="status">{t('common.loading')}</p>}
+            {alerts && !error && groups.length === 0 && (
+              <div className="gb-empty">
+                <b>{t(loadedGroups.length ? 'investigation:noFilterMatches' : board === 'new' ? 'alerts.noAlerts' : board === 'working' ? 'gate:workingEmpty' : 'gate:closedEmpty')}</b>
+                <span>{t(loadedGroups.length ? 'investigation:adjustFilters' : board === 'working' ? 'gate:workingEmptyHelp' : board === 'closed' ? 'gate:closedEmptyHelp' : 'gate:nothingWaitingHelp')}</span>
+                {(query || severity !== 'all') && <button type="button" className="gb-btn gb-sm" onClick={() => { setQuery(''); setSeverity('all') }}>{t('investigation:clearFilters')}</button>}
+              </div>
+            )}
+            {groups.length > 0 && <>
+              <VehicleBoardHead />
+              <VehicleBoardRows groups={groups} cameras={cameras} selectedPlate={selected?.plate} onSelect={select} onChanged={refetch} />
+            </>}
+            <div className="gb-board-foot">
+              <span>{alerts ? t('investigation:loadedAlerts', { visible: groups.length, total: loadedGroups.length }) : t('common.loading')}</span>
+              <span>{t('gate:onePerVehicle')}</span>
+            </div>
           </section>
-          {selected ? <AlertDetail key={selected.id} alert={selected} onUpdated={refetch} onViewClip={setViewingClip} />
-            : <section className="iw-detail-empty"><Bell size={36} strokeWidth={1.4} /><h2>{t('investigation:selectAlert')}</h2><p>{t('investigation:selectAlertDescription')}</p></section>}
+
+          <div className="gb-stack gb-sticky">
+            {selected
+              ? <SightingPass key={selected.plate} group={selected} cameras={cameras} onChanged={refetch} onViewClip={setViewingClip} detailed>
+                  <HitHistory group={selected} />
+                </SightingPass>
+              : alerts && !error && <section className="gb-empty gb-pass-empty" aria-label={t('investigation:selectedAlert')}><b>{t('investigation:selectAlert')}</b><span>{t('investigation:selectAlertDescription')}</span></section>}
+          </div>
+        </div>
+        <div className="gb-row-2 gb-side-queues">
+          <ZoneEventQueue highlightId={zoneHighlight} />
+          <CameraViewQueue />
         </div>
       </div>
-      <div className="iw-triage-content"><ZoneEventQueue highlightId={zoneHighlight} /><CameraViewQueue /></div>
       <SealedClipModal clip={viewingClip} onClose={() => setViewingClip(null)} />
     </div>
   )
