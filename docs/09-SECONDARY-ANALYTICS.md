@@ -48,39 +48,82 @@ dropped or falsely claimed.
 
 **Decision: frame statistics, not a trained model.** The three tamper
 modes worth detecting in practice — a lens covered, a lens smeared/
-defocused, a camera physically knocked or panned — all show up as gross,
-easily-computed statistical shifts in the raw frame, not subtle patterns
-needing a classifier.
+defocused, a camera physically knocked or re-aimed — all show up as gross,
+easily-computed shifts in the raw frame, not subtle patterns needing a
+classifier.
 
 **What's real:**
 
-- `edge_agent/analytics/tamper.py`'s `TamperDetector`: maintains a rolling
-  reference frame and flags:
+- `edge_agent/analytics/tamper.py`'s `TamperDetector` flags:
   - **covered** — near-uniform pixel intensity (low overall variance)
     sustained across consecutive frames.
   - **blurred** — sustained low Laplacian variance (the standard
     focus-measure operator; a sharp frame has high-frequency edges, a
     defocused one doesn't).
-  - **moved** — a large frame-to-frame greyscale-histogram shift,
-    indicating the field of view itself changed (pan/knock), as opposed
-    to normal scene motion within a stable frame.
   - Each mode requires *sustained* evidence across several frames before
-    flagging, specifically to avoid false positives on a single dark
-    frame, a fast-moving foreground object, or a momentary glare.
+    flagging, so a single dark frame or a momentary glare does not count.
 - Runs inside the existing per-camera health-reporting loop in
   `worker.py`'s `_report_health`/`_run_camera` — no separate polling path,
   no extra model download.
 - `Camera.tamper_status` column (migration `3a9af9c7bca1`), surfaced
   through `CameraHealthUpdate`/`CameraOut` schemas and
   `update_camera_health`/`camera_to_out`.
-- Frontend: `Cameras.tsx` gained a **Tamper** column;
-  `SeverityBadge.tsx`'s new `tamperToSeverity()` maps `ok` → neutral,
-  `covered`/`blurred`/`moved` → warning-styled badges.
-- 7 unit tests (`test_tamper.py`) plus 2 new `test_registry_service.py`
-  tests covering the health-update wiring.
-- **Verified live in-browser**: screenshot-confirmed a styled "covered"
-  badge rendering correctly in the Cameras table against a real camera
-  reporting real tamper state.
+- Frontend: `Cameras.tsx` has a **Tamper** column;
+  `SeverityBadge.tsx`'s `tamperToSeverity()` maps `ok` → neutral,
+  `covered`/`blurred`/`moved` → warning, `view_lost` → high.
+- **Verified live in-browser**: a styled "covered" badge rendered in the
+  Cameras table against a real camera reporting real tamper state.
+
+### 2a. Camera angle changed — an alert, not just a badge
+
+A camera that is knocked by wind, turned by a miscreant, or loosened on its
+mount still streams, so health checks stay green while the camera watches
+the wrong road. The original "moved" check compared frame histograms; on
+real footage it flickered with traffic and lighting and never raised an
+alert. It is replaced by a view monitor that compares *where things are*.
+
+- `edge_agent/analytics/view_monitor.py`'s `ViewMonitor` keeps a reference
+  view per camera and every 2 s matches ORB features (480-px greyscale,
+  contrast-equalised) against it, then fits a rotation + shift + scale with
+  RANSAC. Moving vehicles and people are outliers; the fixed scene decides.
+- States `learning → ok → moved | view_lost`. It learns from three
+  agreeing checks, raises **view shifted** after three consecutive
+  checks (≈6 s) with the measured shift and rotation, and **view not
+  recognised** after ≈60 s with no match (turned to face somewhere else,
+  or sprayed). Three aligned checks close the alert as **restored**.
+- It re-anchors every 2 min while aligned, so day-to-night light changes
+  do not drift into false alarms, and after 15 min in a new position the
+  new view is adopted (someone re-aimed it on purpose and nobody reset it).
+- Frames with too little texture (night, fog, covered lens) are skipped,
+  so the covered/blurred checks own those cases.
+- The worker posts `/api/v1/camera-events` with **before/after snapshots**
+  and the camera's burned-in clock time; the server keeps one open alert
+  per camera and kind (`camera_events` table, migration `b7d2e4f6a8c0`,
+  department RLS), pushes an SSE `camera_event`, and closes it
+  automatically when the view comes back (`resolved_by = "system: view
+  restored"`). Acknowledge/resolve/false-alarm are audited.
+- Console: a **"Camera view changed"** banner, and **Alerts → Camera
+  views** shows the before and after frames side by side with triage
+  actions. The Cameras **Tamper** column shows *Moved* / *View lost*.
+- PTZ cameras that are meant to move opt out with the camera attribute
+  `view_monitoring: off`.
+
+**Measured on the mirrored government footage (cam01, cam24, cam30):** no
+false alarm on untouched footage, rain and haze, a bus filling the frame,
+or ±1% wind shake; a 12% knock detected ≈4 s after it happened; a 6°
+rotation measured to within a degree; a camera turned to another scene
+reported as not recognised at ≈58 s. Cost is 35–60 ms of CPU per check,
+i.e. under 3% of one core per camera at one check every 2 s. cam06's
+corrupted stream gives neither detections nor false alarms.
+
+**Demo:** `make angle-demo` replays mirrored cam01 as camera `angle-demo`,
+knocks it 12% at 60 s and puts it back at 180 s (the burned-in clock stays
+fixed, as it would on a real camera). Run `make worker SOURCE=registry
+CAMERAS=angle-demo` alongside it; `make angle-demo-stop` ends it.
+
+Tests: `test_tamper.py`, `test_view_monitor.py` (13),
+`test_worker_view_change.py` (10), `test_camera_events_api.py` (8),
+`apps/web/tests/camera-view.spec.ts` (2).
 
 ---
 

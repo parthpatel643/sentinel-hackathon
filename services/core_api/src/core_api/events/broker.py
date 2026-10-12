@@ -34,7 +34,7 @@ _QUEUE_SIZE = 256
 @dataclass(frozen=True, slots=True)
 class LiveEvent:
     kind: str
-    """'alert' | 'zone_event'"""
+    """'alert' | 'zone_event' | 'camera_event'"""
     payload: dict[str, Any]
     department_id: str | None
     """Owning department of the camera, for the same scoping RLS applies to

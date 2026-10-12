@@ -33,7 +33,7 @@ a measured run, never only at a design document.
 |---|---|---|
 | Innovative hybrid architecture | **Met** | Model 1 + 2 + 3 + selective 4 ([00-SOLUTION-PLAN §2](./00-SOLUTION-PLAN.md)) |
 | Advanced cross-camera tracking / multi-camera correlation | **Met** | Matching ladder (exact, OCR-ambiguity, one-character, bridged unreadable hops), feasibility gate on implied speed |
-| Additional reliable analytics beyond ANPR | **Met** | Colour, tamper, zone rules, people and vehicle counts, coverage-gap and lifecycle analysis |
+| Additional reliable analytics beyond ANPR | **Met** | Colour, tamper (covered, blurred, and camera angle changed with before/after alert), zone rules, people and vehicle counts, coverage-gap and lifecycle analysis |
 | Edge processing, bandwidth optimisation, low connectivity | **Met** | Edge worker sends metadata only (plus snapshots of detections), tiered analysis, a durable outbox that replays detections after an outage |
 | Cybersecurity, privacy, auditability, RBAC | **Met** | mTLS, RBAC/ABAC, Postgres RLS, hash-chained audit log (tamper detected, survives restore), face blur, admin-only registry writes, private-camera consent enforcement |
 | Dashboards, automated alerts, health monitoring, APIs | **Met** | Server-sent-event alerts with sound, camera health (live / stale / degraded / down, analysed fps, lag), OpenAPI |

@@ -19,6 +19,7 @@ from core_api.db.base import get_session
 from core_api.registry.service import codecs_in_use
 from core_api.routers.admin import router as admin_router
 from core_api.routers.auth import router as auth_router
+from core_api.routers.camera_events import router as camera_events_router
 from core_api.routers.detections import router as detections_router
 from core_api.routers.events import router as events_router
 from core_api.routers.evidence import router as evidence_router
@@ -77,6 +78,7 @@ def create_app() -> FastAPI:
     app.include_router(detections_router)
     app.include_router(field_router)
     app.include_router(zones_router)
+    app.include_router(camera_events_router)
     app.include_router(events_router)
     # evidence_router (clip video streaming) is intentionally NOT under the
     # blanket current_user dependency below — it has its own per-route auth

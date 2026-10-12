@@ -104,6 +104,30 @@ export interface ZoneEvent {
 
 export type ZoneEventStatus = 'new' | 'acknowledged' | 'resolved' | 'false_positive'
 
+/** A camera whose view changed: moved (knocked, re-aimed) or no longer
+ * recognisable (turned away, obstructed, weather). */
+export interface CameraEvent {
+  id: string
+  /** Names the before/after evidence frames. */
+  event_id: string
+  camera_id: string
+  kind: 'view_shifted' | 'view_unrecognised'
+  /** Displacement of the view, % of frame width. */
+  shift_pct: number | null
+  rotation_deg: number | null
+  scale: number | null
+  match_ratio: number | null
+  has_snapshots: boolean
+  /** Processing time — ordering only, never display it. */
+  observed_at: string
+  /** The camera's burned-in clock when the change was confirmed; null is unknown. */
+  camera_time: string | null
+  status: ZoneEventStatus
+  resolved_by: string | null
+  restored_at: string | null
+  created_at: string
+}
+
 export interface IntegrationStatus {
   provider_id: string
   name: string

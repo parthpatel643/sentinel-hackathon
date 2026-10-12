@@ -164,7 +164,7 @@ Reviewers should not have to guess which parts are load-bearing.
 | Camera registry, search, alerts, evidence clips | Real, PostGIS-backed, tested against a real database. |
 | Watchlist correlation (both rungs) | Real. Exercised end-to-end on live government reads. |
 | Route search, rung 3 (one-character misreads) | Real, route search only; returned as *probable* hops. Wildcard search and appearance ReID are designed, not built. |
-| Secondary analytics (colour, tamper, zones, people) | Real — 208 zone events and a `moved` tamper flag on real footage. People are counted and trip intrusion/loitering zones (185 found in 120 real frames), never identified. Vehicle colour is an HSV heuristic, not a trained classifier. |
+| Secondary analytics (colour, tamper, zones, people) | Real — 208 zone events on real footage; a camera knocked or re-aimed raises an alert with before/after frames within seconds and closes itself when restored, with no false alarms on rain, traffic or wind shake in the mirrored feeds. People are counted and trip intrusion/loitering zones (185 found in 120 real frames), never identified. Vehicle colour is an HSV heuristic, not a trained classifier. |
 | Coarse-make (manufacturer/model) | **Out of scope.** Needs a different trained classifier; not attempted. |
 | Face recognition | **Excluded by decision** — see [00-SOLUTION-PLAN](docs/00-SOLUTION-PLAN.md). |
 | mTLS, RBAC/ABAC, Postgres RLS, audit chain | Real and verified, including detecting tampering of the audit chain itself. |

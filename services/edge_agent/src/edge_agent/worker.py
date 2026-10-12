@@ -63,6 +63,7 @@ from edge_agent.analytics.snapshot_writer import SnapshotWriter
 from edge_agent.analytics.tamper import TamperDetector
 from edge_agent.analytics.tracker import TrackedVehicle
 from edge_agent.analytics.vehicle_detector import DETECTED_CLASSES, VehicleDetector
+from edge_agent.analytics.view_monitor import ViewChange, ViewMonitor
 from edge_agent.analytics.zone_rules import Zone, ZoneRuleEngine
 from edge_agent.fleet import CameraFleet
 from edge_agent.outbox import DetectionOutbox
@@ -87,6 +88,7 @@ from sentinel_core.schemas import (
     GeoPoint,
     StreamProfile,
     StreamProtocol,
+    new_event_id,
 )
 
 logger = logging.getLogger("edge_agent.worker")
@@ -407,12 +409,27 @@ class _LoadMeter:
         return round(rate, 2)
 
 
+def _camera_condition(
+    tamper_detector: TamperDetector | None, view_monitor: ViewMonitor | None
+) -> str | None:
+    """The camera's tamper status: covered or blurred from the frame itself
+    first, then moved or view lost from the view monitor."""
+    if tamper_detector is None and view_monitor is None:
+        return None
+    if tamper_detector is not None and tamper_detector.current_status != "ok":
+        return tamper_detector.current_status
+    if view_monitor is not None and view_monitor.status in ("moved", "view_lost"):
+        return view_monitor.status
+    return "ok"
+
+
 async def _report_health(
     client: httpx.AsyncClient,
     camera_id: str,
     supervisor: CameraSupervisor,
     tamper_detector: TamperDetector | None = None,
     load: _LoadMeter | None = None,
+    view_monitor: ViewMonitor | None = None,
 ) -> None:
     while True:
         await asyncio.sleep(HEALTH_REPORT_INTERVAL_S)
@@ -422,7 +439,7 @@ async def _report_health(
             "declared_fps": supervisor.declared_fps,
             "reconnects": supervisor.reconnects,
             "discontinuities": supervisor.discontinuities,
-            "tamper_status": tamper_detector.current_status if tamper_detector else None,
+            "tamper_status": _camera_condition(tamper_detector, view_monitor),
         }
         if load is not None:
             payload["analysed_fps"] = load.take_analysed_fps()
@@ -561,6 +578,86 @@ def _event_to_detection_payload(event: Event) -> dict[str, Any]:
     }
 
 
+_VIEW_MONITORING_OFF = {"off", "false", "no", "0"}
+
+
+def _monitors_view(descriptor: CameraDescriptor) -> bool:
+    """On unless the camera's `view_monitoring` attribute turns it off — for
+    a PTZ camera on a patrol tour, whose view is meant to change."""
+    return descriptor.attributes.get("view_monitoring", "on").strip().lower() not in (
+        _VIEW_MONITORING_OFF
+    )
+
+
+async def _report_view_change(
+    client: httpx.AsyncClient,
+    camera_id: str,
+    change: ViewChange,
+    frame: Frame[np.ndarray],
+    pipeline: AnprPipeline,
+    snapshot_writer: SnapshotWriter,
+    *,
+    settings: Settings,
+    upload_snapshots: bool,
+) -> None:
+    """Tell the API the camera's view changed (or came back), with the
+    remembered and current views as face-blurred evidence frames."""
+    camera_time = await asyncio.to_thread(pipeline.camera_time_of, frame)
+    try:
+        if change.kind == "restored":
+            response = await client.post(
+                "/api/v1/camera-events/restored",
+                json={
+                    "camera_id": camera_id,
+                    "observed_at": frame.observed_at.isoformat(),
+                    "camera_time": camera_time.isoformat() if camera_time else None,
+                },
+            )
+            response.raise_for_status()
+            logger.info("%s: camera view restored", camera_id)
+            return
+
+        event_id = new_event_id()
+        written = [
+            await asyncio.to_thread(snapshot_writer.write, f"{event_id}-{which}", image)
+            for which, image in (("before", change.reference), ("after", change.current))
+        ]
+        has_snapshots = all(written)
+        response = await client.post(
+            "/api/v1/camera-events",
+            json={
+                "event_id": event_id,
+                "camera_id": camera_id,
+                "kind": "view_shifted" if change.kind == "shifted" else "view_unrecognised",
+                "shift_pct": change.shift_pct,
+                "rotation_deg": change.rotation_deg,
+                "scale": change.scale,
+                "match_ratio": change.match_ratio,
+                "observed_at": frame.observed_at.isoformat(),
+                "camera_time": camera_time.isoformat() if camera_time else None,
+                "has_snapshots": has_snapshots,
+            },
+        )
+        response.raise_for_status()
+        logger.warning(
+            "%s: camera view changed (%s; shift %s%%, rotation %s°)",
+            camera_id,
+            change.kind,
+            change.shift_pct,
+            change.rotation_deg,
+        )
+        if has_snapshots and upload_snapshots:
+            for which in ("before", "after"):
+                path = Path(settings.snapshots_dir) / f"{event_id}-{which}.jpg"
+                upload = await client.put(
+                    f"/api/v1/camera-events/{event_id}/snapshot/{which}",
+                    files={"blurred": (path.name, path.read_bytes(), "image/jpeg")},
+                )
+                upload.raise_for_status()
+    except httpx.HTTPError as exc:
+        logger.warning("camera view report failed for %s: %s", camera_id, exc)
+
+
 async def _run_camera(
     client: httpx.AsyncClient,
     descriptor: CameraDescriptor,
@@ -602,15 +699,17 @@ async def _run_camera(
     )
     load = _LoadMeter()
     tamper_detector = TamperDetector()
+    view_monitor = ViewMonitor() if _monitors_view(descriptor) else None
+    snapshot_writer = SnapshotWriter(
+        blurred_dir=Path(settings.snapshots_dir),
+        originals_dir=Path(settings.snapshot_originals_dir),
+    )
     pipeline = AnprPipeline(
         vehicle_detector,
         plate_reader,
         node_id=settings.node_id,
         model_versions=MODEL_VERSIONS,
-        snapshot_writer=SnapshotWriter(
-            blurred_dir=Path(settings.snapshots_dir),
-            originals_dir=Path(settings.snapshot_originals_dir),
-        ),
+        snapshot_writer=snapshot_writer,
         # Prefer the camera's own burned-in clock for observed_at. The grid
         # replays continuous recordings, so PTS-derived time says when we
         # processed a frame, not when the scene happened — months apart in
@@ -620,7 +719,7 @@ async def _run_camera(
     zone_engine = await _load_zone_engine(client, camera_id)
 
     health_task = asyncio.create_task(
-        _report_health(client, camera_id, supervisor, tamper_detector, load)
+        _report_health(client, camera_id, supervisor, tamper_detector, load, view_monitor)
     )
     stop_watch = asyncio.create_task(_stop_when_set(stop, supervisor)) if stop else None
     try:
@@ -629,6 +728,24 @@ async def _run_camera(
             # M13: cheap (grayscale + Laplacian + a mean), so it runs on every
             # frame the scheduler decodes — no second inference engine.
             await asyncio.to_thread(tamper_detector.update, frame.image)
+            if view_monitor is not None:
+                if frame.timing.is_discontinuity:
+                    view_monitor.reset_timing()
+                # Paced by stream time inside: about one comparison per 2 s.
+                change = await asyncio.to_thread(
+                    view_monitor.observe, frame.image, pts_ms=frame.timing.pts_ms
+                )
+                if change is not None:
+                    await _report_view_change(
+                        client,
+                        camera_id,
+                        change,
+                        frame,
+                        pipeline,
+                        snapshot_writer,
+                        settings=settings,
+                        upload_snapshots=upload_snapshots,
+                    )
             # The scheduler already chose which frames to decode (tier and
             # PTS pacing; loop cuts always). Motion-gated cameras also skip
             # analysis while the scene is still.

@@ -8,7 +8,7 @@ import { useEffect, useRef } from 'react'
 import { getToken, setToken } from './authStore'
 import { apiUrl } from './http'
 
-export type LiveEventKind = 'alert' | 'zone_event'
+export type LiveEventKind = 'alert' | 'zone_event' | 'camera_event'
 type Listener = (kind: LiveEventKind, data: unknown) => void
 
 const listeners = new Set<Listener>()
@@ -28,7 +28,7 @@ function dispatch(block: string) {
     if (line.startsWith('event:')) kind = line.slice(6).trim()
     else if (line.startsWith('data:')) data.push(line.slice(5).trimStart())
   }
-  if ((kind !== 'alert' && kind !== 'zone_event') || data.length === 0) return
+  if ((kind !== 'alert' && kind !== 'zone_event' && kind !== 'camera_event') || data.length === 0) return
   let payload: unknown
   try {
     payload = JSON.parse(data.join('\n'))

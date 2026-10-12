@@ -6,7 +6,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 
 .DEFAULT_GOAL := help
-.PHONY: help install up down logs ps api web worker mirror-capture mirror mirror-start mirror-stop deck pitch seed dr-drill uat prefetch test lint fmt types check audit secrets-scan sbom clean
+.PHONY: help install up down logs ps api web worker mirror-capture mirror mirror-start mirror-stop angle-demo angle-demo-stop deck pitch seed dr-drill uat prefetch test lint fmt types check audit secrets-scan sbom clean
 
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -60,6 +60,12 @@ mirror-start: ## Replay the local copy into the relay under mirror/* (then: make
 
 mirror-stop: ## Stop replaying the local copy
 	uv run python scripts/gov_mirror.py stop
+
+angle-demo: ## Replay a recorded camera that gets knocked at 60 s and put back at 180 s (then: make worker SOURCE=registry CAMERAS=angle-demo)
+	uv run python scripts/angle_change_demo.py start
+
+angle-demo-stop: ## Stop the angle-change demo camera
+	uv run python scripts/angle_change_demo.py stop
 
 deck: ## Build the submission deck (docs/Sentinel-Platform-Deck.pptx)
 	NODE_PATH=$$(npm root -g) node scripts/build_deck.mjs

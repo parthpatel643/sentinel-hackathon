@@ -465,3 +465,44 @@ class ZoneEvent(Base):
     resolved_by: Mapped[str | None]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+
+
+class CameraEvent(Base):
+    """A camera whose view changed: moved (knocked, re-aimed, slipping on its
+    mount) or no longer recognisable (turned away, obstructed, weather) — see
+    edge_agent.analytics.view_monitor. An operational alert, triaged like a
+    zone event. The edge's event id names its before/after evidence frames."""
+
+    __tablename__ = "camera_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    event_id: Mapped[str] = mapped_column(unique=True)
+    camera_id: Mapped[str] = mapped_column(ForeignKey("cameras.camera_id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(comment="view_shifted | view_unrecognised")
+    shift_pct: Mapped[float | None] = mapped_column(
+        comment="Displacement of the view as a percentage of the frame width"
+    )
+    rotation_deg: Mapped[float | None]
+    scale: Mapped[float | None]
+    match_ratio: Mapped[float | None] = mapped_column(
+        comment="Matched fixed points as a share of those in the remembered view"
+    )
+    has_snapshots: Mapped[bool] = mapped_column(default=False, server_default="false")
+    observed_at: Mapped[datetime] = mapped_column(
+        index=True, comment="Processing time. Ordering only; never display it."
+    )
+    camera_time: Mapped[datetime | None] = mapped_column(
+        comment="The camera's burned-in clock on the frame the change was confirmed on"
+    )
+    status: Mapped[str] = mapped_column(
+        default="new",
+        server_default="new",
+        index=True,
+        comment="new | acknowledged | resolved | false_positive",
+    )
+    resolved_by: Mapped[str | None]
+    restored_at: Mapped[datetime | None] = mapped_column(
+        comment="When the edge saw the view line up with the remembered one again"
+    )
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())

@@ -15,6 +15,7 @@ import { Input } from '../components/ui/Input'
 import './investigation-workspace.css'
 import { formatIst } from '../lib/time'
 import { ZoneEventQueue } from '../components/ZoneEventQueue'
+import { CameraViewQueue } from '../components/CameraViewQueue'
 import { useLiveEvents } from '../lib/liveEvents'
 
 const FILTERS: { key: string; status?: AlertStatus }[] = [
@@ -289,7 +290,7 @@ export function Alerts() {
             : <section className="iw-detail-empty"><Bell size={36} strokeWidth={1.4} /><h2>{t('investigation:selectAlert')}</h2><p>{t('investigation:selectAlertDescription')}</p></section>}
         </div>
       </div>
-      <div className="iw-triage-content"><ZoneEventQueue highlightId={zoneHighlight} /></div>
+      <div className="iw-triage-content"><ZoneEventQueue highlightId={zoneHighlight} /><CameraViewQueue /></div>
       <SealedClipModal clip={viewingClip} onClose={() => setViewingClip(null)} />
     </div>
   )

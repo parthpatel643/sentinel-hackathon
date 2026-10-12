@@ -68,31 +68,10 @@ def test_status_flips_after_enough_consecutive_readings() -> None:
     assert status == "covered"
 
 
-def test_a_sudden_large_scene_shift_reports_moved() -> None:
-    """The reference is a slow exponential average of prior frames, so a
-    sudden, large, sustained shift in scene content (not explained by a
-    passing object) reads as camera movement."""
-    detector = TamperDetector(consecutive_frames_required=1)
-    # Establish a stable reference: many frames of the same noisy scene.
-    for i in range(30):
-        detector.update(_noisy_frame(base=60, seed=i))
-
-    # A completely different scene — simulates the camera being physically
-    # reoriented to point somewhere else entirely.
-    status = detector.update(_noisy_frame(base=220, seed=999))
-
-    assert status == "moved"
-
-
-def test_a_passing_vehicle_does_not_trigger_moved() -> None:
-    """A small, localised bright patch (a vehicle passing through part of
-    the frame) must not read as a full camera-movement event — the mean
-    frame-to-reference difference stays well under the moved threshold."""
+def test_a_changed_scene_is_left_to_the_view_monitor() -> None:
+    """A re-aimed camera is ViewMonitor's to report, geometrically. This
+    detector judges only the frame itself: dark or out of focus."""
     detector = TamperDetector(consecutive_frames_required=1)
     for i in range(30):
         detector.update(_noisy_frame(base=60, seed=i))
-
-    frame = _noisy_frame(base=60, seed=31)
-    frame[80:120, 80:120] = 255  # a small bright patch — "a vehicle"
-
-    assert detector.update(frame) == "ok"
+    assert detector.update(_noisy_frame(base=220, seed=999)) == "ok"

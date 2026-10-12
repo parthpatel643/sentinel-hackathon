@@ -67,6 +67,7 @@ const TAMPER_TO_SEVERITY: Record<string, Severity> = {
   covered: 'critical',
   blurred: 'high',
   moved: 'high',
+  view_lost: 'high',
 }
 
 /** M13: `tamper_status` is `null` for any camera whose driver hasn't

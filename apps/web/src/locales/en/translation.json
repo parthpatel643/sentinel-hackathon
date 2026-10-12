@@ -109,7 +109,8 @@
     "ok": "OK",
     "covered": "Covered",
     "blurred": "Blurred",
-    "moved": "Moved"
+    "moved": "Moved",
+    "view_lost": "View lost"
   },
   "map": {
     "zoomIn": "Zoom in",

@@ -4,6 +4,7 @@
 
 import { get, getBlob, patch, post, postForm } from './http'
 import type {
+  CameraEvent,
   Alert,
   AlertStatus,
   AuditChainVerification,
@@ -66,6 +67,15 @@ export const adminApi = {
   auditLog: (limit = 200) => get<AuditLogEntry[]>(`/api/v1/admin/audit-log?limit=${limit}`),
   verifyAuditLog: () => post<AuditChainVerification>('/api/v1/admin/audit-log/verify', {}),
   integrations: () => get<IntegrationStatus[]>('/api/v1/admin/integrations'),
+}
+
+export const cameraEventsApi = {
+  byStatus: (status: ZoneEventStatus, limit = 50) =>
+    get<CameraEvent[]>(`/api/v1/camera-events?status=${status}&limit=${limit}`),
+  update: (id: string, status: Exclude<ZoneEventStatus, 'new'>, note?: string) =>
+    patch<CameraEvent>(`/api/v1/camera-events/${id}`, { status, note }),
+  snapshotBlob: (eventId: string, which: 'before' | 'after') =>
+    getBlob(`/api/v1/camera-events/${encodeURIComponent(eventId)}/snapshot/${which}`),
 }
 
 export const zonesApi = {

@@ -232,7 +232,7 @@ Three roles, fixed in rehearsal:
 | 2:30–5:00 | **Today's cameras, onboarded and live** | Slides 7–8, then live: Cameras map → Health → Live Wall | Test case: onboard, integrate, GIS |
 | 5:00–10:00 | **The designated vehicle** (live) | Slide 9, then live: search → route → replay → hop evidence → BOLO → alert → Movement Report | Test case: track, alerts, route |
 | 10:00–11:30 | **Alerts, and plates that are hard to read** | Slide 10; live: probable hops, ambiguity search, feasibility flag | Bonus: multi-camera correlation |
-| 11:30–12:30 | **Trust, privacy, beyond plates** | Slides 11–12; live: blurred snapshot + reveal-with-reason; Audit → Verify chain | Analytics, bonus: security |
+| 11:30–12:30 | **Trust, privacy, beyond plates** | Slides 11–12; live: blurred snapshot + reveal-with-reason; Audit → Verify chain; if `make angle-demo` is running, the "Camera view changed" alert with before/after frames (Alerts → Camera views) | Analytics, bonus: security |
 | 12:30–15:30 | **Our model, and scaling to 80,000** | Slides 13–16: the hybrid and why; send meaning not video; five layers; tiering | Architecture; Scalability & PoC readiness |
 | 15:30–16:30 | **Estimated cost** | Slide 17: ≈₹80 cr to build, ≈₹24 cr a year; per camera; ₹0 licences; vs ₹400 cr+ to centralise | Scalability (costs); Presentation |
 | 16:30–18:30 | **Why Sentinel: USP, comparison, proof** | Slides 18–20: positioning line and three pillars; vs separate systems and full centralisation; measured results | Presentation, PoC readiness |
@@ -550,6 +550,7 @@ work). Additional likely questions:
 | "Private cameras?" | Consent reference and expiry enforced: without current consent a camera is registered but never viewed or analysed. |
 | "Why no face recognition?" | Excluded by decision; faces are only detected to blur them. The architecture can host an FRS module behind the same access controls if policy allows. |
 | "Vendor lock-in?" | Open protocols, open-source stack, documented APIs; every component replaceable. |
+| "What if someone turns a camera away, or the wind knocks it?" | Every camera learns its own view. If the view shifts it raises an alert within about 6 seconds with before and after frames; if it no longer recognises the scene at all, within a minute. It closes itself when the camera is put back. No false alarms on rain, traffic or wind shake in today's feeds. PTZ cameras opt out. Show it: Alerts → Camera views. |
 | "How did you get 300 fps per GPU?" | It is a benchmark-based estimate; here is the formula; Phase 0 measures it. |
 
 ---
