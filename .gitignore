@@ -46,6 +46,9 @@ sbom/
 # same reason the SBOMs above are regenerated on demand: a stale copy
 # silently disagreeing with the docs/ it was built from is worse than no
 # copy).
+# Sentinel-Demo-Book.pdf is a print copy of docs/15-DEMO-BOOK.md, rebuilt with
+# `npm run docs:demo-book`; the markdown is the source.
+docs/Sentinel-Demo-Book.pdf
 # deck-qa.pdf is a scratch QA render, never a deliverable, and stays ignored.
 docs/deck-qa.pdf
 

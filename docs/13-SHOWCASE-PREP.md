@@ -9,6 +9,10 @@ Written 8 October 2026 after re-reading
 [sentinel.gujarat.gov.in/problems](https://sentinel.gujarat.gov.in/problems)
 end to end against the repository.
 
+**On the day, work from [15 — Demo Book](./15-DEMO-BOOK.md):** the live
+government feed on the M5 with `make demo`, the plate and camera to trace,
+and the fallbacks, in one printable document. This one is the reasoning.
+
 ---
 
 ## 0. The five things that matter most before Monday

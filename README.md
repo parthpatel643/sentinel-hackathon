@@ -203,6 +203,7 @@ Reviewers should not have to guess which parts are load-bearing.
 | [09 — Secondary Analytics](docs/09-SECONDARY-ANALYTICS.md) | Vehicle colour, camera tamper detection, zone rules |
 | [10 — Finale Runbook](docs/10-FINALE-RUNBOOK.md) | Phase-2 on-site procedure: what to ask organisers, onboarding real cameras, offline operation, the designated-vehicle drill, fallbacks |
 | [13 — Showcase Prep](docs/13-SHOWCASE-PREP.md) | The 20-minute on-site evaluation: run-of-show, pitch script, plate-yield triage, 80K walkthrough, cost impact, Q&A, cheat card |
+| [15 — Demo Book](docs/15-DEMO-BOOK.md) | The printed playbook for the live government feed: tonight's setup, warm-up, the trace click by click, the plate and camera, quota, fallbacks (`npm run docs:demo-book` for the PDF) |
 | [14 — Appearance ReID](docs/14-APPEARANCE-REID-DESIGN.md) | Matching a vehicle whose plate is not read: design, effort, risk and go/no-go |
 
 ### Evidence

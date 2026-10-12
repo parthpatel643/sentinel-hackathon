@@ -11,6 +11,7 @@
     "screenshots": "node scripts/capture_screenshots.mjs",
     "screenshots:pitch": "node scripts/capture_pitch_screenshots.mjs",
     "docs:pdf": "node scripts/build_docs_pdf.mjs",
+    "docs:demo-book": "node scripts/build_demo_book_pdf.mjs",
     "preview": "vite preview",
     "demo:record": "node scripts/record_demo.mjs",
     "demo:build": "node scripts/build_demo.mjs",
