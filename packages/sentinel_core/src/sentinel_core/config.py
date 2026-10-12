@@ -116,6 +116,22 @@ class Settings(BaseSettings):
         "government grid that scripts/gov_mirror.py publishes under mirror/*.",
     )
 
+    # --- Movement Report map --------------------------------------------------
+    # Tiles are fetched once per export and embedded in the PDF, so the
+    # manifest hashes the map as printed. Point this at a departmental tile
+    # server in production; empty means never fetch, and the report draws the
+    # route to scale on a blank frame, as it also does when tiles are
+    # unreachable.
+    report_tile_url: str = Field(
+        default="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        description="XYZ tile URL for the Movement Report's map; empty disables it.",
+    )
+    report_tile_attribution: str = "© OpenStreetMap contributors"
+    report_tile_cache_dir: str = Field(
+        default="./data/tile-cache",
+        description="Fetched tiles, kept so a camera's area is downloaded once.",
+    )
+
     # --- Face-blurred snapshots (M12) ---------------------------------------
     # Same shared-host-path reasoning as recordings_dir above: the edge
     # worker (writer) and core_api (reader, for both the default blurred

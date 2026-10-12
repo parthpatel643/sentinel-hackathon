@@ -19,7 +19,7 @@ import io
 import json
 import math
 import zipfile
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime, timedelta, timezone
 from itertools import pairwise
 from pathlib import Path
@@ -27,8 +27,9 @@ from pathlib import Path
 from fpdf import FPDF
 
 from core_api.detections.schemas import RoutePoint, VehicleRoute
+from core_api.reports.basemap import Basemap
 
-__all__ = ["build_movement_report_zip"]
+__all__ = ["MAP_ASPECT", "build_movement_report_zip"]
 
 # Evidence is stored in UTC; the officers and jury reading it work in IST.
 # India has no DST, so a fixed offset is exact and needs no tz database.
@@ -102,26 +103,63 @@ _ROUTE_BLUE = (36, 86, 214)
 _PROBABLE_AMBER = (196, 120, 20)
 _NICE_KM = (0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200)
 _KM_PER_DEGREE_LAT = 111.32
+# The route frame on a landscape A4 page with fpdf's 10 mm margins.
+_MAP_W_MM = 277.0
+_MAP_H_MM = 88.0
+MAP_ASPECT = _MAP_W_MM / _MAP_H_MM
 
 
 def _draw_route_sketch(
-    pdf: FPDF, route: VehicleRoute, *, x: float, y: float, w: float, h: float
+    pdf: FPDF,
+    route: VehicleRoute,
+    *,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    basemap: Basemap | None = None,
 ) -> None:
-    """The route drawn to scale from camera coordinates — numbered hops,
-    solid for confirmed and dashed for probable, a scale bar and north. No
-    basemap, deliberately: the report must render on a machine with no
-    internet, and an evidence document should not depend on a third-party
-    tile server's rendering on the day it was made."""
+    """The route at the cameras' coordinates — numbered hops, solid for
+    confirmed and dashed for probable, a scale bar and north — over a street
+    map when one was fetched at export (reports/basemap.py), otherwise to
+    scale on a blank frame, so the report still renders with no internet."""
     located = [(i, p) for i, p in enumerate(route.points, start=1) if p.location is not None]
-    pdf.set_draw_color(200, 200, 200)
-    pdf.set_line_width(0.3)
-    pdf.rect(x, y, w, h)
     if not located:
+        pdf.set_draw_color(200, 200, 200)
+        pdf.set_line_width(0.3)
+        pdf.rect(x, y, w, h)
         pdf.set_xy(x, y + h / 2 - 3)
         pdf.set_font("Helvetica", "I", 10)
         pdf.cell(w, 6, "No sighting has camera coordinates to place on a map.", align="C")
         return
 
+    if basemap is not None:
+        pdf.image(io.BytesIO(basemap.image_png), x=x, y=y, w=w, h=h)
+        mid = located[0][1].location
+        assert mid is not None
+        mm_per_km = 1000 / basemap.metres_per_pixel(mid.lat) * (w / basemap.width_px)
+
+        def on_map(point: RoutePoint) -> tuple[float, float]:
+            assert point.location is not None and basemap is not None
+            fx, fy = basemap.place(point.location.lat, point.location.lon)
+            return x + fx * w, y + fy * h
+
+        _draw_route_marks(pdf, located, on_map, mm_per_km, x=x, y=y, w=w, h=h)
+        pdf.set_font("Helvetica", "", 6.5)
+        label_w = pdf.get_string_width(basemap.attribution) + 3
+        pdf.set_fill_color(255, 255, 255)
+        pdf.set_text_color(60, 60, 60)
+        pdf.set_xy(x + w - label_w, y + h - 4)
+        pdf.cell(label_w, 4, basemap.attribution, align="C", fill=True)
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_draw_color(200, 200, 200)
+        pdf.set_line_width(0.3)
+        pdf.rect(x, y, w, h)
+        return
+
+    pdf.set_draw_color(200, 200, 200)
+    pdf.set_line_width(0.3)
+    pdf.rect(x, y, w, h)
     lats = [p.location.lat for _, p in located if p.location]
     lons = [p.location.lon for _, p in located if p.location]
     mid_lat = (min(lats) + max(lats)) / 2
@@ -144,6 +182,22 @@ def _draw_route_sketch(
         py = (point.location.lat - min(lats)) * _KM_PER_DEGREE_LAT
         return off_x + px * mm_per_km, off_y + (max(ys_km) - py) * mm_per_km
 
+    _draw_route_marks(pdf, located, place, mm_per_km, x=x, y=y, w=w, h=h)
+
+
+def _draw_route_marks(
+    pdf: FPDF,
+    located: list[tuple[int, RoutePoint]],
+    place: Callable[[RoutePoint], tuple[float, float]],
+    mm_per_km: float,
+    *,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+) -> None:
+    """Hops, numbered markers, scale bar and north arrow, wherever `place`
+    puts each sighting."""
     pdf.set_line_width(0.7)
     for (_, a), (_, b) in pairwise(located):
         colour = _ROUTE_BLUE if b.confirmed else _PROBABLE_AMBER
@@ -172,15 +226,21 @@ def _draw_route_sketch(
         pdf.set_xy(px - 3.2, py - 1.8)
         pdf.cell(6.4, 3.6, str(hops[0]), align="C")
         pdf.set_text_color(40, 40, 40)
-        pdf.set_font("Helvetica", "", 7.5)
+        pdf.set_font("Helvetica", "B", 7.5)
         label = f"{', '.join(str(h) for h in hops)}  {names[(px, py)][:30]}"
-        pdf.set_xy(min(px + 4.5, x + w - 60), py - 1.8)
-        pdf.cell(58, 3.6, label)
+        label_w = pdf.get_string_width(label) + 2
+        pdf.set_fill_color(255, 255, 255)
+        pdf.set_xy(min(px + 4.5, x + w - label_w - 2), py - 1.8)
+        pdf.cell(label_w, 3.6, label, fill=True)
 
-    # Scale bar: the nice distance closest to 30 mm.
+    # Scale bar: the nice distance closest to 30 mm, on a white plate so it
+    # reads over a street map.
     bar_km = min(_NICE_KM, key=lambda km: abs(km * mm_per_km - 30))
     bar_mm = bar_km * mm_per_km
     bx, by = x + 6, y + h - 6
+    pdf.set_fill_color(255, 255, 255)
+    pdf.rect(bx - 3, by - 6, bar_mm + 6, 8.5, style="F")
+    pdf.rect(x + w - 12, y + 3, 8, 15, style="F")
     pdf.set_draw_color(40, 40, 40)
     pdf.set_line_width(0.6)
     pdf.line(bx, by, bx + bar_mm, by)
@@ -238,7 +298,11 @@ def _render_evidence(pdf: FPDF, route: VehicleRoute, snapshots: Mapping[str, Pat
 
 
 def _render_pdf(
-    route: VehicleRoute, *, generated_at: datetime, snapshots: Mapping[str, Path] | None = None
+    route: VehicleRoute,
+    *,
+    generated_at: datetime,
+    snapshots: Mapping[str, Path] | None = None,
+    basemap: Basemap | None = None,
 ) -> bytes:
     pdf = FPDF(orientation="landscape", format="A4")
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -285,15 +349,22 @@ def _render_pdf(
         return bytes(pdf.output())
 
     sketch_y = pdf.get_y()
-    _draw_route_sketch(pdf, route, x=pdf.l_margin, y=sketch_y, w=pdf.epw, h=88)
-    pdf.set_xy(pdf.l_margin, sketch_y + 89)
+    _draw_route_sketch(
+        pdf, route, x=pdf.l_margin, y=sketch_y, w=_MAP_W_MM, h=_MAP_H_MM, basemap=basemap
+    )
+    pdf.set_xy(pdf.l_margin, sketch_y + _MAP_H_MM + 1)
     pdf.set_font("Helvetica", "I", 8)
     pdf.set_text_color(90, 90, 90)
+    where = (
+        "Route on a street map captured at export, at each camera's coordinates"
+        if basemap is not None
+        else "Route drawn to scale from camera coordinates (no basemap)"
+    )
     pdf.cell(
         0,
         5,
-        "Route drawn to scale from camera coordinates (no basemap), sightings with a readable "
-        "camera clock only. Solid: confirmed reads; dashed: probable - confirm on the evidence.",
+        f"{where}, sightings with a readable camera clock only. "
+        "Solid: confirmed reads; dashed: probable - confirm on the evidence.",
         new_x="LMARGIN",
         new_y="NEXT",
     )
@@ -395,14 +466,16 @@ def build_movement_report_zip(
     *,
     generated_by: str,
     snapshots: Mapping[str, Path] | None = None,
+    basemap: Basemap | None = None,
 ) -> tuple[bytes, str]:
     """Returns (zip_bytes, filename). The zip contains report.pdf, report.csv,
     the face-blurred snapshot behind each hop (evidence/), and manifest.json —
     whose sha256 fields are computed over the exact bytes sitting next to it
-    in the same archive. `snapshots` maps a hop's event_id to its file."""
+    in the same archive. `snapshots` maps a hop's event_id to its file;
+    `basemap` is the street map behind the route, when one could be fetched."""
     snapshots = snapshots or {}
     generated_at = datetime.now(UTC)
-    pdf_bytes = _render_pdf(route, generated_at=generated_at, snapshots=snapshots)
+    pdf_bytes = _render_pdf(route, generated_at=generated_at, snapshots=snapshots, basemap=basemap)
     csv_bytes = _render_csv(route)
     evidence: dict[str, bytes] = {}
     named = [(f"hop-{i:02d}", p) for i, p in enumerate(route.points, start=1)]

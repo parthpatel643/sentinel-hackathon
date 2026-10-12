@@ -22,7 +22,7 @@ a measured run, never only at a design document.
 | 05 | Person detection | **Met** | Same inference as vehicles; people counted per camera and held to intrusion/loitering zones; never identified | [09-SECONDARY-ANALYTICS §3a](./09-SECONDARY-ANALYTICS.md) |
 | 05 | Intrusion detection | **Met** | Zone rules: intrusion, loitering, wrong-way, stopped vehicle; triaged as alerts | `edge_agent/analytics/zone_rules.py`, Zone event queue |
 | 05 | Timestamps | **Met** | The camera's burned-in clock is the only time a sighting is reported with, confirmed by a second reading; unreadable clocks are shown as *time unknown*, never replaced. IST everywhere in the UI and reports | `frame_clock.py`, `pipeline.py`, `apps/web/src/lib/time.ts` |
-| 05 | Output reports | **Met** | Movement report PDF with route sketch and evidence frames; CSV; evidence ZIP with SHA-256 manifest; `scripts/evidence_report.py` | `core_api/reports/service.py` |
+| 05 | Output reports | **Met** | Movement report PDF with the route on a street map captured at export (drawn to scale when offline) and evidence frames; CSV; evidence ZIP with SHA-256 manifest; `scripts/evidence_report.py` | `core_api/reports/service.py`, `core_api/reports/basemap.py` |
 | 06 | Scalability toward ~80,000 cameras | **Met (plan + measurement)** | Tiered analytics, federation, edge processing | [04-SCALE-PLAN](./04-SCALE-PLAN.md), [§4 below](#4-scale-measured-versus-projected) |
 | 06 | PoC readiness | **Met** | Finale runbook, DR drill, `make doctor` / `make prefetch` | [10-FINALE-RUNBOOK](./10-FINALE-RUNBOOK.md), [DR drill](../evidence/DR-RESTORE-DRILL.md) |
 | 07 | Submission completeness | **Met** | Checklist and packaging | [06-SUBMISSION-PLAYBOOK](./06-SUBMISSION-PLAYBOOK.md) |

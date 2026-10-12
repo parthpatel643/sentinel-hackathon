@@ -12,12 +12,15 @@ from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
 
+import httpx
 from PIL import Image
 from pypdf import PdfReader
 
 from core_api.detections.schemas import RoutePoint, VehicleRoute
 from core_api.registry.schemas import GeoPointOut
-from core_api.reports.service import build_movement_report_zip
+from core_api.reports.basemap import fetch_basemap, plan_view, world_pixel
+from core_api.reports.service import MAP_ASPECT, build_movement_report_zip
+from sentinel_core.config import Settings
 
 # When the footage was processed — never the time a report shows.
 PROCESSED_AT = datetime(2026, 10, 10, 6, 0, 0, tzinfo=UTC)
@@ -250,3 +253,96 @@ def test_report_without_snapshots_still_has_a_sketch_and_no_evidence(tmp_path: P
         assert not [n for n in archive.namelist() if n.startswith("evidence/")]
         text = PdfReader(BytesIO(archive.read("report.pdf"))).pages[0].extract_text()
     assert "drawn to scale" in text
+
+
+# --- the street map behind the route -----------------------------------------
+
+
+def _tile_png() -> bytes:
+    out = BytesIO()
+    Image.new("RGB", (256, 256), (220, 230, 210)).save(out, format="PNG")
+    return out.getvalue()
+
+
+def _settings(tmp_path: Path, url: str = "https://tiles.test/{z}/{x}/{y}.png") -> Settings:
+    return Settings(report_tile_url=url, report_tile_cache_dir=str(tmp_path / "tiles"))
+
+
+def _locations(route: VehicleRoute) -> list[GeoPointOut]:
+    return [p.location for p in route.points if p.location is not None]
+
+
+def test_plan_view_fits_every_camera_inside_the_frame() -> None:
+    points = _locations(_route_with_events())
+    zoom, left, top = plan_view(points, 1200, 381)
+    for p in points:
+        x, y = world_pixel(p.lat, p.lon, zoom)
+        assert 0 < x - left < 1200 and 0 < y - top < 381
+    # One zoom closer would no longer fit.
+    xs = [world_pixel(p.lat, p.lon, zoom + 1)[0] for p in points]
+    ys = [world_pixel(p.lat, p.lon, zoom + 1)[1] for p in points]
+    assert max(xs) - min(xs) > 1200 * 0.76 or max(ys) - min(ys) > 381 * 0.76
+
+
+async def test_basemap_is_stitched_from_tiles_and_cached(tmp_path: Path) -> None:
+    requested: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested.append(request.url.path)
+        assert request.headers["user-agent"].startswith("Sentinel-Platform")
+        return httpx.Response(200, content=_tile_png())
+
+    points = _locations(_route_with_events())
+    settings = _settings(tmp_path)
+    basemap = await fetch_basemap(
+        points, aspect=MAP_ASPECT, settings=settings, transport=httpx.MockTransport(handler)
+    )
+
+    assert basemap is not None
+    assert Image.open(BytesIO(basemap.image_png)).size == (basemap.width_px, basemap.height_px)
+    for p in points:
+        fx, fy = basemap.place(p.lat, p.lon)
+        assert 0 < fx < 1 and 0 < fy < 1
+    fetched = len(requested)
+    assert fetched > 0
+
+    # The same area again comes from the disk cache.
+    again = await fetch_basemap(
+        points, aspect=MAP_ASPECT, settings=settings, transport=httpx.MockTransport(handler)
+    )
+    assert again is not None and len(requested) == fetched
+
+
+async def test_no_basemap_when_tiles_are_unreachable_or_disabled(tmp_path: Path) -> None:
+    points = _locations(_route_with_events())
+    failing = httpx.MockTransport(lambda request: httpx.Response(503))
+    not_a_tile = httpx.MockTransport(lambda request: httpx.Response(200, content=b"<html>"))
+
+    for transport in (failing, not_a_tile):
+        assert (
+            await fetch_basemap(
+                points, aspect=MAP_ASPECT, settings=_settings(tmp_path), transport=transport
+            )
+            is None
+        )
+    assert await fetch_basemap(points, aspect=MAP_ASPECT, settings=_settings(tmp_path, "")) is None
+
+
+async def test_report_draws_the_route_over_the_fetched_map(tmp_path: Path) -> None:
+    route = _route_with_events()
+    basemap = await fetch_basemap(
+        _locations(route),
+        aspect=MAP_ASPECT,
+        settings=_settings(tmp_path),
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, content=_tile_png())),
+    )
+
+    zip_bytes, _ = build_movement_report_zip(route, generated_by="t@example.com", basemap=basemap)
+
+    with zipfile.ZipFile(BytesIO(zip_bytes)) as archive:
+        page = PdfReader(BytesIO(archive.read("report.pdf"))).pages[0]
+    text = page.extract_text()
+    assert "street map captured at export" in text
+    assert "OpenStreetMap contributors" in text
+    assert "km" in text
+    assert len(page.images) == 1

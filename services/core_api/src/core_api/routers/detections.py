@@ -39,7 +39,8 @@ from core_api.evidence.reveal import (
     resolve_snapshot_path,
 )
 from core_api.evidence.schemas import RevealFaceRequest, SignedMediaUrlOut
-from core_api.reports.service import build_movement_report_zip
+from core_api.reports.basemap import fetch_basemap
+from core_api.reports.service import MAP_ASPECT, build_movement_report_zip
 from core_api.security.mtls import edge_gateway_identity
 from core_api.security.signed_urls import sign_media_path
 from core_api.watchlist.schemas import AlertOut
@@ -164,8 +165,13 @@ async def movement_report_endpoint(
         for point in [*route.points, *route.untimed]
         if (path := await resolve_snapshot_path(session, point.event_id, settings)) is not None
     }
+    basemap = await fetch_basemap(
+        [p.location for p in route.points if p.location is not None],
+        aspect=MAP_ASPECT,
+        settings=settings,
+    )
     zip_bytes, filename = build_movement_report_zip(
-        route, generated_by=user.email, snapshots=snapshots
+        route, generated_by=user.email, snapshots=snapshots, basemap=basemap
     )
     await record_audit_event(
         session,

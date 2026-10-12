@@ -22,6 +22,7 @@ run should not require the full docker-compose stack for every commit.
 
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 
 import pytest
@@ -35,6 +36,10 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from sentinel_core.config import get_settings
+
+# Movement Report exports must not reach a real tile server from a test run.
+os.environ["SENTINEL_REPORT_TILE_URL"] = ""
+get_settings.cache_clear()
 
 
 def _test_engine() -> AsyncEngine:
