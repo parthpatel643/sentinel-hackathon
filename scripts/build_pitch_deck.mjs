@@ -2,7 +2,7 @@
  * Builds the grand-finale pitch deck: docs/Sentinel-Finale-Pitch.pptx.
  *
  * A business pitch for the 20-minute on-site evaluation (docs/13-SHOWCASE-PREP.md
- * §4), for a room of senior IPS officers and technology professors. Twelve main
+ * §4), for a room of senior IPS officers and technology professors. Thirteen main
  * slides follow one storyline — Why, What, Demo, Trust, How, Value, Next — with
  * a chapter tracker so the room always knows where it is; each slide leads with
  * the operational outcome and gives the method underneath. Everything else is
@@ -693,6 +693,38 @@ async function architectureSlide() {
   }
 }
 
+async function stackSlide() {
+  const s = frame({
+    eyebrow: 'Tech stack',
+    title: 'Open, proven parts, each chosen for one job',
+    notes: 'For the professors, one line per layer, and the reason behind it. At the edge, Python and OpenCV around ONNX Runtime: five small models — vehicles, plates, plate characters, faces to blur, and the camera’s own clock — run unchanged on this laptop or a district GPU, with no internet. The tracker is our own Kalman filter, stepped by the video’s timestamps, not by arrival. MediaMTX pulls each camera once and serves analytics and browsers from that one connection, so passwords never reach a browser. The core is FastAPI over one PostgreSQL: PostGIS for the map, TimescaleDB for sightings over time, trigram search for misread plates; NATS JetStream carries events between district and state. The console is React and TypeScript with MapLibre, installable on a phone, in three languages. Everything is open source; the one copyleft piece is the vehicle detector, and an Apache-licensed replacement is identified. Every change runs through lint, type checks, unit tests and browser tests.',
+  })
+  const rows = [
+    ['LuCpu', 'Edge analytics', 'Python 3.13 · OpenCV · ONNX Runtime · Kalman tracker on video timestamps\nYOLO11n vehicles · YOLOv9-t plates · CCT-XS plate OCR\nYuNet face blur · PP-OCRv6 camera clock', 'Same models on a laptop or a district GPU; no internet needed'],
+    ['LuVideo', 'Video relay', 'MediaMTX: one pull per camera\nRTSP to analytics · HLS and WebRTC to browsers', 'One connection, however many watch; passwords never reach a browser'],
+    ['LuDatabase', 'Core platform', 'FastAPI · async SQLAlchemy · NATS JetStream\nPostgreSQL 17 + PostGIS · TimescaleDB · pg_trgm', 'One database for the map, sightings over time and misread-plate search'],
+    ['LuMonitorSmartphone', 'Console & field app', 'React 19 + TypeScript · Vite · MapLibre GL · hls.js\nInstallable PWA · English · हिन्दी · ગુજરાતી', 'Any browser; the field app installs on a phone'],
+    ['LuShieldCheck', 'Security & engineering', 'JWT + bcrypt · per-department row-level security · nginx mTLS · hash-chained audit\nDocker · uv · ruff · mypy · pytest · Playwright', 'Every change is linted, type-checked and tested, browser tests included'],
+  ]
+  const top = 1.7
+  const rowH = 0.82
+  const gap = 0.08
+  for (const [i, [ic, layer, parts, why]] of rows.entries()) {
+    const y = top + i * (rowH + gap)
+    card(s, M, y, CW, rowH)
+    await badge(s, ic, M + 0.2, y + 0.17, 0.5)
+    text(s, layer, { x: M + 0.88, y: y + 0.1, w: 2.3, h: rowH - 0.2, fontFace: H, fontSize: 14, bold: true, valign: 'middle' })
+    text(s, parts, { x: M + 3.25, y: y + 0.06, w: 5.75, h: rowH - 0.12, fontSize: 12, valign: 'middle' })
+    text(s, why, { x: M + 9.2, y: y + 0.1, w: CW - 9.4, h: rowH - 0.2, fontSize: 11.5, color: MUTED, valign: 'middle' })
+  }
+  const py = top + rows.length * (rowH + gap) + 0.06
+  panel(s, M, py, CW, 0.52, TINT, 'C9D7F7')
+  await badge(s, 'LuLockOpen', M + 0.2, py + 0.08, 0.36, TEAL)
+  text(s, 'All open source, no licence fees. One copyleft part: the YOLO11n vehicle detector (AGPL-3.0), with an Apache-2.0 swap (RF-DETR) identified.', {
+    x: M + 0.75, y: py + 0.04, w: CW - 0.95, h: 0.44, fontSize: 12.5, valign: 'middle',
+  })
+}
+
 async function tieringSlide() {
   const s = frame({
     eyebrow: 'AI where it matters',
@@ -1024,6 +1056,7 @@ async function main() {
     ['How', approachSlide],
     ['How', efficiencySlide],
     ['How', architectureSlide],
+    ['How', stackSlide],
     ['Value', costSlide],
     ['Value', whySlide],
     ['Next', nextSlide],
