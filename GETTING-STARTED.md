@@ -13,6 +13,28 @@ and container downloads.
 
 ---
 
+## The demo in one command
+
+Once the prerequisites below are installed and `.env` holds the government
+credentials, one script does everything else — dependencies, models, the
+stack, the schema, the admin login, the API and console, catalogue sync, the
+watchlist and a worker — and checks each step before the next:
+
+```bash
+make demo                                   # government grid, cam06 + cam30 analysed, all 30 onboarded
+make demo PHONE=1                           # also: Cloudflare tunnel + console on Vercel for phones
+make demo SOURCE=mirror                     # the recorded copy, offline, no quota
+make demo RESET=1 WATCH="GJ03MH7800:wanted:critical"
+make demo-status                            # cameras live, gateway connections, 403s
+make demo-down                              # stops the worker first, releasing the gateway
+```
+
+Everything it starts is logged under `var/demo/`. `PHONE=1` puts the API on
+the internet, so it runs with `SENTINEL_ENVIRONMENT=prod`: it generates
+secrets into `.env`, changes the admin password (printed at the end), and
+needs `cloudflared` and `npx vercel login` once. Every option is listed at
+the top of [`scripts/demo.sh`](scripts/demo.sh).
+
 ## 1. Prerequisites
 
 | Tool | Version | Why | Install (macOS) |
