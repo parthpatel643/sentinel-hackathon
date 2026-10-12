@@ -50,7 +50,7 @@ solution.
 
 Code and test evidence for each row is in
 [12 — Requirements traceability](./12-REQUIREMENTS-TRACEABILITY.md); this
-section is the on-stage view. **Slide** numbers refer to the 21-slide
+section is the on-stage view. **Slide** numbers refer to the 22-slide
 [pitch deck](./Sentinel-Finale-Pitch.pptx); **Demo 1–3** are the live steps in §4.
 
 **Status:** **Built** — working and demonstrable · **Partial** — built, with the
@@ -121,29 +121,29 @@ it pays off. **This is slide 13**; its speaker notes carry the justification.
 
 | Dimension | Slide | Depth |
 |---|---|---|
-| Overall architecture | 12, 14 | [01 — Architecture](./01-ARCHITECTURE.md), HLD PDF |
-| Integration strategy | 7, 12, 18 | [07 — Driver SDK](./07-DRIVER-SDK.md) |
-| AI and video analytics | 9, 11 | [02 — ANPR](./02-ANPR-PIPELINE.md), [09 — Secondary analytics](./09-SECONDARY-ANALYTICS.md) |
-| Cybersecurity, privacy, RBAC, audit | 10 | [08 — Security](./08-SECURITY-HARDENING.md) |
-| Deployment architecture (central, regional, edge) | 14 | 01 §10 |
-| Infrastructure sizing | 15 | [04 — Scale plan](./04-SCALE-PLAN.md) §3–4 |
-| Cost-benefit analysis | 16 (cost), 13 and 18 (what it buys) | §9, 04 §6 |
-| Department-wise information requirements | 21 | 04 §8 |
-| Scalability strategy | 13–15 | 04 |
-| Future roadmap | 19–20 | 04 §7, [14 — Appearance ReID](./14-APPEARANCE-REID-DESIGN.md) |
+| Overall architecture | 13, 15 | [01 — Architecture](./01-ARCHITECTURE.md), HLD PDF |
+| Integration strategy | 8, 13, 19 | [07 — Driver SDK](./07-DRIVER-SDK.md) |
+| AI and video analytics | 10, 12 | [02 — ANPR](./02-ANPR-PIPELINE.md), [09 — Secondary analytics](./09-SECONDARY-ANALYTICS.md) |
+| Cybersecurity, privacy, RBAC, audit | 11 | [08 — Security](./08-SECURITY-HARDENING.md) |
+| Deployment architecture (central, regional, edge) | 15 | 01 §10 |
+| Infrastructure sizing | 16 | [04 — Scale plan](./04-SCALE-PLAN.md) §3–4 |
+| Cost-benefit analysis | 17 (cost), 14 and 19 (what it buys) | §9, 04 §6 |
+| Department-wise information requirements | 22 | 04 §8 |
+| Scalability strategy | 14–16 | 04 |
+| Future roadmap | 20–21 | 04 §7, [14 — Appearance ReID](./14-APPEARANCE-REID-DESIGN.md) |
 
 ### 1.5 Plan for scale (Step 6)
 
 | They ask us to explain | Slide | Answer in one line |
 |---|---|---|
-| Central, regional and edge compute | 14 | Analysis in 34 district nodes plus edge boxes at remote sites; the state core does search, storage and alerts |
-| GPU or accelerator requirements | 15 | ≈560 L4 GPUs with N+1, sized by tier — **say it; it is not on the slide** |
-| Bandwidth and low-bandwidth strategies | 13 | ≈140 Mbps statewide; metadata-only mode at ≈4.5 Mbps; 72 h offline queue |
-| Hot, warm and cold storage by retention | 13 | ≈390 TB usable instead of 12.1 PB a week; departments keep their 7–15 days |
-| Load balancing, horizontal scaling, monitoring, logging, health checks | 14 | Health screen, JSON structured logs and health endpoints built; autoscaling on queue depth designed |
-| HA, backup, DR, cybersecurity controls | 10, 14, 19 | RPO 15 min, RTO 1 h; DR drill restores a million records in 5.7 s and catches tampering |
-| Estimated implementation and operational costs | 16 | ≈₹80 cr to build, ≈₹24 cr a year to run; ≈₹10,000 and ≈₹3,000 a year per camera; ₹0 licences; centralising is ₹400 cr+ (§9) |
-| Phased statewide rollout | 20 | 500 → 5,000 → 30,000 → 80,000 cameras over 36 months |
+| Central, regional and edge compute | 15 | Analysis in 34 district nodes plus edge boxes at remote sites; the state core does search, storage and alerts |
+| GPU or accelerator requirements | 16 | ≈560 L4 GPUs with N+1, sized by tier — **say it; it is not on the slide** |
+| Bandwidth and low-bandwidth strategies | 14 | ≈140 Mbps statewide; metadata-only mode at ≈4.5 Mbps; 72 h offline queue |
+| Hot, warm and cold storage by retention | 14 | ≈390 TB usable instead of 12.1 PB a week; departments keep their 7–15 days |
+| Load balancing, horizontal scaling, monitoring, logging, health checks | 15 | Health screen, JSON structured logs and health endpoints built; autoscaling on queue depth designed |
+| HA, backup, DR, cybersecurity controls | 11, 15, 20 | RPO 15 min, RTO 1 h; DR drill restores a million records in 5.7 s and catches tampering |
+| Estimated implementation and operational costs | 17 | ≈₹80 cr to build, ≈₹24 cr a year to run; ≈₹10,000 and ≈₹3,000 a year per camera; ₹0 licences; centralising is ₹400 cr+ (§9) |
+| Phased statewide rollout | 21 | 500 → 5,000 → 30,000 → 80,000 cameras over 36 months |
 
 ### 1.6 The background asks
 
@@ -159,14 +159,14 @@ it pays off. **This is slide 13**; its speaker notes carry the justification.
 
 | # | Area | Slides | Live | Hand over |
 |---|---|---|---|---|
-| 01 | Successful test case | 6–9 | Demo 1–3 on today's feeds | Movement Report ZIP |
-| 02 | Presentation: problem, model and justification, key features | 2–5, 12, 17–18 | — | The deck |
-| 03 | Solution architecture | 12–15 | — | HLD PDF |
-| 04 | Working platform, own feed and government feed | 7–9 | The console; the government-grid copy as fallback (§11) | — |
-| 05 | Analytics: ANPR, vehicle and person detection, intrusion, objects, timestamps, reports | 8–11 | Zone events, people counts, camera-clock times | Movement Report; `scripts/evidence_report.py` output |
-| 06 | Scalability and PoC readiness | 13–16, 19–20 | Health screen | Runbook |
+| 01 | Successful test case | 7–10 | Demo 1–3 on today's feeds | Movement Report ZIP |
+| 02 | Presentation: problem, model and justification, key features | 2–6, 13, 18–19 | — | The deck |
+| 03 | Solution architecture | 13–16 | — | HLD PDF |
+| 04 | Working platform, own feed and government feed | 8–10 | The console; the government-grid copy as fallback (§11) | — |
+| 05 | Analytics: ANPR, vehicle and person detection, intrusion, objects, timestamps, reports | 9–12 | Zone events, people counts, camera-clock times | Movement Report; `scripts/evidence_report.py` output |
+| 06 | Scalability and PoC readiness | 14–17, 20–21 | Health screen | Runbook |
 | 07 | Submission completeness | — | — | Already submitted (06 — Submission playbook) |
-| Bonus | Hybrid architecture · cross-camera correlation · analytics beyond ANPR · edge and low bandwidth · security, privacy, audit, RBAC · dashboards, alerts, health, APIs | 9–18 | Probable stops, impossible travel, Audit → Verify chain | — |
+| Bonus | Hybrid architecture · cross-camera correlation · analytics beyond ANPR · edge and low bandwidth · security, privacy, audit, RBAC · dashboards, alerts, health, APIs | 10–19 | Probable stops, impossible travel, Audit → Verify chain | — |
 
 ### 1.8 Gaps a juror can find, and the answer to give
 
@@ -178,6 +178,7 @@ it pays off. **This is slide 13**; its speaker notes carry the justification.
 | Wanted and missing *persons* in the watchlist | Matching is by vehicle plate. Person records are reached through the eGujCop and AFIS connectors once access exists; no face matching. |
 | Event bus, tiered storage, HA, network segmentation | Designed and sized (01, 04, 08), not running on a laptop. What is running is the same code that sits at each district. |
 | No camera-type layer on the map | Filters by department and status, plus the coverage-gap layer; camera type is a registry field. |
+| *"Where does the 12 / 28 / 35 / 25% split of the 80,000 cameras come from?"* (slide 16) | It is our planning assumption, labelled as such on the slide: the brief gives the total and how departments use cameras, not a breakdown. We estimated it from those uses — check-posts and highways continuous, junctions sampled, godowns and offices motion-triggered, indoor and private feeds view-only. The GPU count and server cost follow from it, so the pilot replaces it with each department's inventory and every figure re-derives (04 §1.1, §9). |
 | No 80,000-camera load test | Measured capacity per machine plus the arithmetic, re-derivable from five formulas (04 §9); the pilot's first exit criterion is a measured benchmark. |
 | Hikvision and Dahua not tested on hardware | Written to the vendors' published APIs and tested against mocks; ONVIF and RTSP reach the same devices. |
 | The FAQ says the sandbox feeds were *"synchronised on a common timeline"* | Our measurement found the replayed clips came from different dates ([cross-camera finding](../evidence/CROSS-CAMERA-TRACKING-FINDINGS.md)); that is why every stop carries the camera's own clock, and why a mismatched route is visible rather than hidden. Raise it only if timing comes up. |

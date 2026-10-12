@@ -31,6 +31,8 @@ Not every camera needs continuous AI. A PDS godown camera and a highway check-po
 
 Tiering is an operational policy set per camera in the registry by the owning department, not a hard-coded constant — and it can be changed live (a camera can be promoted to tier A during a VIP movement or a bandobast).
 
+**Basis of the shares: a planning assumption, not a survey.** The brief gives only the ~80,000 total and how departments use their cameras (Home Department: traffic, law and order; Food & Civil Supplies: godowns and PDS shops; RTO: offices and checkpoints). The split above is our estimate from those patterns. The GPU count (§3.2), event rate (§2.2), storage (§4.2) and the largest capex line (§6) are all computed from it, so the department inventory template (§8) replaces it with real counts in the pilot, and every figure re-derives from the formulas in §9.
+
 ---
 
 ## 2. Bandwidth

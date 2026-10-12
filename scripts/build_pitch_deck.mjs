@@ -679,7 +679,7 @@ async function tieringSlide() {
   const s = frame({
     eyebrow: 'AI where it matters',
     title: 'Not every camera needs the same attention',
-    notes: 'A highway check-post and a ration-shop godown are different jobs. About one camera in eight reads plates continuously; a quarter are view-only. The tier is a setting each department controls and can change live — a camera goes to continuous for a bandobast and back afterwards. That is what makes eighty thousand cameras tractable.',
+    notes: 'A highway check-post and a ration-shop godown are different jobs. About one camera in eight reads plates continuously; a quarter are view-only. The tier is a setting each department controls and can change live — a camera goes to continuous for a bandobast and back afterwards. That is what makes eighty thousand cameras tractable. Be clear that the split is our planning assumption: the brief gives the eighty thousand total and how departments use their cameras, not a breakdown. The GPU count and the server cost follow from it, and each department’s inventory replaces it in the pilot.',
   })
   s.addChart(pres.charts.DOUGHNUT, [{
     name: 'Cameras by tier',
@@ -715,6 +715,9 @@ async function tieringSlide() {
   await badge(s, 'LuSlidersHorizontal', x + 0.2, 5.79, 0.56)
   text(s, 'Each department sets the tier, and can change it live — a camera moves to continuous for a bandobast and back afterwards.', {
     x: x + 0.95, y: 5.73, w: w - 1.15, h: 0.7, fontSize: 13, valign: 'middle',
+  })
+  text(s, 'Planning assumption, not a survey: the ~80,000 total is from the brief; the split is our estimate from how departments use their cameras. Compute and cost are sized from it; department inventories replace it in the pilot.', {
+    x: M, y: 6.75, w: CW - 0.8, h: 0.45, fontSize: 10, italic: true, color: MUTED,
   })
 }
 
