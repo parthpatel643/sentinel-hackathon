@@ -22,6 +22,7 @@ from sentinel_core.plates import ambiguity_key, normalise_plate
 __all__ = [
     "ALERT_DEDUP_WINDOW",
     "PRIORITY_WEIGHT",
+    "SAME_PASS_TOLERANCE",
     "arm_watchlist_entry",
     "correlate_detection",
     "create_watchlist_entry",
@@ -40,6 +41,15 @@ TERMINAL_STATUSES = {"resolved", "false_positive"}
 # sighting_count, not a new row per frame (a car waiting at a red light must
 # not spam the operator).
 ALERT_DEDUP_WINDOW = timedelta(minutes=5)
+
+# A sighting the camera's own clock puts within this of a pass already
+# alerted on is that pass delivered again, however much later it reached us:
+# a stream reconnect replaying its buffer, an edge backlog, or a recording on
+# a loop. Wide enough for a car held at a signal across reads; far narrower
+# than any gap between two real passes. Only verified clock reads count
+# (the clock reader rejects a frozen or jumping overlay), so a stuck camera
+# clock cannot silence a genuine second pass.
+SAME_PASS_TOLERANCE = timedelta(minutes=1)
 
 
 def _priority_score(priority: str, confidence: float, rung: str) -> float:
@@ -154,6 +164,27 @@ async def _active_entries_matching(
     return matches
 
 
+async def _pass_already_alerted(
+    session: AsyncSession, *, entry: WatchlistEntry, camera_id: str, camera_time: datetime
+) -> bool:
+    """Whether an alert on this entry and camera, open or closed, already
+    covers this moment on the camera's clock. A closed one counts too: a
+    resolved alert must not come back because its footage was replayed."""
+    span_start = func.coalesce(Alert.first_seen_camera_time, Alert.last_seen_camera_time)
+    span_end = func.coalesce(Alert.last_seen_camera_time, Alert.first_seen_camera_time)
+    found = await session.scalar(
+        select(Alert.id)
+        .where(
+            Alert.watchlist_entry_id == entry.id,
+            Alert.camera_id == camera_id,
+            span_start <= camera_time + SAME_PASS_TOLERANCE,
+            span_end >= camera_time - SAME_PASS_TOLERANCE,
+        )
+        .limit(1)
+    )
+    return found is not None
+
+
 async def _upsert_alert(
     session: AsyncSession,
     *,
@@ -165,7 +196,10 @@ async def _upsert_alert(
     confidence: float,
     observed_at: datetime,
     camera_time: datetime | None,
-) -> Alert:
+) -> Alert | None:
+    """The alert this sighting raised or joined, or `None` when the camera's
+    clock shows it is a pass already alerted on, delivered again — that is
+    not news, so nothing changes and nothing is announced."""
     # The window is checked on both sides: a sighting merges into an open
     # alert only if it falls within the dedup window of that alert's span.
     # Checking only `last_seen_at` let an older sighting (retro-scan, a
@@ -204,6 +238,11 @@ async def _upsert_alert(
         await session.flush()
         return existing
 
+    if camera_time is not None and await _pass_already_alerted(
+        session, entry=entry, camera_id=camera_id, camera_time=camera_time
+    ):
+        return None
+
     alert = Alert(
         watchlist_entry_id=entry.id,
         camera_id=camera_id,
@@ -232,7 +271,7 @@ async def correlate_detection(session: AsyncSession, detection: Detection) -> li
         plate_normalised=detection.plate_normalised,
         plate_ambiguity_key=detection.plate_ambiguity_key,
     )
-    return [
+    alerts = [
         await _upsert_alert(
             session,
             entry=entry,
@@ -246,6 +285,7 @@ async def correlate_detection(session: AsyncSession, detection: Detection) -> li
         )
         for entry, rung in matches
     ]
+    return [alert for alert in alerts if alert is not None]
 
 
 async def retro_scan(session: AsyncSession, entry: WatchlistEntry) -> list[Alert]:
@@ -277,7 +317,8 @@ async def retro_scan(session: AsyncSession, entry: WatchlistEntry) -> list[Alert
             observed_at=detection.observed_at,
             camera_time=detection.camera_time,
         )
-        alerts[alert.id] = alert
+        if alert is not None:
+            alerts[alert.id] = alert
     # One entry per alert, however many sightings merged into it.
     return list(alerts.values())
 

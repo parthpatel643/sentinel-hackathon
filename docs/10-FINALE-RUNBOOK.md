@@ -273,6 +273,7 @@ list (**Overview** recent reads) for a near-miss plate.
 | Preview tiles stall, CPU pinned | Too many analysed cameras | Raise `STRIDE`, move a department to laptop B (§6) |
 | API refuses to start: "still hold the development defaults" | `SENTINEL_ENVIRONMENT=prod` with a default secret | Set the named variables (§3) |
 | No new alert for a repeat sighting | Same plate, same camera within 5 minutes updates the existing alert | Expected; the sighting count goes up |
+| A recorded feed loops but its alert does not come back | The camera's clock shows the same moment already alerted on (within 1 minute), so it is the same pass replayed | Expected, even after the alert is resolved. A camera whose clock cannot be read (cam06 mostly) falls back to the 5-minute window and does re-alert each loop |
 | Worker exits: "could not read the camera registry" | API down, or the service tokens differ | Start the API; match `SENTINEL_EDGE_SERVICE_TOKEN` on both sides |
 | Venue network fails completely | — | Switch both laptops to the hotspot, or run the drill on the synthetic grid and the recorded videos, narrating what changed |
 

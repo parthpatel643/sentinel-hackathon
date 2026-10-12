@@ -17,6 +17,7 @@ from core_api.registry.service import upsert_camera
 from core_api.watchlist.schemas import AlertUpdate, WatchlistEntryCreate
 from core_api.watchlist.service import (
     ALERT_DEDUP_WINDOW,
+    SAME_PASS_TOLERANCE,
     correlate_detection,
     create_watchlist_entry,
     list_alerts,
@@ -181,6 +182,126 @@ async def test_a_sighting_outside_the_dedup_window_creates_a_new_alert(
 
     all_alerts = await list_alerts(db_session)
     assert len(all_alerts) == 2
+
+
+async def _watched_pass(db_session: AsyncSession, *, scene: datetime) -> None:
+    """One sighting of a watched plate at a camera whose clock read `scene`."""
+    await _make_camera(db_session)
+    await create_watchlist_entry(
+        db_session, WatchlistEntryCreate(plate="GJ01AB1234", entry_type="bolo")
+    )
+    first = await ingest_detection(
+        db_session, _detection_in(event_id="evt-1", observed_at=ANCHOR, camera_time=scene)
+    )
+    await correlate_detection(db_session, first)
+
+
+async def test_the_same_pass_delivered_again_later_is_not_a_new_alert(
+    db_session: AsyncSession,
+) -> None:
+    """Fifteen minutes later by our clock, but the camera's clock says it is
+    the moment already alerted on — a reconnect replaying its buffer, or a
+    recording on a loop. Nothing changes and nothing is announced."""
+    scene = ANCHOR - timedelta(days=60)
+    await _watched_pass(db_session, scene=scene)
+
+    replay = await ingest_detection(
+        db_session,
+        _detection_in(
+            event_id="evt-2",
+            observed_at=ANCHOR + timedelta(minutes=15),
+            camera_time=scene + timedelta(seconds=2),
+        ),
+    )
+
+    assert await correlate_detection(db_session, replay) == []
+    [alert] = await list_alerts(db_session)
+    assert alert.sighting_count == 1
+    assert alert.last_seen_at == ANCHOR
+
+
+async def test_a_replayed_pass_does_not_bring_back_a_resolved_alert(
+    db_session: AsyncSession,
+) -> None:
+    scene = ANCHOR - timedelta(days=60)
+    await _watched_pass(db_session, scene=scene)
+    [alert] = await list_alerts(db_session)
+    await update_alert(db_session, alert.id, AlertUpdate(status="resolved"))
+
+    replay = await ingest_detection(
+        db_session,
+        _detection_in(
+            event_id="evt-2", observed_at=ANCHOR + timedelta(minutes=15), camera_time=scene
+        ),
+    )
+
+    assert await correlate_detection(db_session, replay) == []
+    assert [a.status for a in await list_alerts(db_session)] == ["resolved"]
+
+
+async def test_a_second_pass_on_the_cameras_clock_is_a_new_alert(
+    db_session: AsyncSession,
+) -> None:
+    """The camera's clock moved on as far as ours did: the car came back."""
+    scene = ANCHOR - timedelta(days=60)
+    await _watched_pass(db_session, scene=scene)
+
+    gap = ALERT_DEDUP_WINDOW + SAME_PASS_TOLERANCE
+    again = await ingest_detection(
+        db_session,
+        _detection_in(event_id="evt-2", observed_at=ANCHOR + gap, camera_time=scene + gap),
+    )
+
+    [alert] = await correlate_detection(db_session, again)
+    assert alert.sighting_count == 1
+    assert len(await list_alerts(db_session)) == 2
+
+
+async def test_without_a_readable_clock_a_late_sighting_is_judged_by_our_clock(
+    db_session: AsyncSession,
+) -> None:
+    """With no camera time there is no evidence it is the same pass, so the
+    processing-time window decides and a late sighting is a new alert."""
+    await _make_camera(db_session)
+    await create_watchlist_entry(
+        db_session, WatchlistEntryCreate(plate="GJ01AB1234", entry_type="bolo")
+    )
+    for i, minutes in enumerate([0, 15]):
+        detection = await ingest_detection(
+            db_session,
+            _detection_in(
+                event_id=f"evt-{i}",
+                observed_at=ANCHOR + timedelta(minutes=minutes),
+                camera_time=None,
+            ),
+        )
+        await correlate_detection(db_session, detection)
+
+    assert len(await list_alerts(db_session)) == 2
+
+
+async def test_retro_scan_folds_a_looping_recording_into_one_alert(
+    db_session: AsyncSession,
+) -> None:
+    """The finale's recorded feeds loop: one real pass, read on every loop."""
+    await _make_camera(db_session)
+    scene = ANCHOR - timedelta(days=60)
+    for loop in range(4):
+        await ingest_detection(
+            db_session,
+            _detection_in(
+                event_id=f"01JLOOP000000000000000000{loop}",
+                observed_at=ANCHOR + timedelta(minutes=14 * loop),
+                camera_time=scene,
+            ),
+        )
+    entry = await create_watchlist_entry(
+        db_session, WatchlistEntryCreate(plate="GJ01AB1234", entry_type="bolo", priority="high")
+    )
+
+    [alert] = await retro_scan(db_session, entry)
+    assert alert.sighting_count == 1
+    assert alert.first_seen_camera_time == scene
 
 
 async def test_bolo_retro_scan_finds_a_detection_already_on_file(db_session: AsyncSession) -> None:
