@@ -64,31 +64,31 @@ the one to rehearse.
 
 | They ask | Sentinel feature | Show it | Status | Risk on the day |
 |---|---|---|---|---|
-| Onboard ~50 cameras across departments, technologies, formats and VMS | CSV import with a dry run; ONVIF, Hikvision and Dahua device discovery; catalogue sync; registry with department, location and tier | Slide 7 · Demo 1: Cameras map | **Built** — all 30 sandbox cameras onboarded from the live catalogue; H.264 and H.265, 720p to 1440p | Unseen network, credentials and ports (runbook §4) |
-| Integrate the live feeds; centralised monitoring | Live wall (focus, 2×2, 3×3, 4×4) through the local relay, one upstream pull per camera; Health screen with fps and lag | Slide 7 · Demo 1: Live Wall, Health | **Built** | H.265 does not play in Chrome (use Safari or an H.264 profile); laptop CPU when preview and ANPR compete |
-| AI-powered video analytics | ANPR with multi-frame voting; vehicle class and colour; people counts; zone rules; tamper | Slides 9, 11 | **Built** — 78% exact plates after the vote | Plates too small on wide-angle cameras (§6.2) |
-| Identify and trace the designated vehicle from its registration number | Find a Vehicle: exact, look-alike and one-character-off matching; 24 h / 48 h / 7 d windows | Slide 8 · Demo 2 | **Built** | **The vehicle passes a camera we were not analysing** (§6.1–6.2) |
-| Complete route with timestamped, location-wise movement history | Map and timeline ordered by each camera's own clock; Movement Report (PDF, CSV, evidence frames, SHA-256 manifest) | Slide 8 · Demo 2: Export report | **Built** | A camera with no readable date-time overlay gives *time unknown* stops; one without coordinates is not mapped. Ask the organisers (runbook §1) |
-| Continuous cross-referencing with a watchlist; automated real-time alerts | Every confirmed read matched against the watchlist; alert banner and sound on every console within a second; field app | Slide 9 · Demo 3 | **Built** | "Real-time" wording: a read is confirmed after several frames agree (§2 item 1) |
-| Representative watchlist database | Stolen, wanted, missing and BOLO entries with priority, case reference and validity | Slide 9 · Demo 3 | **Built** | Arm entries from plates actually read that morning (§6.3) |
-| Visualise on GIS | MapLibre map: camera pins, route with earliest-to-latest styling, coverage-gap layer | Slides 7–8 | **Built** | No basemap offline; pins and routes still draw |
+| Onboard ~50 cameras across departments, technologies, formats and VMS | CSV import with a dry run; ONVIF, Hikvision and Dahua device discovery; catalogue sync; registry with department, location and tier | Slide 8 · Demo 1: Cameras map | **Built** — all 30 sandbox cameras onboarded from the live catalogue; H.264 and H.265, 720p to 1440p | Unseen network, credentials and ports (runbook §4) |
+| Integrate the live feeds; centralised monitoring | Live wall (focus, 2×2, 3×3, 4×4) through the local relay, one upstream pull per camera; Health screen with fps and lag | Slide 8 · Demo 1: Live Wall, Health | **Built** | H.265 does not play in Chrome (use Safari or an H.264 profile); laptop CPU when preview and ANPR compete |
+| AI-powered video analytics | ANPR with multi-frame voting; vehicle class and colour; people counts; zone rules; tamper | Slides 10, 12 | **Built** — 78% exact plates after the vote | Plates too small on wide-angle cameras (§6.2) |
+| Identify and trace the designated vehicle from its registration number | Find a Vehicle: exact, look-alike and one-character-off matching; 24 h / 48 h / 7 d windows | Slide 9 · Demo 2 | **Built** | **The vehicle passes a camera we were not analysing** (§6.1–6.2) |
+| Complete route with timestamped, location-wise movement history | Map and timeline ordered by each camera's own clock; Movement Report (PDF, CSV, evidence frames, SHA-256 manifest) | Slide 9 · Demo 2: Export report | **Built** | A camera with no readable date-time overlay gives *time unknown* stops; one without coordinates is not mapped. Ask the organisers (runbook §1) |
+| Continuous cross-referencing with a watchlist; automated real-time alerts | Every confirmed read matched against the watchlist; alert banner and sound on every console within a second; field app | Slide 10 · Demo 3 | **Built** | "Real-time" wording: a read is confirmed after several frames agree (§2 item 1) |
+| Representative watchlist database | Stolen, wanted, missing and BOLO entries with priority, case reference and validity | Slide 10 · Demo 3 | **Built** | Arm entries from plates actually read that morning (§6.3) |
+| Visualise on GIS | MapLibre map: camera pins, route with earliest-to-latest styling, coverage-gap layer | Slides 8–9 | **Built** | No basemap offline; pins and routes still draw |
 | Searchable events and history | Detections searchable by plate, camera and time; alert queue; zone-event queue | Demo 2–3 | **Built** | — |
-| Evidence of integration, interoperability, scalability and end-to-end performance | Health screen; 600+ automated tests; measured capacity; DR drill | Slides 13–15, 19 | **Built**, measured on a laptop; 80,000 is arithmetic | — |
+| Evidence of integration, interoperability, scalability and end-to-end performance | Health screen; 600+ automated tests; measured capacity; DR drill | Slides 14–16, 20 | **Built**, measured on a laptop; 80,000 is arithmetic | — |
 
 ### 1.2 The solution they asked for (Step 3, Expected Solution Approach)
 
 | They ask | Sentinel feature | Show it | Status |
 |---|---|---|---|
 | Continuously process the provided feeds | Registry-driven edge worker; picks up new cameras every 30 s without a restart | Demo 1 | **Built** |
-| Watchlist database structure, matching logic, alerting mechanism, user interface | Watchlist entries; four-rung matching ladder; dedupe window; alert lifecycle new → acknowledged → resolved / not this vehicle | Slide 9 · Demo 3 | **Built** |
+| Watchlist database structure, matching logic, alerting mechanism, user interface | Watchlist entries; four-rung matching ladder; dedupe window; alert lifecycle new → acknowledged → resolved / not this vehicle | Slide 10 · Demo 3 | **Built** |
 | Create and use representative datasets | Seeded watchlist; camera-import CSV template; recorded copy of the government grid | Demo 3 | **Built** |
-| Identify specified vehicles *or other entities* (wanted or missing persons) | Vehicles by plate. People are counted and held to zones, never identified | Slides 9, 11 | **Partial** — persons **Excluded** by decision (no face recognition) |
-| Open, modular, standards-based, vendor-neutral; documented APIs; adapter framework | OpenAPI at `/api/docs`; driver SDK with a conformance suite; open-source stack | Slides 13, 15 | **Built** |
+| Identify specified vehicles *or other entities* (wanted or missing persons) | Vehicles by plate. People are counted and held to zones, never identified | Slides 10, 12 | **Partial** — persons **Excluded** by decision (no face recognition) |
+| Open, modular, standards-based, vendor-neutral; documented APIs; adapter framework | OpenAPI at `/api/docs`; driver SDK with a conformance suite; open-source stack | Slides 14, 16 | **Built** |
 
 ### 1.3 The reference models (Step 2): we are a hybrid
 
 Model 1 as the mandatory foundation, Models 2 and 3 adopted, Model 4 only where
-it pays off. **This is slide 12**; its speaker notes carry the justification.
+it pays off. **This is slide 13**; its speaker notes carry the justification.
 
 | Model · feature they list | Sentinel | Status |
 |---|---|---|
@@ -172,8 +172,8 @@ it pays off. **This is slide 12**; its speaker notes carry the justification.
 
 | A juror notices | Answer |
 |---|---|
-| ~~The model choice and its justification are not on a slide~~ — **added 11 Oct as slide 12** | If pressed on *why hybrid*: *"Model 1 is the foundation everything stands on; Models 2 and 3 connect every department without changing its system; Model 4's central recording only where it pays off, because centralising everything needs a backbone the State does not have (slide 13)."* |
-| *"How firm are these costs?"* (slide 16) | Order of magnitude, for comparing approaches, not a tender. The biggest line, district analysis servers, rests on a vendor GPU benchmark; Phase 0's first exit criterion is measuring it. Every figure re-derives from the scale plan's formulas (04 §9). |
+| ~~The model choice and its justification are not on a slide~~ — **added 11 Oct as slide 13** | If pressed on *why hybrid*: *"Model 1 is the foundation everything stands on; Models 2 and 3 connect every department without changing its system; Model 4's central recording only where it pays off, because centralising everything needs a backbone the State does not have (slide 14)."* |
+| *"How firm are these costs?"* (slide 17) | Order of magnitude, for comparing approaches, not a tender. The biggest line, district analysis servers, rests on a vendor GPU benchmark; Phase 0's first exit criterion is measuring it. Every figure re-derives from the scale plan's formulas (04 §9). |
 | Face recognition (Model 4, FAQ 22) | Excluded by decision. Faces are detected only to be blurred; the platform can host a recognition module behind the same access controls if policy allows. |
 | Wanted and missing *persons* in the watchlist | Matching is by vehicle plate. Person records are reached through the eGujCop and AFIS connectors once access exists; no face matching. |
 | Event bus, tiered storage, HA, network segmentation | Designed and sized (01, 04, 08), not running on a laptop. What is running is the same code that sits at each district. |
@@ -214,9 +214,9 @@ Ordered by how badly each could hurt in front of the jury.
 
 ## 4. The 20 minutes
 
-Slides: [Sentinel-Finale-Pitch.pptx](./Sentinel-Finale-Pitch.pptx) — 21 slides, light theme, pitched as a
+Slides: [Sentinel-Finale-Pitch.pptx](./Sentinel-Finale-Pitch.pptx) — 22 slides, light theme, pitched as a
 business case for a mixed room (leadership and technical jury). Speaker notes carry the talk track. Cost
-is on one slide (16), because the brief asks for estimated costs; §9 is the backup. Rebuild with `make pitch`
+is on one slide (17), because the brief asks for estimated costs; §9 is the backup. Rebuild with `make pitch`
 (screenshots: `npm run screenshots:pitch` in `apps/web`); slide numbers below refer to it.
 
 Three roles, fixed in rehearsal:
@@ -227,16 +227,16 @@ Three roles, fixed in rehearsal:
 
 | Time | Segment | On screen | Rubric area |
 |---|---|---|---|
-| 0:00–1:30 | **Hook and the challenge** | Slides 1–3: one search box; 26 systems; phone calls → one search | Presentation |
-| 1:30–2:30 | **What it is and who it serves** | Slides 4–5: see, find, alert; operator, investigator, patrol, leadership | Presentation |
-| 2:30–5:00 | **Today's cameras, onboarded and live** | Slides 6–7, then live: Cameras map → Health → Live Wall | Test case: onboard, integrate, GIS |
-| 5:00–10:00 | **The designated vehicle** (live) | Slide 8, then live: search → route → replay → hop evidence → BOLO → alert → Movement Report | Test case: track, alerts, route |
-| 10:00–11:30 | **Alerts, and plates that are hard to read** | Slide 9; live: probable hops, ambiguity search, feasibility flag | Bonus: multi-camera correlation |
-| 11:30–12:30 | **Trust, privacy, beyond plates** | Slides 10–11; live: blurred snapshot + reveal-with-reason; Audit → Verify chain | Analytics, bonus: security |
-| 12:30–15:30 | **Our model, and scaling to 80,000** | Slides 12–15: the hybrid and why; send meaning not video; five layers; tiering | Architecture; Scalability & PoC readiness |
-| 15:30–16:30 | **Estimated cost** | Slide 16: ≈₹80 cr to build, ≈₹24 cr a year; per camera; ₹0 licences; vs ₹400 cr+ to centralise | Scalability (costs); Presentation |
-| 16:30–18:30 | **Why Sentinel: USP, comparison, proof** | Slides 17–19: positioning line and three pillars; vs separate systems and full centralisation; measured results | Presentation, PoC readiness |
-| 18:30–19:30 | **Rollout and the ask** | Slides 20–21 | PoC readiness |
+| 0:00–1:30 | **Hook and the challenge** | Slides 1–4: one search box; who we are (20 s); 26 systems; phone calls → one search | Presentation |
+| 1:30–2:30 | **What it is and who it serves** | Slides 5–6: see, find, alert; operator, investigator, patrol, leadership | Presentation |
+| 2:30–5:00 | **Today's cameras, onboarded and live** | Slides 7–8, then live: Cameras map → Health → Live Wall | Test case: onboard, integrate, GIS |
+| 5:00–10:00 | **The designated vehicle** (live) | Slide 9, then live: search → route → replay → hop evidence → BOLO → alert → Movement Report | Test case: track, alerts, route |
+| 10:00–11:30 | **Alerts, and plates that are hard to read** | Slide 10; live: probable hops, ambiguity search, feasibility flag | Bonus: multi-camera correlation |
+| 11:30–12:30 | **Trust, privacy, beyond plates** | Slides 11–12; live: blurred snapshot + reveal-with-reason; Audit → Verify chain | Analytics, bonus: security |
+| 12:30–15:30 | **Our model, and scaling to 80,000** | Slides 13–16: the hybrid and why; send meaning not video; five layers; tiering | Architecture; Scalability & PoC readiness |
+| 15:30–16:30 | **Estimated cost** | Slide 17: ≈₹80 cr to build, ≈₹24 cr a year; per camera; ₹0 licences; vs ₹400 cr+ to centralise | Scalability (costs); Presentation |
+| 16:30–18:30 | **Why Sentinel: USP, comparison, proof** | Slides 18–20: positioning line and three pillars; vs separate systems and full centralisation; measured results | Presentation, PoC readiness |
+| 18:30–19:30 | **Rollout and the ask** | Slides 21–22 | PoC readiness |
 | 19:30–20:00 | Buffer | — | — |
 
 **If the jury gives the vehicle number at the start, do the drill first** and
@@ -257,6 +257,12 @@ Say it in your own words after the first rehearsal; the shape is what matters.
 > shared map. Sentinel turns that into one search box: type a registration
 > number, and see where the vehicle has been, camera by camera, on a map, with
 > the evidence — and get alerted the moment it is seen again."
+
+**0:30 — Who we are** (slide 2, twenty seconds).
+> "We are Invental Data Labs. I'm Parth Patel; I lead the team. I'm a
+> consulting AI solution architect who has worked with IBM and United Airlines,
+> with an MTech in Data Science from IIT Bombay. With me is Anuj Patel, a data
+> scientist from Göttingen, Germany."
 
 **1:00 — Model choice and the rejected option.**
 > "We chose a hybrid: Model 1's registry and GIS as the foundation, Model 2's
@@ -294,9 +300,9 @@ Say it in your own words after the first rehearsal; the shape is what matters.
 
 **12:30 — 80,000 cameras.** §8.
 
-**15:30 — Cost.** Slide 16; script and backup figures in §9. Say *order of magnitude* before the first number, then: about ₹80 crore to build and ₹24 crore a year to run for 80,000 cameras — roughly ₹10,000 a camera to build — with no licence fees, against ₹400 crore-plus to centralise. Close on reuse: nothing installed is replaced.
+**15:30 — Cost.** Slide 17; script and backup figures in §9. Say *order of magnitude* before the first number, then: about ₹80 crore to build and ₹24 crore a year to run for 80,000 cameras — roughly ₹10,000 a camera to build — with no licence fees, against ₹400 crore-plus to centralise. Close on reuse: nothing installed is replaced.
 
-**16:30 — Why Sentinel.** Slides 17–19. Lead with the positioning line: *“Sentinel traces a vehicle across every department’s cameras — on the systems Gujarat already owns, with evidence that holds up.”* Then the three pillars, each with its proof: proven on Gujarat’s own cameras; evidence that holds up; fits what Gujarat already owns. The comparison slide contrasts approaches, never named products. Cost is not on the slides; if a juror asks, answer from §9.
+**16:30 — Why Sentinel.** Slides 18–20. Lead with the positioning line: *“Sentinel traces a vehicle across every department’s cameras — on the systems Gujarat already owns, with evidence that holds up.”* Then the three pillars, each with its proof: proven on Gujarat’s own cameras; evidence that holds up; fits what Gujarat already owns. The comparison slide contrasts approaches, never named products. Cost is not on the slides; if a juror asks, answer from §9.
 
 **18:30 — Rollout and the ask.**
 > "This is useful at 500 cameras and never needs a big-bang cutover: one
@@ -486,7 +492,7 @@ Close with the formula slide:
 
 ## 9. Impact on infrastructure cost
 
-On screen: **slide 16**. Indicative, for comparing architectures, not for
+On screen: **slide 17**. Indicative, for comparing architectures, not for
 tendering. Source: [04 — Scale Plan §6](./04-SCALE-PLAN.md). Per-camera figures
 are derived here.
 

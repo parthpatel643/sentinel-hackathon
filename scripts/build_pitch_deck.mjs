@@ -216,13 +216,82 @@ async function titleSlide() {
   text(s, 'One platform that connects the cameras departments already run, reads number plates where they are filmed, and alerts officers the moment a vehicle of interest is seen.', {
     x: M, y: 4.45, w: 5.6, h: 1.1, fontSize: 15, color: MUTED,
   })
+  text(s, 'Presented by Invental Data Labs', {
+    x: M, y: 5.72, w: 5.6, h: 0.35, fontFace: H, fontSize: 14, bold: true, color: BLUE,
+  })
   await badge(s, 'LuMapPin', M, 6.3, 0.42, SAFFRON)
   text(s, 'Grand Finale  ·  i-Hub Gujarat, Ahmedabad  ·  12–13 October 2026', {
     x: M + 0.6, y: 6.38, w: 5.6, h: 0.3, fontSize: 13, color: MUTED,
   })
   s.addNotes(
-    'Open with the outcome, not the technology. "Sentinel lets an officer type a registration number and see where that vehicle went, across every government camera, in seconds — and be told the moment it is seen again." If the jury gives the vehicle number now, go straight to the demonstration (slide 6) and come back.',
+    'Open with the outcome, not the technology. "Sentinel lets an officer type a registration number and see where that vehicle went, across every government camera, in seconds — and be told the moment it is seen again." If the jury gives the vehicle number now, go straight to the demonstration (slide 7) and come back.',
   )
+}
+
+/** Who is presenting. Initials stand in for photographs, so the slide needs
+ * no image files and renders identically on any machine. */
+async function teamSlide() {
+  const s = frame({
+    eyebrow: 'Who we are',
+    title: 'Invental Data Labs',
+    notes: 'Twenty seconds, no more. "We are Invental Data Labs. I am Parth Patel — I lead the team; I am a consulting AI solution architect who has worked with IBM and United Airlines, and I hold an MTech in Data Science from IIT Bombay. With me is Anuj Patel, a data scientist from Göttingen, Germany." Then straight into the challenge: the background is there to earn trust, not to take time.',
+  })
+  text(s, 'Enterprise AI architecture and applied data science — built into a platform for Gujarat Police.', {
+    x: M, y: 1.55, w: CW, h: 0.4, fontSize: 16, color: MUTED,
+  })
+  const people = [
+    {
+      initials: 'PP',
+      name: 'Parth Patel',
+      role: 'Team Lead',
+      colour: BLUE,
+      facts: [
+        ['LuBriefcase', 'Consulting AI Solution Architect'],
+        ['LuPlane', 'IBM  ·  United Airlines'],
+        ['LuGraduationCap', 'MTech, Data Science — IIT Bombay'],
+      ],
+    },
+    {
+      initials: 'AP',
+      name: 'Anuj Patel',
+      role: 'Associate',
+      colour: TEAL,
+      facts: [
+        ['LuBrainCircuit', 'Data Scientist'],
+        ['LuMapPin', 'Göttingen, Germany'],
+      ],
+    },
+  ]
+  const gap = 0.4
+  const cw = (CW - gap) / 2
+  const top = 2.3
+  const ch = 4.35
+  for (const [i, person] of people.entries()) {
+    const x = M + i * (cw + gap)
+    card(s, x, top, cw, ch)
+    const d = 1.45
+    s.addShape(pres.shapes.OVAL, {
+      x: x + 0.45, y: top + 0.45, w: d, h: d, fill: { color: person.colour }, line: { color: person.colour },
+    })
+    text(s, person.initials, {
+      x: x + 0.45, y: top + 0.45, w: d, h: d, align: 'center', valign: 'middle',
+      fontFace: H, fontSize: 40, bold: true, color: WHITE,
+    })
+    text(s, person.name, { x: x + 2.15, y: top + 0.55, w: cw - 2.45, h: 0.6, fontFace: H, fontSize: 28, bold: true })
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: x + 2.15, y: top + 1.25, w: 1.75, h: 0.42, rectRadius: 0.21,
+      fill: { color: person.colour === BLUE ? TINT : 'E3F4F1' }, line: { color: person.colour, width: 0.75 },
+    })
+    text(s, person.role.toUpperCase(), {
+      x: x + 2.15, y: top + 1.25, w: 1.75, h: 0.42, align: 'center', valign: 'middle',
+      fontFace: H, fontSize: 11, bold: true, color: person.colour, charSpacing: 2,
+    })
+    for (const [j, [ic, fact]] of person.facts.entries()) {
+      const y = top + 2.25 + j * 0.62
+      await badge(s, ic, x + 0.45, y, 0.44, person.colour)
+      text(s, fact, { x: x + 1.1, y: y + 0.02, w: cw - 1.4, h: 0.4, fontSize: 17, valign: 'middle' })
+    }
+  }
 }
 
 async function challengeSlide() {
@@ -886,6 +955,7 @@ async function askSlide() {
 
 async function main() {
   await titleSlide()
+  await teamSlide()
   await challengeSlide()
   await beforeAfterSlide()
   await platformSlide()
