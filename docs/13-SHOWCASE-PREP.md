@@ -73,7 +73,7 @@ the one to rehearse.
 | Complete route with timestamped, location-wise movement history | Map and timeline ordered by each camera's own clock; Movement Report (PDF, CSV, evidence frames, SHA-256 manifest) | Slide 04 · Demo 2 (backup 07): Export report | **Built** | A camera with no readable date-time overlay gives *time unknown* stops; one without coordinates is not mapped. Ask the organisers (runbook §1) |
 | Continuous cross-referencing with a watchlist; automated real-time alerts | Every confirmed read matched against the watchlist; alert banner and sound on every console within a second; field app | Slide 04 · Demo 3 (backup 08) | **Built** | "Real-time" wording: a read is confirmed after several frames agree (§2 item 1) |
 | Representative watchlist database | Stolen, wanted, missing and BOLO entries with priority, case reference and validity | Slide 04 · Demo 3 (backup 08) | **Built** | Arm entries from plates actually read that morning (§6.3) |
-| Visualise on GIS | MapLibre map: camera pins, route with earliest-to-latest styling, coverage-gap layer | Demo 1–2 (backups 07, 12) | **Built** | No basemap offline; pins and routes still draw |
+| Visualise on GIS | MapLibre map: camera pins, route with earliest-to-latest styling, coverage-gap layer | Demo 1–2 (backups 07, 12) | **Built** | No basemap offline, in the console or the report; pins and routes still draw |
 | Searchable events and history | Detections searchable by plate, camera and time; alert queue; zone-event queue | Demo 2–3 | **Built** | — |
 | Evidence of integration, interoperability, scalability and end-to-end performance | Health screen; 600+ automated tests; measured capacity; DR drill | Slides 11, 13, A3 | **Built**, measured on a laptop; 80,000 is arithmetic | — |
 
@@ -327,11 +327,12 @@ notes carry the same lines with the method for the professors.
 > "Sentinel lets an officer type a registration number and see where that vehicle went, across the
 > government's cameras — and be told the moment it is seen again."
 
-Then ten seconds on the team. **Don't read the credentials out** — they are on the slide (IIT Bombay
-MTech, IBM, United Airlines; data scientist in Göttingen), and the panel has heard every team recite
-theirs. Turn them into a promise about this pitch instead: *"I'm Parth Patel, I lead the team; with me
-is Anuj Patel. Our backgrounds are on the slide — enterprise AI and data science. What that means for
-you: every number we show today, we measured, and we'll tell you where we fell short."*
+Then ten seconds on the team. **Don't read the credentials out** — they are on the slide (Parth,
+co-founder: IIT Bombay MTech, IBM, United Airlines; Anuj, AI engineer: master's from Germany), and the
+panel has heard every team recite theirs. Turn them into a promise about this pitch instead: *"I'm
+Parth Patel, co-founder of Invental Data Labs; with me is Anuj Patel, our AI engineer. Our backgrounds
+are on the slide — enterprise AI architecture and AI engineering. What that means for you: every
+number we show today, we measured, and we'll tell you where we fell short."*
 
 **0:45 — The case** (slide 02).
 > "Gujarat already has about eighty thousand cameras, run by twenty-six departments. They exist; they

@@ -13,7 +13,8 @@
  * e.g. `make worker SOURCE=mirror CAMERAS=cam06,cam30,cam01,cam24 SAMPLED_FPS=2`):
  *   npm run screenshots:pitch
  *   PITCH_PLATE=GJ11S7924 PITCH_FOCUS_CAMERA=cam30 npm run screenshots:pitch
- *   PITCH_ONLY=live npm run screenshots:pitch      (artefacts, console, live, extras)
+ *   PITCH_ONLY=live npm run screenshots:pitch      (artefacts, report, console, live, extras;
+ *                                                   report re-exports only the Movement Report)
  *
  * Needs `pdftoppm` (poppler) on PATH to render the Movement Report page.
  */
@@ -49,7 +50,7 @@ const FOCUS_CAMERA = process.env.PITCH_FOCUS_CAMERA ?? 'cam01'
 // small to read).
 const READ_WAIT_S = Number(process.env.PITCH_READ_WAIT_S ?? 0)
 const WALL_CAMERAS = (process.env.PITCH_WALL ?? 'cam01,cam05,cam24,cam06').split(',')
-// Re-shoot only some groups: artefacts, console, live, extras.
+// Re-shoot only some groups: artefacts, report, console, live, extras.
 const ONLY = process.env.PITCH_ONLY ? process.env.PITCH_ONLY.split(',') : null
 const wants = (group) => !ONLY || ONLY.includes(group)
 
@@ -198,8 +199,8 @@ async function main() {
   if (wants('artefacts')) {
     console.log('artefacts…')
     await saveEvidence(PLATE)
-    await saveMovementReport(PLATE)
   }
+  if (wants('artefacts') || wants('report')) await saveMovementReport(PLATE)
 
   const ctx = await context(browser)
   const page = await ctx.newPage()

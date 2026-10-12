@@ -318,8 +318,8 @@ async function titleSlide() {
   s.addNotes([
     '[0:00–0:45] Open with the outcome, not the technology.',
     '“Sentinel lets an officer type a registration number and see where that vehicle went, across the government’s cameras — and be told the moment it is seen again.”',
-    'Then ten seconds on who we are — and do not read the credentials out; the panel has heard every team list theirs. Point at them and say what they mean for this room: “I’m Parth Patel, I lead the team; with me is Anuj Patel. Our backgrounds are on the slide — enterprise AI architecture and data science. What that means for you: every number we show today, we measured, and we will tell you where we fell short.”',
-    'If asked: Parth is a consulting AI solution architect who has worked with IBM and United Airlines, with an MTech in Data Science from IIT Bombay. Anuj is a data scientist based in Göttingen, Germany.',
+    'Then ten seconds on who we are — and do not read the credentials out; the panel has heard every team list theirs. Point at them and say what they mean for this room: “I’m Parth Patel, co-founder of Invental Data Labs; with me is Anuj Patel, our AI engineer. Our backgrounds are on the slide — enterprise AI architecture and AI engineering. What that means for you: every number we show today, we measured, and we will tell you where we fell short.”',
+    'If asked: Parth, co-founder, is an AI solution architect who has worked with IBM and United Airlines, with an MTech in Data Science from IIT Bombay. Anuj is an AI engineer with a master’s degree from Germany.',
     'The row under the screenshot is a real sighting from the government grid: the plate, the camera, and the time printed on that camera’s own frame.',
     'If the jury hands over a vehicle number or asks for the live trace now, go straight to slide 04 and come back.',
   ].join('\n\n'))
@@ -330,8 +330,8 @@ async function titleSlide() {
 async function team(s, x, y, w) {
   text(s, 'INVENTAL DATA LABS', { x, y, w, h: 0.26, fontFace: MONO, bold: true, fontSize: 10.5, color: DARK_MUTED, charSpacing: 1 })
   const people = [
-    ['PP', 'Parth Patel', 'Team lead · AI solution architect', ['IIT Bombay · MTech', 'IBM', 'United Airlines']],
-    ['AP', 'Anuj Patel', 'Data scientist', ['Göttingen, Germany']],
+    ['PP', 'Parth Patel', 'Co-founder · AI solution architect', ['IIT Bombay · MTech', 'IBM', 'United Airlines']],
+    ['AP', 'Anuj Patel', 'AI engineer', ['Master’s · Germany']],
   ]
   const rowH = 0.86
   for (const [i, [initials, name, role, chips]] of people.entries()) {
