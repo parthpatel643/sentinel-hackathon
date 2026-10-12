@@ -109,18 +109,20 @@ export function LiveWall() {
       <div className="monitoring-wall-toolbar" role="group" aria-label={t('workspace.layout')}>
         <LayoutGrid size={15} className="text-text-tertiary" />
         <span className="mr-2 text-sm text-text-secondary">{t('workspace.layout')}</span>
-        {LAYOUTS.map((option) => (
-          <Button
-            key={option.label}
-            size="sm"
-            variant={layout.label === option.label ? 'primary' : 'secondary'}
-            onClick={() => setLayout(option)}
-            aria-pressed={layout.label === option.label}
-            aria-label={option.count === 1 ? t('monitoring:focus') : option.label}
-          >
-            {option.count === 1 ? <><Maximize2 size={14} />{t('monitoring:focus')}</> : option.label}
-          </Button>
-        ))}
+        <div className="segmented">
+          {LAYOUTS.map((option) => (
+            <Button
+              key={option.label}
+              size="sm"
+              variant="ghost"
+              onClick={() => setLayout(option)}
+              aria-pressed={layout.label === option.label}
+              aria-label={option.count === 1 ? t('monitoring:focus') : option.label}
+            >
+              {option.count === 1 ? <><Maximize2 size={14} />{t('monitoring:focus')}</> : option.label}
+            </Button>
+          ))}
+        </div>
         <Button variant="ghost" size="sm" className="ml-auto" aria-label={t('monitoring:refresh')} onClick={refetch}><RefreshCw size={16} /></Button>
       </div>
       <div className="monitoring-wall-summary">

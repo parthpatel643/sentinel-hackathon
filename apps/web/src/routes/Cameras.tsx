@@ -131,9 +131,11 @@ export function Cameras() {
           {['live', 'connecting', 'degraded', 'down', 'stale', 'unknown'].map((value) => <option key={value} value={value}>{t(`cameraStatus.${value}`)}</option>)}
         </select>
         <div className="registry-view-switch">
-          <Button aria-pressed={view === 'table'} size="sm" variant={view === 'table' ? 'primary' : 'secondary'} onClick={() => setView('table')}><List size={15} />{t('cameras.table')}</Button>
-          <Button aria-pressed={view === 'map'} size="sm" variant={view === 'map' ? 'primary' : 'secondary'} onClick={() => setView('map')}><Map size={15} />{t('cameras.map')}</Button>
-          <Button aria-pressed={view === 'insights'} size="sm" variant={view === 'insights' ? 'primary' : 'secondary'} onClick={() => setView('insights')}><Activity size={15} />{tr('insights')}</Button>
+          <div className="segmented" role="group" aria-label={t('cameras.view')}>
+            <Button aria-pressed={view === 'table'} size="sm" variant="ghost" onClick={() => setView('table')}><List size={15} />{t('cameras.table')}</Button>
+            <Button aria-pressed={view === 'map'} size="sm" variant="ghost" onClick={() => setView('map')}><Map size={15} />{t('cameras.map')}</Button>
+            <Button aria-pressed={view === 'insights'} size="sm" variant="ghost" onClick={() => setView('insights')}><Activity size={15} />{tr('insights')}</Button>
+          </div>
           <Button size="sm" variant="ghost" aria-label={t('monitoring:refresh')} onClick={refetch}><RefreshCw size={16} /></Button>
         </div>
       </div>

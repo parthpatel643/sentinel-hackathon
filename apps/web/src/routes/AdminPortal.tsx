@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Activity, ArrowRight, FileText, Plus, Search, Shield, Sliders, Users } from 'lucide-react'
+import { Activity, FileText, Plus, Search, Shield, Sliders, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { TopBar } from '../components/layout/TopBar'
 import { Card } from '../components/ui/Card'
@@ -611,7 +611,6 @@ export function AdminPortal() {
       <div className="page-body management-body">
         <div className="management-heading">
           <div><h2>{t('management:adminTitle')}</h2><p>{t('management:adminIntro')}</p></div>
-          <Shield size={34} strokeWidth={1.5} aria-hidden="true" />
         </div>
         <nav aria-label={t('workspace.adminNavigation')} className="management-navigation">
           {SECTIONS.map((id) => {
@@ -626,7 +625,6 @@ export function AdminPortal() {
               >
                 <Icon size={20} aria-hidden="true" />
                 <span>{t(`admin.sections.${id}`)}</span>
-                <ArrowRight size={15} aria-hidden="true" />
               </button>
             )
           })}

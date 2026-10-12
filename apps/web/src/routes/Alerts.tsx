@@ -243,7 +243,7 @@ export function Alerts() {
     <div className="investigation-workspace">
       <TopBar title={t('nav.alerts')} subtitle={t('investigation:triageDescription')} />
       <div className="iw-triage-toolbar">
-        <div className="iw-status-filters" aria-label={t('investigation:statusFilter')}>
+        <div className="iw-status-filters segmented" role="group" aria-label={t('investigation:statusFilter')}>
         {FILTERS.map((f) => (
           <Button
             key={f.key}

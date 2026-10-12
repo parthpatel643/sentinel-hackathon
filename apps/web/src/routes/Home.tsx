@@ -111,7 +111,7 @@ export function Home() {
           <section className="command-network" aria-labelledby="network-heading">
             <header className="command-panel-header">
               <div><h2 id="network-heading"><CameraIcon size={17} aria-hidden="true" />{t('workspace.cameraNetwork')}</h2><p>{t('command:fleetDescription')}</p></div>
-              <div className="command-segments" role="tablist" aria-label={t('workspace.cameraNetwork')} onKeyDown={navigateTabs}>
+              <div className="command-segments segmented" role="tablist" aria-label={t('workspace.cameraNetwork')} onKeyDown={navigateTabs}>
                 <button id="fleet-map-tab" type="button" role="tab" tabIndex={fleetView === 'map' ? 0 : -1} aria-selected={fleetView === 'map'} aria-controls="fleet-panel" onClick={() => setFleetView('map')}><Map size={15} />{t('command:mapView')}</button>
                 <button id="fleet-list-tab" type="button" role="tab" tabIndex={fleetView === 'list' ? 0 : -1} aria-selected={fleetView === 'list'} aria-controls="fleet-panel" onClick={() => setFleetView('list')}><List size={15} />{t('command:cameraList')}</button>
               </div>

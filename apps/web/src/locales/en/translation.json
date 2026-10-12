@@ -182,6 +182,7 @@
     "registered": "{{count}} registered",
     "table": "Table",
     "map": "Map",
+    "view": "View",
     "addCamera": "Add camera",
     "loading": "Loading cameras…",
     "noCameras": "No cameras registered yet. Run catalogue discovery or add one manually via the API.",
