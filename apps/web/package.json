@@ -12,6 +12,7 @@
     "screenshots:pitch": "node scripts/capture_pitch_screenshots.mjs",
     "docs:pdf": "node scripts/build_docs_pdf.mjs",
     "docs:demo-book": "node scripts/build_demo_book_pdf.mjs",
+    "docs:tech-qa": "node scripts/build_demo_book_pdf.mjs ../../docs/16-TECHNICAL-QA.md ../../docs/Sentinel-Technical-QA.pdf \"Sentinel · Technical Q&A · 13 October 2026\"",
     "preview": "vite preview",
     "demo:record": "node scripts/record_demo.mjs",
     "demo:build": "node scripts/build_demo.mjs",

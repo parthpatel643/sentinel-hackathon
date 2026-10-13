@@ -1,11 +1,13 @@
 /**
  * Prints the demo book, docs/15-DEMO-BOOK.md, to docs/Sentinel-Demo-Book.pdf —
- * the copy carried on the day. Checklists become boxes to tick by hand, and
+ * the copy carried on the day — or any other document given as arguments
+ * (the technical Q&A: `npm run docs:tech-qa`). Checklists become boxes to tick by hand, and
  * each numbered section starts on its own page where it fits, so the
  * one-page card (§11) prints alone.
  *
  * Usage:
  *   npm run docs:demo-book      (from apps/web)
+ *   node scripts/build_demo_book_pdf.mjs <docs/X.md> <docs/X.pdf> "<footer title>"
  *
  * Regenerate whenever the markdown changes: the PDF is the copy people act on.
  */
@@ -18,8 +20,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DOCS = resolve(HERE, '..', '..', '..', 'docs')
-const SOURCE = resolve(DOCS, '15-DEMO-BOOK.md')
-const OUT = resolve(DOCS, 'Sentinel-Demo-Book.pdf')
+const [sourceArg, outArg, titleArg] = process.argv.slice(2)
+const SOURCE = sourceArg ? resolve(sourceArg) : resolve(DOCS, '15-DEMO-BOOK.md')
+const OUT = outArg ? resolve(outArg) : resolve(DOCS, 'Sentinel-Demo-Book.pdf')
+const TITLE = titleArg ?? 'Sentinel · Demo Book · 13 October 2026'
 
 const CSS = `
   @page { size: A4; margin: 15mm 14mm 16mm; }
@@ -74,7 +78,7 @@ async function main() {
     headerTemplate: '<span></span>',
     footerTemplate: `<div style="font: 8px Helvetica, Arial; color: #8a8f95; width: 100%;
       padding: 0 14mm; display: flex; justify-content: space-between;">
-      <span>Sentinel · Demo Book · 13 October 2026</span>
+      <span>${TITLE}</span>
       <span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`,
     margin: { top: '15mm', bottom: '16mm', left: '14mm', right: '14mm' },
   })

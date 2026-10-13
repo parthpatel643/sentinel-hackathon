@@ -49,6 +49,7 @@ sbom/
 # Sentinel-Demo-Book.pdf is a print copy of docs/15-DEMO-BOOK.md, rebuilt with
 # `npm run docs:demo-book`; the markdown is the source.
 docs/Sentinel-Demo-Book.pdf
+docs/Sentinel-Technical-QA.pdf
 # deck-qa.pdf is a scratch QA render, never a deliverable, and stays ignored.
 docs/deck-qa.pdf
 
