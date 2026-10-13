@@ -45,7 +45,7 @@ has time to see it.
 | Plate | Camera | cam06 clock | Use it for |
 |---|---|---|---|
 | **`GJ11CL9596`** | cam06 | 21:22:44 | **The trace**, then *Watch for this vehicle*: the alert banner fires on the spot. Search **GJ11CL9<u>S</u>96** (letter S for the 5) to show the look-alike match. |
-| `DL1C1356` | cam06 | 21:22:16 | Pre-armed as *wanted*, so a watchlist alert is in the queue before the jury arrives. A Delhi car: Gujarat's cameras read every state. |
+| `DL1C1356`, `AS4AG4444` | cam06 | 21:22:16, 21:23:03 | Read on some passes, not others, at night — do not build on them. |
 | `AS2A6440` | cam06 | 21:23:03 | Read once, just after. |
 
 Measured on the recording of the live feed made on 13 Oct at 06:53
@@ -153,7 +153,7 @@ last step:
 ```bash
 cd ~/Projects/personal/sentinel-hackathon
 git pull                                   # stg; nothing to do if up to date
-make demo SOURCE=mirror RESET=1 CAMERAS=cam06 WATCH="DL1C1356:wanted:critical"
+make demo SOURCE=mirror RESET=1 CAMERAS=cam06
 ```
 
 It ends with `✓ 1 of 1 analysed cameras live`, the login, and Safari open.
@@ -163,7 +163,8 @@ Leave it one loop of cam06 (about 14 minutes), then confirm:
       the date and time on the frame. Then leave the Live Wall.
 - [ ] **Find a Vehicle → `GJ11CL9596`** returns one sighting,
       *Jun 17, 09:22:44 PM*, Timbavadi Gate, exact, 100%.
-- [ ] Alerts shows `DL1C1356` (wanted).
+- [ ] Find a Vehicle `GJ11CL9596` → **Watch for this vehicle**: the alert
+      banner fires (1 retro alert). Alerts then shows it.
 - [ ] Search **GJ11CL9<u>S</u>96** returns `GJ11CL9596`.
 - [ ] **Watch for this vehicle** raises the banner with a chime.
 - [ ] **Export report** downloads a ZIP whose PDF has a street map.
@@ -235,14 +236,16 @@ today's recording of the same feed, which holds the same SUV at the same
 printed second, and switch to the live grid only for the slot:
 
 ```bash
-make demo SOURCE=mirror RESET=1 CAMERAS=cam06 WATCH="DL1C1356:wanted:critical"
+make demo SOURCE=mirror RESET=1 CAMERAS=cam06
 ```
 
 `RESET=1` starts from an empty database (backed up first), so the Alerts
 queue and the audit log hold only today. Leave it running at least one loop
-of cam06's recording (about 14 minutes): by then `DL1C1356` (21:22:16) and
-`GJ11CL9596` (21:22:44) are both read, timed and stored, and the pre-armed
-`DL1C1356` has raised its alert. `make demo-status` shows **0** gateway
+of cam06's recording (about 14 minutes): by then `GJ11CL9596` (21:22:44) is
+read, timed and stored. Then **Find a Vehicle → `GJ11CL9596` → Watch for
+this vehicle**: one alert, so the Alerts queue is not empty when the jury
+arrives. (Tested 13 Oct, 08:02: read at 21:22:44 on the first pass; the
+watch raised one retro alert.) `make demo-status` shows **0** gateway
 connections throughout — the quota stays rested.
 
 ### 4.3 Go live (T−10) — about 2 minutes
@@ -263,7 +266,7 @@ come live again at the new T−10.
 
 - [ ] `make demo-status`: cam06 **live**, 1 gateway connection, no 403.
 - [ ] Find a Vehicle `GJ11CL9596` → one sighting at 09:22:44 PM.
-- [ ] Alerts: `DL1C1356` (wanted) is there. Leave it unacknowledged.
+- [ ] Alerts: `GJ11CL9596` is there from the warm-up. Leave it unacknowledged.
 - [ ] Safari, signed in, **one tab per screen** in this order: Overview,
       Cameras, Live Wall, Find a Vehicle, Alerts, Admin. Only one Live Wall
       tab — each one pulls video.
@@ -373,8 +376,8 @@ the spot**, with a chime.
 > sighting is on every open screen — and on an officer's phone."
 
 Open **Alerts**: one row per vehicle, ranked, lit until someone acts.
-`DL1C1356` (wanted) is there from this morning. Acknowledge it: *"that
-action is now in the audit log."*
+Acknowledge the `GJ11CL9596` alert: *"that action is now in the audit
+log."*
 
 **Beat 6 — Hand over** (1 min) · *Find a Vehicle → Export report*
 
@@ -429,7 +432,7 @@ make demo-down && make demo CAMERAS=cam14 OPEN=0
 ```
 
 - **No `RESET=1`:** everything read today stays — the `GJ11CL9596` trace and
-  the `DL1C1356` alert still work while their camera starts.
+  its alert still work while their camera starts.
 - `OPEN=0` keeps your Safari tabs; reload them when it says `✓ 1 of 1
   analysed cameras live`.
 - While it restarts, carry on with Beat 4 on `GJ11CL9596` from the stored
@@ -460,7 +463,7 @@ fifteen (§2). If they want cam06 back afterwards, swap again the same way.
 
 | You see | Say and do |
 |---|---|
-| The search finds nothing | *"Not seen on the cameras we analysed — and the system will not invent a route."* Open **Health** to show cam06 analysed; widen the window to 48 h. Then trace `DL1C1356`. |
+| The search finds nothing | *"Not seen on the cameras we analysed — and the system will not invent a route."* Open **Health** to show cam06 analysed; widen the window to 48 h. Then trace `GJ11CL9596`. |
 | A tile says *Connecting…* | Go on with the trace — it reads from stored sightings, not the tile. Fix later (§9). |
 | `403` / tiles die mid-demo | *"The sandbox has a viewing quota; we've just used it. Here's the same grid, recorded."* Run the fallback (§8, rung 3) and talk through slides 05–06 while it starts. Calm and named is better than flawless. |
 | A banner arrives mid-sentence | Point at it: *"That's correlation running on another camera while we talk."* |
@@ -500,7 +503,7 @@ cam05, cam30, the 2×2 wall. The other 26 still point at the grid after a live
 sync, so opening one of their tiles would pull from it.
 
 **Rung 3, in detail.** No `RESET=1`: the database is kept, so everything read
-live today — `GJ11CL9596` at 21:22:44, the `DL1C1356` alert, the audit log —
+read today — `GJ11CL9596` at 21:22:44, its alert, the audit log —
 is still there, and the trace works the moment the console is back. Every
 camera is re-pointed to its local recording, so tiles play again with no
 internet and no quota. It takes as long as you timed in §3.2; talk through
@@ -512,8 +515,8 @@ signed in; reload them once it is up.
 - Back to the live grid, only after **15–20 minutes at zero**:
   `make demo-down && make demo CAMERAS=cam06` — the catalogue sync re-points
   the cameras to the grid.
-- Database lost as well? `make demo SOURCE=mirror RESET=1 CAMERAS=cam06
-  WATCH="DL1C1356:wanted:critical"` starts from nothing; the SUV then
+- Database lost as well? `make demo SOURCE=mirror RESET=1 CAMERAS=cam06`
+  starts from nothing; the SUV then
   passes within one loop of cam06's recording (about 14 minutes).
 
 ---
@@ -555,9 +558,8 @@ credentials from `.env` on both laptops.
 |---|---|
 | **Camera** | cam06 · Timbavadi Gate, Junagadh · Safari only (H.265) |
 | **Plate** | `GJ11CL9596` · SUV parked on the right, headlights on · **21:22:44** on cam06's clock (night) |
-| **Wanted, pre-armed** | `DL1C1356` · 21:22:16 |
 | **Look-alike search** | type **GJ11CL9<u>S</u>96** (underlined: the letter S) → `GJ11CL9596` |
-| **Warm up, T−40** | `make demo SOURCE=mirror RESET=1 CAMERAS=cam06 WATCH="DL1C1356:wanted:critical"` — recording, no quota |
+| **Warm up, T−40** | `make demo SOURCE=mirror RESET=1 CAMERAS=cam06` — recording, no quota; then *Watch for this vehicle* on `GJ11CL9596` |
 | **Go live, T−10** | `make demo-down && make demo CAMERAS=cam06` — about 25 minutes of quota |
 | **Panel picks a camera** | `make demo-down && make demo CAMERAS=cam14 OPEN=0` — swap, not add; id ≠ name number from 23 on (§6.1) |
 | **Check** | `make demo-status` · 1 connection · no 403 |
