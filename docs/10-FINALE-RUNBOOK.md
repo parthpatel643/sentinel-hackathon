@@ -18,6 +18,11 @@ ways that matter on the day:
 This runbook covers what [06 — Submission Playbook §7](./06-SUBMISSION-PLAYBOOK.md)
 does not: preparing for a network and camera set we have not seen yet.
 
+> **Decided 13 October: the demo runs on one laptop, the M2.** It runs the
+> deck, the console, the API and the analysis; its fallback is its own recorded
+> copy of the grid. The two-laptop sharding in §6 is not used. On the day,
+> work from [15 — Demo Book](./15-DEMO-BOOK.md).
+
 ---
 
 ## 1. Ask the organisers now
@@ -210,7 +215,8 @@ Every camera's **tier** in the registry decides what it costs:
   that keeps growing means the laptop is over capacity: lower `SAMPLED_FPS`, raise `STRIDE`, or move a camera down a tier.
   The worker re-reads the registry every 30 s, so a tier change applies without
   a restart. A camera whose analysis stops shows **stale**.
-- **Shard across both laptops by department:**
+- **Shard across both laptops by department** (not used on 13 Oct — one
+  laptop; kept for a deployment with more cameras than one machine can read):
 
   | Laptop A (runs the API) | Laptop B (worker only) |
   |---|---|

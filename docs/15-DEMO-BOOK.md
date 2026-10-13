@@ -1,7 +1,7 @@
-# 15 — Demo Book: the live government feed, on the M5
+# 15 — Demo Book: the live government feed, on one laptop
 ### Sentinel · Grand finale, i-Hub Gujarat · 13 October 2026 · print this
 
-Everything for tomorrow in one place: what to do tonight, what to run on
+Everything for today in one place: this morning's rehearsal, what to run on
 arrival, the twenty minutes with the jury click by click, which plate to
 trace, and what to do when something breaks. The reasoning behind it is in
 [13 — Showcase Prep](./13-SHOWCASE-PREP.md) and
@@ -9,15 +9,16 @@ trace, and what to do when something breaks. The reasoning behind it is in
 
 | | |
 |---|---|
-| **Primary laptop** | **M5** — live government grid, `make demo` |
-| **Backup laptop** | **M2** — the recorded copy of the same grid, offline, no quota |
+| **Laptop** | **The M2** (this MacBook) — the deck, the console and the live government grid, `make demo` |
+| **Fallback** | The same laptop, switched to its recorded copy of the grid — offline, no quota, today's reads kept (§8) |
 | **Phone** | Field app on Vercel (optional, `PHONE=1`) |
 | **Deck** | `docs/Sentinel-Finale-Pitch.pptx`, 15 slides + appendix A1–A9 |
 | **Narrator** | Parth — faces the jury, never touches the keyboard |
 | **Driver** | Anuj — keyboard and mouse; watches `make demo-status` between beats |
 
-Checked tonight (12 Oct, 22:50): the government catalogue answers with our
-credentials and lists all 30 cameras, cam06 and cam30 included.
+Checked: the government catalogue answers with our credentials and lists all
+30 cameras (12 Oct, 22:50), and on 13 Oct at 06:45 cam06 played live from the
+grid on this laptop, analysed, with no quota errors.
 
 ---
 
@@ -83,8 +84,12 @@ our credentials.
 - **Analyse cam06 only** (`CAMERAS=cam06`). The wall can still show four
   cameras live: a view-only tile pulls only while it is on screen and is
   released about 10 seconds after you leave it.
-- **Exactly one machine** pulls from the grid. The M2 runs the recorded copy
-  and never touches it.
+- **Nothing else pulls with our credentials** — no other laptop, no teammate
+  testing from home. The quota is the account's, not this laptop's.
+- **Leave the Live Wall when you are not using it.** It opens in 2×2 with the
+  first four cameras selected, so just opening it pulls four feeds. cam06's
+  preview costs nothing extra: the worker and every viewer share one
+  connection per camera.
 - **Spent** shows as `403 watch time limit reached` or `401` in
   `make demo-status`. It returns only after **15–20 minutes at zero** — stop
   the worker completely, do not just reduce it, and go to the fallback (§8).
@@ -101,75 +106,79 @@ lsof -nP -iTCP@103.250.160.189:8554 -sTCP:ESTABLISHED | grep -c ESTABLISHED
 
 ---
 
-## 3. Tonight
+## 3. This morning
 
-### 3.1 On the M2 (5 min)
+Everything is already on this laptop: dependencies, models, `.env` with the
+government credentials, and the recorded copy of the grid in
+`data/gov-mirror/` for the fallback. Nothing to install or copy.
+
+> **Login on this laptop** is the password `make demo` prints — not the
+> published `sentinel-admin-2026`. Last night's phone test replaced it, and it
+> is kept in `.env` (`SENTINEL_DEMO_ADMIN_PASSWORD`).
+
+### 3.1 Dress rehearsal on the live grid (20 min)
 
 ```bash
 cd ~/Projects/personal/sentinel-hackathon
-make demo-down ALL=1                   # stops tonight's phone test and its public tunnel
-```
-
-Copy the recorded grid to the M5, for the fallback (about 1.1 GB: `clips/`,
-`catalogue.json`, `manifest.json` from `data/gov-mirror/`) — AirDrop, a USB
-stick, or `rsync -a data/gov-mirror/{clips,catalogue.json,manifest.json} m5:<repo>/data/gov-mirror/`.
-
-### 3.2 On the M5: fresh setup (30–40 min, mostly downloads)
-
-```bash
-# tools (skip any already installed)
-xcode-select --install
-brew install node ffmpeg cloudflared
-curl -LsSf https://astral.sh/uv/install.sh | sh        # then open a new terminal
-# + OrbStack or Docker Desktop, started
-
-git clone git@github.com:parthpatel643/sentinel-hackathon.git sentinel-platform
-cd sentinel-platform && git checkout stg
-cp .env.example .env
-# edit .env: SENTINEL_GOV_ACCESS_EMAIL=...  SENTINEL_GOV_ACCESS_PASSWORD=...
-
-npx vercel login                        # only if you will show the phone (PHONE=1)
-```
-
-### 3.3 On the M5: dress rehearsal on the live grid (20 min)
-
-```bash
+git pull                                   # stg; nothing to do if up to date
 make demo RESET=1 CAMERAS=cam06 WATCH="GJ03MH7800:wanted:critical"
 ```
 
-The first run also installs dependencies and exports and downloads the
-models. It ends with `✓ 1 of 1 analysed cameras live`, the login, and Safari
-open. Then confirm, in this order:
+It ends with `✓ 1 of 1 analysed cameras live`, the login, and Safari open.
+Then confirm, in this order:
 
 - [ ] Live Wall → **Focus view → 06 Timbavadi gate-Junagadh** plays in
-      Safari, with the date and time on the frame.
+      Safari, with the date and time on the frame. Then leave the Live Wall.
 - [ ] Watch cam06's clock pass **18:01:21** and the white van go by.
 - [ ] Within about a minute: **Find a Vehicle → `GJ11S7924`** returns one
       sighting, *Jun 17, 06:01:21 PM*, Timbavadi Gate, exact, 100%.
 - [ ] Alerts shows `GJ03MH7800` once cam06 passes 18:02:49.
 - [ ] **Export report** downloads a ZIP whose PDF has a street map.
-- [ ] `make demo-status`: one gateway connection, no 403.
-
-Then **`make demo-down`** — tonight's viewing time should be over well
-before tomorrow's warm-up.
+- [ ] `make demo-status`: 1 gateway connection, no 403.
 
 If the van or its time differs on the live feed, the grid's recording has
 changed: pick the first exact, timed plate Overview → *ANPR activity* shows
 for cam06, and use it everywhere this book says `GJ11S7924`.
 
-### 3.4 Before bed
+### 3.2 Rehearse the fallback once (5 min, no quota)
+
+Time it — this is what you will do on stage if the grid fails:
+
+```bash
+make demo-down && make demo SOURCE=mirror CAMERAS=cam06
+```
+
+- [ ] It ends with cam06 live, from the recording. Note how long it took.
+- [ ] Find a Vehicle `GJ11S7924` still returns the 18:01:21 sighting — the
+      reads from the live grid are kept.
+- [ ] Live Wall → Focus view → Timbavadi Gate plays (now the recording).
+- [ ] `make demo-status`: **0** gateway connections.
+
+Then stop for good:
+
+```bash
+make demo-down
+```
+
+**Leave at least 20 minutes with zero gateway connections before the
+warm-up** (§4.2), so the quota starts the slot rested.
+
+### 3.3 Before leaving
 
 - [ ] Print this book (§11 is the one-page card). `npm run docs:demo-book` in
       `apps/web` writes `docs/Sentinel-Demo-Book.pdf`.
 - [ ] Rehearse the twenty minutes (§5–6) once with a timer, saying it aloud.
-- [ ] Charge: both laptops, phone, hotspot phone. Pack USB-C to HDMI, an
-      Ethernet adapter, chargers, the printed book.
+- [ ] Charge the laptop fully; pack its charger — it runs the deck, the
+      projector and the analysis at once, so **keep it plugged in** all day.
+- [ ] Pack: USB-C to HDMI, an Ethernet adapter, a phone for the hotspot, the
+      printed book.
 - [ ] Turn off: macOS notifications (Focus → Do Not Disturb), automatic
-      updates, the screen saver.
+      updates, the screen saver. Close everything but PowerPoint, Safari and
+      Terminal.
 
 ---
 
-## 4. Tomorrow, before the jury
+## 4. Before the jury
 
 ### 4.1 On arrival (T−90)
 
@@ -185,7 +194,7 @@ for cam06, and use it everywhere this book says `GJ11S7924`.
   If 8554 is blocked, move to the hotspot and check again.
 - Projector: mirror the display; Safari zoom 110–125% so the back row can
   read plates; PowerPoint in presenter view on the same screen.
-- `caffeinate -dimsu &` on the M5 — a sleeping Mac stops Docker.
+- Charger in. `caffeinate -dimsu &` — a sleeping Mac stops Docker.
 
 ### 4.2 Warm-up (T−40)
 
@@ -212,8 +221,9 @@ Not earlier than T−60: every minute of warm-up is viewing time.
 - [ ] The sound icon in the top bar is on (alerts chime).
 - [ ] Safari is on **Overview**, not the Live Wall: nothing extra should
       be pulling video while you talk through slides 01–03.
-- [ ] Deck on slide 01, presenter view. M2 running the fallback (§8),
-      lid open, signed in, on the Live Wall.
+- [ ] Deck on slide 01, presenter view.
+- [ ] A Terminal window ready with the fallback command (§8, rung 3) typed
+      but not run.
 
 ---
 
@@ -334,7 +344,7 @@ Then **Admin → Audit log → Verify integrity**:
 |---|---|
 | The search finds nothing | *"Not seen on the cameras we analysed — and the system will not invent a route."* Open **Health** to show cam06 analysed; widen the window to 48 h. Then trace `GJ03MH7800`. |
 | A tile says *Connecting…* | Go on with the trace — it reads from stored sightings, not the tile. Fix later (§9). |
-| `403` / tiles die mid-demo | *"The sandbox has a viewing quota; we've just used it. Here's the same grid, recorded"* — switch to the M2 (§8). Calm and named is better than flawless. |
+| `403` / tiles die mid-demo | *"The sandbox has a viewing quota; we've just used it. Here's the same grid, recorded."* Run the fallback (§8, rung 3) and talk through slides 05–06 while it starts. Calm and named is better than flawless. |
 | A banner arrives mid-sentence | Point at it: *"That's correlation running on another camera while we talk."* |
 
 ---
@@ -357,25 +367,32 @@ on the internet, it runs in production mode with its own secrets and a
 
 ## 8. Fallback ladder
 
-Use the highest rung that works and **say which one you are on**.
+Use the highest rung that works and **say which one you are on**. Everything
+runs on this one laptop; the recorded copy of the grid is already on it.
 
 | Rung | When | How |
 |---|---|---|
-| 1 | Normal | M5, live grid, cam06 analysed |
-| 2 | M5 struggling (lag growing, fans) | `make demo-down && make demo CAMERAS=cam06 STRIDE=4` |
-| 3 | Quota spent, grid down, or venue blocks 8554 | **Switch to the M2** — already running the recorded copy. Same cameras, same van, same 18:01:21, no internet. |
-| 4 | M2 also unavailable | On the M5: `make demo-down && make demo SOURCE=mirror RESET=1` (needs the copy from §3.1; about 3 minutes to the first reads) |
-| 5 | No laptop works | Slides **05–09** are the same five steps as screenshots |
+| 1 | Normal | Live grid, cam06 analysed |
+| 2 | Laptop struggling (lag growing, fans) | `make demo-down && make demo CAMERAS=cam06 STRIDE=4` |
+| 3 | Quota spent, grid down, or venue blocks 8554 | **Switch to the recorded copy:** `make demo-down && make demo SOURCE=mirror CAMERAS=cam06` |
+| 4 | The laptop itself fails | Slides **05–09** are the same five steps as screenshots |
 
-**The M2 fallback**, started at T−40 next to the M5:
+**Rung 3, in detail.** No `RESET=1`: the database is kept, so everything read
+live today — `GJ11S7924` at 18:01:21, the `GJ03MH7800` alert, the audit log —
+is still there, and the trace works the moment the console is back. Every
+camera is re-pointed to its local recording, so tiles play again with no
+internet and no quota. It takes as long as you timed in §3.2; talk through
+slides 05–06 meanwhile, then carry on from where you were. Safari tabs stay
+signed in; reload them once it is up.
 
-```bash
-make demo-down ALL=1          # if anything is still running from tonight
-make demo SOURCE=mirror RESET=1 CAMERAS=cam06,cam30 WATCH="GJ03MH7800:wanted:critical"
-```
-
-It uses no government quota. Run it local-only (no `PHONE=1`), so the phone
-keeps pointing at the M5.
+- Showing the phone too? Add `PHONE=1` (about a minute longer): stopping the
+  demo also closes the phone's tunnel.
+- Back to the live grid, only after **15–20 minutes at zero**:
+  `make demo-down && make demo CAMERAS=cam06` — the catalogue sync re-points
+  the cameras to the grid.
+- Database lost as well? `make demo SOURCE=mirror RESET=1 CAMERAS=cam06
+  WATCH="GJ03MH7800:wanted:critical"` starts from nothing; the van then
+  passes within one loop of cam06's recording (about 16 minutes).
 
 ---
 
@@ -420,7 +437,7 @@ credentials from `.env` on both laptops.
 | **Start, T−40** | `make demo RESET=1 CAMERAS=cam06 WATCH="GJ03MH7800:wanted:critical"` |
 | **Check** | `make demo-status` · 1 connection · no 403 |
 | **Stop** | `make demo-down` — always |
-| **Fallback** | M2: `make demo SOURCE=mirror RESET=1 CAMERAS=cam06,cam30` |
+| **Fallback** | `make demo-down && make demo SOURCE=mirror CAMERAS=cam06` — same laptop, today's reads kept |
 | **Login** | `admin@sentinel-platform.com` / as printed by `make demo` |
 
 | Moment | Say |
@@ -434,7 +451,7 @@ credentials from `.env` on both laptops.
 | Plates read exactly (measured) | 80.5% — 33 of 41 vehicles, below our 85% target |
 | Camera clocks read exactly | 97.7%, none wrong |
 | Footage to stored sighting | median 27–40 s |
-| One laptop | 4 cameras × 4 fps kept up (M2) |
+| One laptop | 4 cameras × 4 fps kept up (this M2) |
 | Statewide | ≈140 Mbps vs 160 Gbps; ≈390 TB vs 12.1 PB a week |
 | Cost | ≈₹80 cr build, ≈₹24 cr/yr run, ₹0 licences; centralising ₹400 cr+ |
 | Rollout | 500 → 5,000 → 30,000 → 80,000 cameras over 36 months |

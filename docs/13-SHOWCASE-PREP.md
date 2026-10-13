@@ -10,8 +10,9 @@ Written 8 October 2026 after re-reading
 end to end against the repository.
 
 **On the day, work from [15 — Demo Book](./15-DEMO-BOOK.md):** the live
-government feed on the M5 with `make demo`, the plate and camera to trace,
-and the fallbacks, in one printable document. This one is the reasoning.
+government feed on one laptop — the M2 — with `make demo`, the plate and
+camera to trace, and the fallbacks, in one printable document. This one is
+the reasoning.
 
 ---
 
@@ -440,8 +441,8 @@ that will, and spend the compute there.
 
 4. **Budget check**:
    `cameras you can analyse = 0.75 × measured edge fps ÷ per-camera fps`.
-   With the M2's 16 fps edge, that is **3 cameras at 4 fps** — so the M4 and
-   sharding by department across both laptops (runbook §6) are not optional.
+   With the M2's 16 fps edge, that is **3 cameras at 4 fps**, and since 13 Oct
+   the M2 is the only laptop: analyse only the cameras whose plates are legible.
 5. **Leave it running all day.** Watch `n s behind live` on the Cameras screen;
    a growing number means demote a camera.
 
@@ -629,8 +630,9 @@ work). Additional likely questions:
 
 Use the highest rung that works, and **say which rung you are on.**
 
-1. Organisers' feeds, live, on the M4 (+ M2 sharding).
-2. Organisers' feeds on whichever laptop survives; fewer cameras, higher tier.
+1. Organisers' feeds, live, on the M2 — the one laptop on the day (decided
+   13 Oct; [15 — Demo Book §8](./15-DEMO-BOOK.md#8-fallback-ladder)).
+2. Organisers' feeds; fewer cameras, higher `STRIDE`.
 3. Phone hotspot + own RTSP cameras: re-run the own-car drill live.
 4. Local gov mirror (`make mirror-start`, `make worker SOURCE=mirror`) — real
    government footage, offline. **Tested 8 Oct on the M2, re-run 12 Oct on the

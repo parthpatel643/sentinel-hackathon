@@ -320,8 +320,27 @@ onboard() {
       fi
       ;;
     mirror)
-      uv run -q python scripts/gov_mirror.py register > "$STATE_DIR/register.log" 2>&1 || die "could not register the mirrored cameras"
-      ok "mirrored cameras registered"
+      # Through the CSV import, not the worker's register-if-missing: it also
+      # re-points cameras a government sync registered, so switching to the
+      # recorded copy mid-demo keeps today's reads and alerts while every
+      # tile plays the local recording instead of the spent government feed.
+      "$PY" - "$STATE_DIR/mirror-cameras.csv" <<'PYCSV' || die "could not read data/gov-mirror/catalogue.json"
+import csv, json, sys
+cameras = json.load(open("data/gov-mirror/catalogue.json"))
+cameras = cameras if isinstance(cameras, list) else cameras["cameras"]
+with open(sys.argv[1], "w", newline="") as f:
+    out = csv.writer(f)
+    out.writerow(["camera_id", "name", "lat", "lon", "tier", "protocol", "url", "codec"])
+    for c in cameras:
+        loc, rtsp = c.get("location") or {}, c["profiles"][0]
+        out.writerow([c["camera_id"], c["name"], loc.get("lat", ""), loc.get("lon", ""),
+                      c.get("tier", "b_sampled"), "rtsp", rtsp["url"], rtsp.get("codec") or ""])
+PYCSV
+      local imported
+      imported=$(curl -sf -X POST "http://127.0.0.1:18000/api/v1/cameras/bulk-import?dry_run=false" \
+        -H "Authorization: Bearer $token" -F "file=@$STATE_DIR/mirror-cameras.csv") \
+        || die "could not register the mirrored cameras"
+      ok "mirrored cameras registered: $(echo "$imported" | json '"%d of %d" % (d["succeeded"], d["total_rows"])'), playing the local recording"
       ;;
     registry) ok "analysing whatever is onboarded (Cameras → Add camera / Import)" ;;
   esac
