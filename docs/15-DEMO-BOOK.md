@@ -17,54 +17,67 @@ trace, and what to do when something breaks. The reasoning behind it is in
 | **Driver** | Anuj — keyboard and mouse; watches `make demo-status` between beats |
 
 Checked: the government catalogue answers with our credentials and lists all
-30 cameras (12 Oct, 22:50), and on 13 Oct at 06:45 cam06 played live from the
-grid on this laptop, analysed, with no quota errors.
+30 cameras (12 Oct, 22:50); on 13 Oct at 06:45 cam06 played live from the
+grid on this laptop, analysed; and from 06:53 the live feeds of cam06, cam30,
+cam01 and cam05 were recorded to `data/gov-mirror/` for the fallback.
 
 ---
 
 ## 1. The plate and the camera
 
 **Camera: cam06 — Timbavadi Gate, Junagadh.** The only camera on the grid
-whose plates are large and front-on enough to read reliably, in daylight,
-with a date-time overlay we read on most frames. Every other camera is a
-wide-angle or night view; plates there are 20–30 pixels tall.
+whose plates are large and front-on enough to read, with a date-time
+overlay we read reliably. Every other camera is a wide-angle view; plates
+there are 20–30 pixels tall.
 
-**Plate: `GJ11S7924`** — a white Maruti Omni van, centre lane, at
-**18:01:21 on cam06's clock** (17 Jun 2026). It is read exactly at 100%,
-its time is read off the frame, and it is the same van as slides 01, 06 and
-09: what the jury saw in the deck is what they see live.
+**The grid changed overnight.** On 13 Oct cam06 replays **17 Jun 2026,
+21:22–21:36, at night** — not the daytime footage the deck's screenshots
+came from. So the deck's van (`GJ11S7924`) is not in today's feed. Today's
+plate was found by recording the live feed this morning and running the full
+edge pipeline over it, exactly as the demo will:
+
+**Plate: `GJ11CL9596`** — an SUV with its headlights on, parked on the right
+at the top of the frame, at **21:22:44 on cam06's clock** (17 Jun 2026). Read
+exactly at 100%, agreed across three frames, its plate legible in the
+evidence frame even at night. It is in shot for about 50 seconds, so the jury
+has time to see it.
 
 | Plate | Camera | cam06 clock | Use it for |
 |---|---|---|---|
-| **`GJ11S7924`** | cam06 | 18:01:21 | **The trace.** Then *Watch for this vehicle* for the live alert. |
-| `GJ03MH7800` | cam06 | 18:02:49 | Pre-armed as *wanted*: already in the Alerts queue. Search **GJ<u>O</u>3MH78<u>OO</u>** (letter O for each zero) to show the look-alike match. |
-| `GJ11CD8889` / `GJ11CDB889` | cam06 | time unknown | One car read both ways (8 ↔ B) — slide 08's example. |
-| `GJ11CD8389`, `GJ23M1546` | cam06 | time unknown | Re-read every loop, so these are the plates most likely to flash on the tile while the jury watches. |
+| **`GJ11CL9596`** | cam06 | 21:22:44 | **The trace**, then *Watch for this vehicle*: the alert banner fires on the spot. Search **GJ11CL9<u>S</u>96** (letter S for the 5) to show the look-alike match. |
+| `DL1C1356` | cam06 | 21:22:16 | Pre-armed as *wanted*, so a watchlist alert is in the queue before the jury arrives. A Delhi car: Gujarat's cameras read every state. |
+| `AS2A6440` | cam06 | 21:23:03 | Read once, just after. |
 
-All from today's runs on the recorded copy of this grid; confirm them on the
-live feed in tonight's dress rehearsal (§3).
+Measured on the recording of the live feed made on 13 Oct at 06:53
+(`data/gov-mirror/`), at the demo's own settings: four frames a second, the
+same models, the same voting, the same clock reader. On the night footage
+the clock read every second from 21:22:46 to 21:23:00 without a miss.
 
-**Do not trace cam30 plates.** Gandhidham is a night junction: its "reads"
-today were things like `LA4B1331` and `DD1L0723` — valid-looking codes for
-Ladakh and Daman, almost certainly misreads. It is a good camera to *watch*
-on the wall, not to read.
+**Night footage reads less.** In the 14 minutes recorded, the pipeline
+committed four reads, three of them single frames; in daylight it commits
+dozens. That is the reason to trace a plate already read during warm-up
+rather than wait for a fresh one on stage.
 
-### Why the van will not flash on the tile again
+**Do not trace cam30 plates.** Gandhidham's recording is past midnight
+(9 Aug, 00:31–00:44) and produced no valid plate in the same test. It is a
+camera to *watch* on the wall, not to read.
 
-The grid replays recordings in a loop (cam06's runs from about 18:01 to
-18:11 on its clock). Sentinel stores **one read per camera, plate and printed
-second**: the first time the van passes, it is read and stored; every later
-loop is the same moment and is refused, by design — a loop or a reconnect
-must never look like a second sighting. So after warm-up, `GJ11S7924` is in
-the database but will not light the tile again.
+### Why the SUV will not flash on the tile again
 
-The script below does not depend on it. If cam06's clock is near **18:01**
-when you open it, the jury watches the van pass; either way you then type the
-plate, and the trace shows the printed time **18:01:21** and the frame of
-that same van. Say it plainly if asked — it is one of the strongest
-evidence points in the room:
+The grid replays each camera's recording in a loop. Sentinel stores **one
+read per camera, plate and printed second**: the first time the SUV is in
+shot, it is read and stored; every later loop is the same moment and is
+refused, by design — a loop or a reconnect must never look like a second
+sighting. So after warm-up, `GJ11CL9596` is in the database but will not
+light the tile again.
 
-> "This feed is a recording that loops. We read this van the first time it
+The script below does not depend on it. If cam06's clock is near **21:22**
+when you open it, the jury sees the SUV; either way you then type the plate,
+and the trace shows the printed time **21:22:44** and the frame of that
+same SUV. Say it plainly if asked — it is one of the strongest evidence
+points in the room:
+
+> "This feed is a recording that loops. We read this car the first time it
 > passed, and we never store the same printed second twice — otherwise every
 > loop, and every reconnect, would look like a new sighting."
 
@@ -75,11 +88,21 @@ evidence points in the room:
 The grid meters **viewing time per account**, across every machine using
 our credentials.
 
+**Measured on 13 Oct, it is tight.** After about ten minutes of one
+connection at 06:45, two connections ran out the quota at 07:08 — about
+fifteen minutes. It came back at 07:26, after about eighteen minutes at zero.
+Plan on roughly **25–30 connection-minutes per window**:
+
 | Open connections | Roughly lasts |
 |---|---|
-| 1 (cam06 analysed) | over 2 hours |
-| 2 | about 2 hours |
-| 4 (the 2×2 wall) | under 1 hour |
+| 1 (cam06 analysed) | about 25–30 minutes |
+| 2 | about 15 minutes |
+| 4 (the 2×2 wall) | under 10 minutes |
+
+That covers the twenty minutes with the jury **only if the quota is fully
+rested when you go live, and you go live at T−10, not earlier**. So the
+warm-up runs on today's recording of the feed, which costs nothing (§4.2),
+and the live grid is used for the slot only (§4.3).
 
 - **Analyse cam06 only** (`CAMERAS=cam06`). The wall can still show four
   cameras live: a view-only tile pulls only while it is on screen and is
@@ -109,50 +132,56 @@ lsof -nP -iTCP@103.250.160.189:8554 -sTCP:ESTABLISHED | grep -c ESTABLISHED
 ## 3. This morning
 
 Everything is already on this laptop: dependencies, models, `.env` with the
-government credentials, and the recorded copy of the grid in
-`data/gov-mirror/` for the fallback. Nothing to install or copy.
+government credentials, and a recording of this morning's live feed in
+`data/gov-mirror/` (13 Oct, 06:53–07:40): cam06 and cam01 about 14 minutes
+each, cam05 14, cam30 about 6. The 8 Oct recording of all 30 cameras is kept
+in `data/gov-mirror-2026-10-08/` — its footage is no longer what the grid
+plays. Nothing to install or copy.
 
 > **Login on this laptop** is the password `make demo` prints — not the
 > published `sentinel-admin-2026`. Last night's phone test replaced it, and it
 > is kept in `.env` (`SENTINEL_DEMO_ADMIN_PASSWORD`).
 
-### 3.1 Dress rehearsal on the live grid (20 min)
+### 3.1 Dress rehearsal on the recording (20 min, no quota)
+
+Exactly the order of the day (§4.2–4.3), so the quota is spent only in the
+last step:
 
 ```bash
 cd ~/Projects/personal/sentinel-hackathon
 git pull                                   # stg; nothing to do if up to date
-make demo RESET=1 CAMERAS=cam06 WATCH="GJ03MH7800:wanted:critical"
+make demo SOURCE=mirror RESET=1 CAMERAS=cam06 WATCH="DL1C1356:wanted:critical"
 ```
 
 It ends with `✓ 1 of 1 analysed cameras live`, the login, and Safari open.
-Then confirm, in this order:
+Leave it one loop of cam06 (about 14 minutes), then confirm:
 
-- [ ] Live Wall → **Focus view → 06 Timbavadi gate-Junagadh** plays in
-      Safari, with the date and time on the frame. Then leave the Live Wall.
-- [ ] Watch cam06's clock pass **18:01:21** and the white van go by.
-- [ ] Within about a minute: **Find a Vehicle → `GJ11S7924`** returns one
-      sighting, *Jun 17, 06:01:21 PM*, Timbavadi Gate, exact, 100%.
-- [ ] Alerts shows `GJ03MH7800` once cam06 passes 18:02:49.
+- [ ] Live Wall → **Focus view → 06 Timbavadi gate-Junagadh** plays, with
+      the date and time on the frame. Then leave the Live Wall.
+- [ ] **Find a Vehicle → `GJ11CL9596`** returns one sighting,
+      *Jun 17, 09:22:44 PM*, Timbavadi Gate, exact, 100%.
+- [ ] Alerts shows `DL1C1356` (wanted).
+- [ ] Search **GJ11CL9<u>S</u>96** returns `GJ11CL9596`.
+- [ ] **Watch for this vehicle** raises the banner with a chime.
 - [ ] **Export report** downloads a ZIP whose PDF has a street map.
-- [ ] `make demo-status`: 1 gateway connection, no 403.
+- [ ] `make demo-status`: **0** gateway connections.
 
-If the van or its time differs on the live feed, the grid's recording has
-changed: pick the first exact, timed plate Overview → *ANPR activity* shows
-for cam06, and use it everywhere this book says `GJ11S7924`.
+If the SUV or its time differs, run Overview → *ANPR activity*, pick the
+first exact, timed plate for cam06, and use it everywhere this book says
+`GJ11CL9596`.
 
-### 3.2 Rehearse the fallback once (5 min, no quota)
-
-Time it — this is what you will do on stage if the grid fails:
+### 3.2 Go live once, and time it (5 min of quota)
 
 ```bash
-make demo-down && make demo SOURCE=mirror CAMERAS=cam06
+make demo-down && make demo CAMERAS=cam06
 ```
 
-- [ ] It ends with cam06 live, from the recording. Note how long it took.
-- [ ] Find a Vehicle `GJ11S7924` still returns the 18:01:21 sighting — the
-      reads from the live grid are kept.
-- [ ] Live Wall → Focus view → Timbavadi Gate plays (now the recording).
-- [ ] `make demo-status`: **0** gateway connections.
+- [ ] It ends with cam06 live, from the grid. **Note how long it took** — on
+      stage, rung 3 of §8 is the same switch the other way.
+- [ ] Find a Vehicle `GJ11CL9596` still returns the 21:22:44 sighting — the
+      reads from the recording are kept.
+- [ ] Live Wall → Focus view → Timbavadi Gate plays live (Safari).
+- [ ] `make demo-status`: 1 gateway connection, no 403.
 
 Then stop for good:
 
@@ -160,8 +189,8 @@ Then stop for good:
 make demo-down
 ```
 
-**Leave at least 20 minutes with zero gateway connections before the
-warm-up** (§4.2), so the quota starts the slot rested.
+**Leave at least 20 minutes with zero gateway connections before going
+live on the day** (§4.3), so the quota starts the slot rested.
 
 ### 3.3 Before leaving
 
@@ -196,25 +225,42 @@ warm-up** (§4.2), so the quota starts the slot rested.
   read plates; PowerPoint in presenter view on the same screen.
 - Charger in. `caffeinate -dimsu &` — a sleeping Mac stops Docker.
 
-### 4.2 Warm-up (T−40)
+### 4.2 Warm-up from the recording (T−40) — no quota
+
+The quota cannot cover a live warm-up *and* the slot (§2). So warm up on
+today's recording of the same feed, which holds the same SUV at the same
+printed second, and switch to the live grid only for the slot:
 
 ```bash
-make demo RESET=1 CAMERAS=cam06 WATCH="GJ03MH7800:wanted:critical"
-#   + PHONE=1 to show the phone (see §7)
+make demo SOURCE=mirror RESET=1 CAMERAS=cam06 WATCH="DL1C1356:wanted:critical"
 ```
 
 `RESET=1` starts from an empty database (backed up first), so the Alerts
-queue and the audit log hold only today. Leave it running; by the slot the
-van has passed at least once.
+queue and the audit log hold only today. Leave it running at least one loop
+of cam06's recording (about 14 minutes): by then `DL1C1356` (21:22:16) and
+`GJ11CL9596` (21:22:44) are both read, timed and stored, and the pre-armed
+`DL1C1356` has raised its alert. `make demo-status` shows **0** gateway
+connections throughout — the quota stays rested.
 
-Not earlier than T−60: every minute of warm-up is viewing time.
+### 4.3 Go live (T−10) — about 2 minutes
 
-### 4.3 The ten-minute check (T−10)
+Same database (no `RESET=1`), now pointed at the live grid:
+
+```bash
+make demo-down && make demo CAMERAS=cam06
+```
+
+The catalogue sync re-points all 30 cameras to the government grid; the reads
+from the warm-up stay. This starts the quota clock: **about 25 minutes**, so
+do this at T−10, not earlier. If the slot is delayed, go back to the
+recording (`make demo-down && make demo SOURCE=mirror CAMERAS=cam06`) and
+come live again at the new T−10.
+
+### 4.4 The ten-minute check (T−8)
 
 - [ ] `make demo-status`: cam06 **live**, 1 gateway connection, no 403.
-- [ ] Find a Vehicle `GJ11S7924` → one sighting at 06:01:21 PM.
-      **If not yet:** wait until cam06's clock passes 18:01:21 again.
-- [ ] Alerts: `GJ03MH7800` is there. Leave it unacknowledged.
+- [ ] Find a Vehicle `GJ11CL9596` → one sighting at 09:22:44 PM.
+- [ ] Alerts: `DL1C1356` (wanted) is there. Leave it unacknowledged.
 - [ ] Safari, signed in, **one tab per screen** in this order: Overview,
       Cameras, Live Wall, Find a Vehicle, Alerts, Admin. Only one Live Wall
       tab — each one pulls video.
@@ -224,6 +270,11 @@ Not earlier than T−60: every minute of warm-up is viewing time.
 - [ ] Deck on slide 01, presenter view.
 - [ ] A Terminal window ready with the fallback command (§8, rung 3) typed
       but not run.
+
+**The jury will not see a fresh read of the SUV live**: the live feed may
+be anywhere in its loop, and a read already stored is not stored twice
+(§1). Beat 3 shows the camera live; Beat 4 traces what it read. Say so if
+asked.
 
 ---
 
@@ -288,23 +339,23 @@ The other three release in about ten seconds.
   here are about twenty pixels tall — no model reads them, and we won't
   guess. This is why a deployment chooses which cameras to read."* Then come
   back to cam06.
-- **If cam06's clock is near 18:01:** *"Watch the centre lane"* — the white
-  van passes at 18:01:21.
-- **If a plate flashes on the tile** (likely `GJ11CD8389` or `GJ23M1546`):
-  point at it — that is a read happening now.
+- **If cam06's clock is near 21:22:** *"Watch the car parked on the right"* —
+  the SUV is in shot from 21:22:44 for about 50 seconds.
+- **If a plate flashes on the tile:** point at it — that is a read happening
+  now. At night it is rare; do not wait for one.
 
-**Beat 4 — Trace** (1–2 min) · *type `gj11 s 7924` in the top search box →
+**Beat 4 — Trace** (1–2 min) · *type `gj11 cl 9596` in the top search box →
 Enter*
 
 > "Spacing and case don't matter. Here it is: Timbavadi Gate, Junagadh,
-> 18:01:21 on the camera's own clock, the plate as read, exact, and the frame
-> it came from — faces blurred."
+> 21:22:44 on the camera's own clock, the plate as read, exact, and the frame
+> it came from — at night, headlights on, faces blurred."
 
-Click the stop; point at the evidence frame and the van.
+Click the stop; point at the evidence frame and the plate on the SUV.
 
 For the professors, one of:
-- *"Search the plate with a letter O for the zero"* — type **GJ<u>O</u>3MH78<u>OO</u>** (letter O for each zero):
-  `GJ03MH7800` comes back. Look-alike characters are one rung of the search.
+- *"Search it with a letter S for the 5"* — type **GJ11CL9<u>S</u>96**:
+  `GJ11CL9596` comes back. Look-alike characters are one rung of the search.
 - *"A vehicle seen on two cameras is drawn as a route; one that would have
   to drive faster than 150 km/h between them is flagged, not drawn."*
 - If asked why one stop: *"Each camera on this grid replays a different
@@ -320,7 +371,7 @@ the spot**, with a chime.
 > sighting is on every open screen — and on an officer's phone."
 
 Open **Alerts**: one row per vehicle, ranked, lit until someone acts.
-`GJ03MH7800` (wanted) is there from this morning. Acknowledge it: *"that
+`DL1C1356` (wanted) is there from this morning. Acknowledge it: *"that
 action is now in the audit log."*
 
 **Beat 6 — Hand over** (1 min) · *Find a Vehicle → Export report*
@@ -342,7 +393,7 @@ Then **Admin → Audit log → Verify integrity**:
 
 | You see | Say and do |
 |---|---|
-| The search finds nothing | *"Not seen on the cameras we analysed — and the system will not invent a route."* Open **Health** to show cam06 analysed; widen the window to 48 h. Then trace `GJ03MH7800`. |
+| The search finds nothing | *"Not seen on the cameras we analysed — and the system will not invent a route."* Open **Health** to show cam06 analysed; widen the window to 48 h. Then trace `DL1C1356`. |
 | A tile says *Connecting…* | Go on with the trace — it reads from stored sightings, not the tile. Fix later (§9). |
 | `403` / tiles die mid-demo | *"The sandbox has a viewing quota; we've just used it. Here's the same grid, recorded."* Run the fallback (§8, rung 3) and talk through slides 05–06 while it starts. Calm and named is better than flawless. |
 | A banner arrives mid-sentence | Point at it: *"That's correlation running on another camera while we talk."* |
@@ -351,16 +402,16 @@ Then **Admin → Audit log → Verify integrity**:
 
 ## 7. The phone (optional)
 
-Add `PHONE=1` to the warm-up command. It opens a temporary public address to
+Add `PHONE=1` to the go-live command (§4.3). It opens a temporary public address to
 the API, redeploys the console to **https://sentinel-platform-bay.vercel.app**
 built against it, and prints a QR code for `/field`. Because the API is then
 on the internet, it runs in production mode with its own secrets and a
 **new admin password, printed at the end** — use that on the laptop too.
 
-- Scan the QR **after** the warm-up finishes and pull to refresh, so the
+- Scan the QR **after** going live and pull to refresh, so the
   phone loads tonight's build, not a cached one.
 - Show it after Beat 5: the same alert on the phone, then **Look up →
-  `GJ11S7924`**. Live video plays on the laptop only.
+  `GJ11CL9596`**. Live video plays on the laptop only.
 - If the venue blocks the tunnel, skip it — it is the one optional part.
 
 ---
@@ -378,7 +429,7 @@ runs on this one laptop; the recorded copy of the grid is already on it.
 | 4 | The laptop itself fails | Slides **05–09** are the same five steps as screenshots |
 
 **Rung 3, in detail.** No `RESET=1`: the database is kept, so everything read
-live today — `GJ11S7924` at 18:01:21, the `GJ03MH7800` alert, the audit log —
+live today — `GJ11CL9596` at 21:22:44, the `DL1C1356` alert, the audit log —
 is still there, and the trace works the moment the console is back. Every
 camera is re-pointed to its local recording, so tiles play again with no
 internet and no quota. It takes as long as you timed in §3.2; talk through
@@ -391,8 +442,8 @@ signed in; reload them once it is up.
   `make demo-down && make demo CAMERAS=cam06` — the catalogue sync re-points
   the cameras to the grid.
 - Database lost as well? `make demo SOURCE=mirror RESET=1 CAMERAS=cam06
-  WATCH="GJ03MH7800:wanted:critical"` starts from nothing; the van then
-  passes within one loop of cam06's recording (about 16 minutes).
+  WATCH="DL1C1356:wanted:critical"` starts from nothing; the SUV then
+  passes within one loop of cam06's recording (about 14 minutes).
 
 ---
 
@@ -432,9 +483,11 @@ credentials from `.env` on both laptops.
 | | |
 |---|---|
 | **Camera** | cam06 · Timbavadi Gate, Junagadh · Safari only (H.265) |
-| **Plate** | `GJ11S7924` · white Maruti Omni van · **18:01:21** on cam06's clock |
-| **Wanted, pre-armed** | `GJ03MH7800` · 18:02:49 · look-alike search: type **GJ<u>O</u>3MH78<u>OO</u>** (underlined: the letter O) |
-| **Start, T−40** | `make demo RESET=1 CAMERAS=cam06 WATCH="GJ03MH7800:wanted:critical"` |
+| **Plate** | `GJ11CL9596` · SUV parked on the right, headlights on · **21:22:44** on cam06's clock (night) |
+| **Wanted, pre-armed** | `DL1C1356` · 21:22:16 |
+| **Look-alike search** | type **GJ11CL9<u>S</u>96** (underlined: the letter S) → `GJ11CL9596` |
+| **Warm up, T−40** | `make demo SOURCE=mirror RESET=1 CAMERAS=cam06 WATCH="DL1C1356:wanted:critical"` — recording, no quota |
+| **Go live, T−10** | `make demo-down && make demo CAMERAS=cam06` — about 25 minutes of quota |
 | **Check** | `make demo-status` · 1 connection · no 403 |
 | **Stop** | `make demo-down` — always |
 | **Fallback** | `make demo-down && make demo SOURCE=mirror CAMERAS=cam06` — same laptop, today's reads kept |
