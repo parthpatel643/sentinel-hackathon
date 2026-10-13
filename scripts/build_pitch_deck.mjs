@@ -972,15 +972,16 @@ async function nextSlide() {
 // --- Appendix ---------------------------------------------------------------
 
 const APPENDIX = [
-  ['A1', 'Tech stack', 'Every part, and why it was chosen'],
-  ['A2', 'Our approach', 'A hybrid of the four reference models'],
-  ['A3', 'Camera tiers', 'How 80,000 cameras are sized'],
-  ['A4', 'Cost, line by line', 'Build and run'],
-  ['A5', 'Beyond number plates', 'Vehicles, people, zones, tamper'],
-  ['A6', 'Field app and languages', 'Phones, Hindi and Gujarati'],
-  ['A7', 'Operations', 'Health checks and integrations'],
-  ['A8', 'Approaches compared', 'Separate, centralised, Sentinel'],
-  ['A9', 'When the plate is unreadable', 'What exists, what is designed'],
+  ['A1', 'System architecture', 'Five layers, and what travels between them'],
+  ['A2', 'Tech stack', 'Every part, and why it was chosen'],
+  ['A3', 'Our approach', 'A hybrid of the four reference models'],
+  ['A4', 'Camera tiers', 'How 80,000 cameras are sized'],
+  ['A5', 'Cost, line by line', 'Build and run'],
+  ['A6', 'Beyond number plates', 'Vehicles, people, zones, tamper'],
+  ['A7', 'Field app and languages', 'Phones, Hindi and Gujarati'],
+  ['A8', 'Operations', 'Health checks and integrations'],
+  ['A9', 'Approaches compared', 'Separate, centralised, Sentinel'],
+  ['A10', 'When the plate is unreadable', 'What exists, what is designed'],
 ]
 
 function appendixDivider() {
@@ -999,6 +1000,85 @@ function appendixDivider() {
     text(s, sub, { x: x + 0.85, y: y + 0.4, w: cw - 1.0, h: 0.26, fontSize: 12, color: DARK_MUTED })
   }
   s.addNotes('Jump here for questions; each appendix slide stands alone.')
+}
+
+/** The whole system on one page: five layers bottom to top, what is inside
+ * each, one sized number per layer, what travels between them, and the
+ * controls that hold across all of them. Figures: docs/04-SCALE-PLAN.md. */
+async function systemArchitectureSlide() {
+  const s = frame({
+    kicker: 'System architecture',
+    title: 'Five layers, and what travels between them',
+    notes: [
+      'For the professors; read it bottom to top, one breath per layer.',
+      'Cameras are tiered: about one in eight reads plates continuously, a quarter are view-only, and the department sets the tier. Department systems are not touched: we pull read-only over RTSP, ONVIF or the vendor’s SDK, and their 7–15 days of footage stay where they are. Each district decodes and analyses its own video: the relay pulls each camera once, then vehicle and plate detection, plate reading with a multi-frame vote, the camera’s printed clock, and face blurring; what leaves is a 1 KB event and a 30 KB snapshot, over mTLS, queued on disk for up to 72 hours if the link drops. The state core matches every read against the watchlist, raises alerts, and answers searches from one PostgreSQL with PostGIS and TimescaleDB, with snapshots in object storage and a warm disaster-recovery site. At the top, the control rooms, the officers’ phones and the State’s databases.',
+      'Built versus designed, said plainly: the edge layer and the core services you saw run on this laptop today — the same code a district would run. High availability, the DR site and a statewide event bus are designed and sized, not deployed; the edge posts events over authenticated HTTP with an on-disk outbox today.',
+      'If asked about GPUs: about 560 L4s with one spare in every four, across the 34 district nodes, sized by camera tier from a vendor benchmark — the pilot measures it.',
+    ].join('\n\n'),
+  })
+  const layers = [
+    ['LuUsers', 'Officers and systems', 'consumers', 'Control-room console · field phone app · VAHAN · SARTHI · eGujCop · AFIS · NAFIS', 'Alerts on screen in ≈1 s', false],
+    ['LuDatabase', 'State core', 'high availability + warm DR', 'Ingest → watchlist matching → alerts · search API · PostgreSQL + PostGIS + TimescaleDB · object storage for snapshots', '≈563 events/s · ≈390 TB\nRPO 15 min · RTO 1 h', false],
+    ['LuCpu', 'District edge ×34', 'TODAY: THIS LAPTOP', 'Relay, one pull per camera → decode → vehicles, plates, plate reading + vote, camera clock, face blur → 72 h offline queue', '≈560 L4 GPUs\n+ edge boxes at remote sites', true],
+    ['LuBuilding2', 'Department systems', 'unchanged', 'Cameras, NVRs and VMS of 26 departments, keeping their own recording', '7–15 days of footage\nstays where it is', false],
+    ['LuCctv', 'Cameras, tiered', 'set per camera, changed live', 'Continuous · sampled · motion-triggered · view-only', '80,000 cameras\n12 / 28 / 35 / 25%', false],
+  ]
+  const flows = [
+    'REST + live events, scoped to each department in the database',
+    'per sighting: ≈1 KB event + ≈30 KB snapshot, over mTLS · ≈140 Mbps statewide',
+    'video, pulled read-only: RTSP · ONVIF · vendor SDK',
+    'video stays in the department',
+  ]
+  const top = 1.68
+  const rowH = 0.74
+  const gap = 0.28
+  const lw = 9.35
+  const xi = M + 3.0
+  const wi = 3.95
+  const xn = M + 7.05
+  const wn = lw - 7.05 - 0.2
+  for (const [i, [ic, name, sub, inside, number, edge]] of layers.entries()) {
+    const y = top + i * (rowH + gap)
+    panel(s, M, y, lw, rowH, edge ? { fill: INK, line: INK, radius: 0.04 } : { radius: 0.04 })
+    await glyph(s, ic, M + 0.2, y + 0.2, 0.34, edge ? AMBER : INK)
+    text(s, name, { x: M + 0.68, y: y + 0.1, w: 2.3, h: 0.32, fontFace: BB, fontSize: 14, color: edge ? DARK_INK : INK })
+    text(s, sub, {
+      x: M + 0.68, y: y + 0.42, w: 2.3, h: 0.26,
+      ...(edge ? { fontFace: MONO, bold: true, fontSize: 9.5, color: AMBER } : { fontSize: 10.5, color: MUTED }),
+    })
+    text(s, inside, { x: xi, y, w: wi, h: rowH, valign: 'middle', fontSize: 11, color: edge ? DARK_INK : INK2 })
+    text(s, number, { x: xn, y, w: wn, h: rowH, valign: 'middle', align: 'right', fontFace: D, fontSize: 13.5, color: edge ? DARK_INK : INK })
+    if (i < flows.length) {
+      const fy = y + rowH
+      // Drawn top-down with the head at its start: a negative height would
+      // corrupt the file (PowerPoint "repairs" it).
+      s.addShape(pres.shapes.LINE, {
+        x: M + 0.37, y: fy + 0.02, w: 0, h: gap - 0.04, line: { color: FAINT, width: 1.5, beginArrowType: 'triangle' },
+      })
+      text(s, flows[i], { x: M + 0.68, y: fy, w: lw - 0.8, h: gap, valign: 'middle', fontFace: MONO, fontSize: 9.5, color: MUTED })
+    }
+  }
+
+  const sx = M + lw + 0.3
+  const sw = W - M - sx
+  const sh = layers.length * rowH + (layers.length - 1) * gap
+  panel(s, sx, top, sw, sh, { fill: INSET, radius: 0.04 })
+  text(s, 'ACROSS EVERY LAYER', { x: sx + 0.2, y: top + 0.18, w: sw - 0.4, h: 0.26, fontFace: MONO, bold: true, fontSize: 10, color: MUTED })
+  const controls = [
+    ['LuLock', 'mTLS from edge to core'],
+    ['LuKeyRound', 'Each department sees its own, enforced in the database'],
+    ['LuFingerprint', 'Hash-chained audit of every search and export'],
+    ['LuEyeOff', 'Faces blurred; no face recognition'],
+    ['LuShieldCheck', 'Stream passwords never reach a browser'],
+  ]
+  let cy = top + 0.6
+  for (const [ic, label] of controls) {
+    await glyph(s, ic, sx + 0.2, cy + 0.02, 0.28, INK)
+    const lines = lineCount(label, 11.5, sw - 0.75, 0.44)
+    text(s, label, { x: sx + 0.58, y: cy, w: sw - 0.75, h: lineH(11.5, lines), fontSize: 11.5, color: INK })
+    cy += lineH(11.5, lines) + 0.24
+  }
+  source(s, 'Running on this laptop: the edge layer and the core services. Designed and sized, not deployed: high availability, the DR site, a statewide event bus. Figures: docs/04-SCALE-PLAN.md.', { y: 6.95, w: CW - 0.9 })
 }
 
 async function stackSlide() {
@@ -1030,7 +1110,7 @@ async function approachSlide() {
   const s = frame({
     kicker: 'Our approach',
     title: 'A hybrid of the four reference models',
-    notes: 'This answers the brief’s “which model, and why”. Model 1’s registry and GIS is the foundation everything stands on. Model 2 gives one console that views and analyses every accessible stream. Model 3’s adapters mean no department changes its system — a new vendor is a driver, verified by a conformance suite. Model 4’s central recording is used only where it pays off — critical cameras and alert clips — because full centralisation needs a backbone the State does not have (slide 11).',
+    notes: 'This answers the brief’s “which model, and why”. Model 1’s registry and GIS is the foundation everything stands on. Model 2 gives one console that views and analyses every accessible stream. Model 3’s adapters mean no department changes its system — a new vendor is a driver, verified by a conformance suite. Model 4’s central recording is used only where it pays off — critical cameras and alert clips — because full centralisation needs a backbone the State does not have (slide 13).',
   })
   const models = [
     ['MODEL 1', 'Registry and GIS', 'Every camera on one map, with health, coverage gaps and an ageing-asset work list.', 'FOUNDATION', 'Everything else stands on it.'],
@@ -1271,7 +1351,7 @@ async function main() {
     await build()
   }
   appendixDivider()
-  for (const build of [stackSlide, approachSlide, tierSlide, costDetailSlide, beyondSlide, fieldSlide, opsSlide, compareSlide, unreadableSlide]) {
+  for (const build of [systemArchitectureSlide, stackSlide, approachSlide, tierSlide, costDetailSlide, beyondSlide, fieldSlide, opsSlide, compareSlide, unreadableSlide]) {
     await build()
   }
   await pres.writeFile({ fileName: OUT })

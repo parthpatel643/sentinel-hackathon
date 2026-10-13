@@ -12,7 +12,7 @@ trace, and what to do when something breaks. The reasoning behind it is in
 | **Laptop** | **The M2** (this MacBook) — the deck, the console and the live government grid, `make demo` |
 | **Fallback** | The same laptop, switched to its recorded copy of the grid — offline, no quota, today's reads kept (§8) |
 | **Phone** | Field app on Vercel (optional, `PHONE=1`) |
-| **Deck** | `docs/Sentinel-Finale-Pitch.pptx`, 15 slides + appendix A1–A9 |
+| **Deck** | `docs/Sentinel-Finale-Pitch.pptx`, 15 slides + appendix A1–A10 |
 | **Narrator** | Parth — faces the jury, never touches the keyboard |
 | **Driver** | Anuj — keyboard and mouse; watches `make demo-status` between beats |
 
@@ -240,7 +240,7 @@ Not earlier than T−60: every minute of warm-up is viewing time.
 | 12:30 | 12–13 | Onboarding; analyse where it is filmed |
 | 15:00 | 14 | Cost, "order of magnitude" before the first number |
 | 16:30 | 15 | Start with one district; three asks; close and stop talking |
-| 18:00 | A1–A9 | Questions: type the slide number and press Enter (A1 = 17 … A9 = 25) |
+| 18:00 | A1–A10 | Questions: type the slide number and press Enter (A1 = 17 … A10 = 26). A1 is the system architecture. |
 
 **If they ask for the trace first**, go straight to slide 04 and §6, then
 come back to slide 02. **If time runs short**, cut slide 12 and give slide 14

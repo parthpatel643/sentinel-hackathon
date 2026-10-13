@@ -267,7 +267,7 @@ npm run docs:pdf      # build docs/Sentinel-Platform-HLD.pdf (61pp, gitignored)
 
 ```bash
 make deck             # build docs/Sentinel-Platform-Deck.pptx (15 slides, gitignored)
-make pitch            # build docs/Sentinel-Finale-Pitch.pptx (15-slide pitch built around the live trace, a 9-slide appendix, speaker notes included)
+make pitch            # build docs/Sentinel-Finale-Pitch.pptx (15-slide pitch built around the live trace, a 10-slide appendix, speaker notes included)
 ```
 
 The submission PDF is deliberately not committed — a checked-in PDF that
