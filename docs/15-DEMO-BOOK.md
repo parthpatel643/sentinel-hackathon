@@ -107,6 +107,8 @@ and the live grid is used for the slot only (§4.3).
 - **Analyse cam06 only** (`CAMERAS=cam06`). The wall can still show four
   cameras live: a view-only tile pulls only while it is on screen and is
   released about 10 seconds after you leave it.
+- **If the panel picks a camera to read, swap it for cam06 — do not add
+  it** (§6.1). Swapping keeps one connection; adding halves what is left.
 - **Nothing else pulls with our credentials** — no other laptop, no teammate
   testing from home. The quota is the account's, not this laptop's.
 - **Leave the Live Wall when you are not using it.** It opens in 2×2 with the
@@ -132,11 +134,12 @@ lsof -nP -iTCP@103.250.160.189:8554 -sTCP:ESTABLISHED | grep -c ESTABLISHED
 ## 3. This morning
 
 Everything is already on this laptop: dependencies, models, `.env` with the
-government credentials, and a recording of this morning's live feed in
-`data/gov-mirror/` (13 Oct, 06:53–07:40): cam06 and cam01 about 14 minutes
-each, cam05 14, cam30 about 6. The 8 Oct recording of all 30 cameras is kept
-in `data/gov-mirror-2026-10-08/` — its footage is no longer what the grid
-plays. Nothing to install or copy.
+government credentials, and a recording of this morning's live feed of the
+**four demo cameras** in `data/gov-mirror/` (13 Oct, 06:53–07:40): cam06,
+cam01 and cam05 about 14 minutes each, cam30 about 6. Only these four are
+recorded — they are the four on the wall. (The 8 Oct recording of all 30 is
+kept in `data/gov-mirror-2026-10-08/`; its footage is no longer what the grid
+plays.) Nothing to install or copy.
 
 > **Login on this laptop** is the password `make demo` prints — not the
 > published `sentinel-admin-2026`. Last night's phone test replaced it, and it
@@ -335,10 +338,9 @@ The other three release in about ten seconds.
 > "This is the camera. Look at the top left: that date and time is printed
 > by the camera itself. Every sighting carries that time, not our laptop's."
 
-- **If they name a different camera:** open it first, honestly. *"Plates
-  here are about twenty pixels tall — no model reads them, and we won't
-  guess. This is why a deployment chooses which cameras to read."* Then come
-  back to cam06.
+- **If they name a different camera:** open it in Focus view — that costs
+  nothing extra while the Live Wall shows only it. If they want it
+  *processed*, not just watched, go to §6.1.
 - **If cam06's clock is near 21:22:** *"Watch the car parked on the right"* —
   the SUV is in shot from 21:22:44 for about 50 seconds.
 - **If a plate flashes on the tile:** point at it — that is a read happening
@@ -389,6 +391,71 @@ Then **Admin → Audit log → Verify integrity**:
 
 **Back to the deck: slide 10.**
 
+### 6.1 When the panel picks the camera to process
+
+They may say *"monitor camera 14 and trace a vehicle from it."* Watching it
+is free (Beat 3). **Reading plates on it needs the worker restarted on that
+camera** — about 1–2 minutes (the same as §4.3's go-live; time it in §3.2).
+There is no console control for this: the camera screen shows its tier but
+cannot change it. Do **not** start a second worker beside the first: on
+start, a worker releases any government stream it did not open itself, so it
+would cut cam06 from under the running one.
+
+**1. Find the camera's id.** The number in a camera's name is **not** always
+its id — from the 23rd camera on they differ. Read the id under the camera's
+name on the Cameras screen, or use this:
+
+| Panel says | Id | | Panel says | Id |
+|---|---|---|---|---|
+| 01 … 20 | cam01 … cam20 (same) | | 34 dhanori | cam25 |
+| 23 Patan Dethali | cam21 | | 35 Tankal | cam26 |
+| 28 BK Mervada | cam22 | | 36 / 37 / 38 Bilimora | cam27 / cam28 / cam29 |
+| 30 Kheram | cam23 | | Gandhidham Rambaugh | cam30 |
+| 33 Dehgam | cam24 | | | |
+
+H.265 cameras play only in Safari: cam06, cam12, cam17, cam18, cam22, cam26.
+
+**2. Say what to expect, before you type.**
+
+> "We'll start reading that camera now. Two things to know: it can only find
+> vehicles from this moment on — search works on what has been read — and on
+> this grid most cameras show plates about twenty pixels tall, which no model
+> reads. If that's the case here, it will say nothing rather than guess."
+
+**3. Swap — same database, one connection** (in the Terminal window):
+
+```bash
+make demo-down && make demo CAMERAS=cam14 OPEN=0
+```
+
+- **No `RESET=1`:** everything read today stays — the `GJ11CL9596` trace and
+  the `DL1C1356` alert still work while their camera starts.
+- `OPEN=0` keeps your Safari tabs; reload them when it says `✓ 1 of 1
+  analysed cameras live`.
+- While it restarts, carry on with Beat 4 on `GJ11CL9596` from the stored
+  reads, so the jury is never watching a terminal.
+
+**4. Watch it read.** Live Wall → Focus view → their camera. A plate the
+pipeline reads appears in the tile's top-right corner for about 30 seconds,
+roughly half a minute after the vehicle passes. Type that plate into the
+search box, then Beats 4–6 on it.
+
+**5. If nothing is read in about two minutes,** say so plainly and point at
+why, using the frame on screen: the plate's size, the angle, the darkness.
+
+> "Nothing readable on this camera — which is the right answer: the platform
+> refuses to invent a plate. In a deployment, this camera would be set to
+> view-only and analysis spent where plates are legible."
+
+Then show it was processed: **Cameras → Table**, their camera's row reads
+`ANPR n fps` and `n vehicles in view` — analysed, vehicles seen, no plate
+legible. (Overview → *ANPR activity* lists only cameras that have read a
+plate, so theirs will not appear there.)
+
+**Do not add it alongside cam06** (`CAMERAS=cam06,cam14`) unless the quota
+was rested within the last few minutes: two connections run it out in about
+fifteen (§2). If they want cam06 back afterwards, swap again the same way.
+
 ### If something goes wrong in the middle
 
 | You see | Say and do |
@@ -427,6 +494,10 @@ runs on this one laptop; the recorded copy of the grid is already on it.
 | 2 | Laptop struggling (lag growing, fans) | `make demo-down && make demo CAMERAS=cam06 STRIDE=4` |
 | 3 | Quota spent, grid down, or venue blocks 8554 | **Switch to the recorded copy:** `make demo-down && make demo SOURCE=mirror CAMERAS=cam06` |
 | 4 | The laptop itself fails | Slides **05–09** are the same five steps as screenshots |
+
+**On the recording, use only the four recorded cameras** — cam06, cam01,
+cam05, cam30, the 2×2 wall. The other 26 still point at the grid after a live
+sync, so opening one of their tiles would pull from it.
 
 **Rung 3, in detail.** No `RESET=1`: the database is kept, so everything read
 live today — `GJ11CL9596` at 21:22:44, the `DL1C1356` alert, the audit log —
@@ -488,6 +559,7 @@ credentials from `.env` on both laptops.
 | **Look-alike search** | type **GJ11CL9<u>S</u>96** (underlined: the letter S) → `GJ11CL9596` |
 | **Warm up, T−40** | `make demo SOURCE=mirror RESET=1 CAMERAS=cam06 WATCH="DL1C1356:wanted:critical"` — recording, no quota |
 | **Go live, T−10** | `make demo-down && make demo CAMERAS=cam06` — about 25 minutes of quota |
+| **Panel picks a camera** | `make demo-down && make demo CAMERAS=cam14 OPEN=0` — swap, not add; id ≠ name number from 23 on (§6.1) |
 | **Check** | `make demo-status` · 1 connection · no 403 |
 | **Stop** | `make demo-down` — always |
 | **Fallback** | `make demo-down && make demo SOURCE=mirror CAMERAS=cam06` — same laptop, today's reads kept |
@@ -498,6 +570,7 @@ credentials from `.env` on both laptops.
 | Before the wait | "Several frames must agree — about half a minute." |
 | Asked why one stop | "Each camera here replays a different day." |
 | Asked why it didn't flash again | "One read per camera, plate and printed second." |
+| Their camera, before the swap | "Only from this moment on; it may read nothing rather than guess." |
 
 | Number | Value |
 |---|---|
